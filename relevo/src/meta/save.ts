@@ -1,7 +1,8 @@
 import type { HintKey } from '../game/Course';
 import type { SkinId } from '../game/sprites';
 import { todayKey } from '../util/math';
-import { missionFor, type MissionId } from './missions';
+import { missionsFor, type AchievementId, type LifetimeStats, type MissionState } from './missions';
+import type { DailyState } from './progress';
 
 /**
  * Guardado local. Nada de esto tiene valor económico: las monedas sólo desbloquean
@@ -18,7 +19,11 @@ export interface SaveData {
   skin: SkinId;
   muted: boolean;
   hints: Partial<Record<HintKey, number>>;
-  mission: { day: string; id: MissionId; progress: number; done: boolean };
+  missions: { day: string; list: MissionState[]; chestClaimed: boolean };
+  achievements: AchievementId[];
+  stats: LifetimeStats;
+  daily: DailyState;
+  reto: { day: string; best: number; attempts: number };
   firstOpen: string | null;
   lastOpen: string | null;
   daysPlayed: number;
@@ -35,7 +40,11 @@ function defaults(): SaveData {
     skin: 'ambar',
     muted: false,
     hints: {},
-    mission: { day, id: missionFor(day), progress: 0, done: false },
+    missions: { day, list: missionsFor(day), chestClaimed: false },
+    achievements: [],
+    stats: { relays: 0, perfects: 0, golds: 0, runs: 0, bestChain: 0, lanterns: 0 },
+    daily: { last: null, streak: 0 },
+    reto: { day, best: 0, attempts: 0 },
     firstOpen: null,
     lastOpen: null,
     daysPlayed: 0,
@@ -45,7 +54,11 @@ function defaults(): SaveData {
 function read(): SaveData {
   try {
     const raw = localStorage.getItem(KEY);
-    return raw ? { ...defaults(), ...JSON.parse(raw) } : defaults();
+    if (!raw) return defaults();
+    const d: SaveData = { ...defaults(), ...JSON.parse(raw) };
+    // Guardados de la primera versión: arrancan las estadísticas con lo que ya se sabe.
+    if (!d.stats.runs && d.runs) d.stats = { ...d.stats, runs: d.runs, bestChain: d.bestChain };
+    return d;
   } catch {
     return defaults();
   }
@@ -56,9 +69,10 @@ let cache: SaveData | null = null;
 export const Save = {
   get data(): SaveData {
     if (!cache) cache = read();
-    // La misión cambia a medianoche (hora local).
+    // Misiones y reto cambian a medianoche (hora local).
     const day = todayKey();
-    if (cache.mission.day !== day) cache.mission = { day, id: missionFor(day), progress: 0, done: false };
+    if (cache.missions.day !== day) cache.missions = { day, list: missionsFor(day), chestClaimed: false };
+    if (cache.reto.day !== day) cache.reto = { day, best: 0, attempts: 0 };
     return cache;
   },
 

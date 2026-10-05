@@ -1,17 +1,28 @@
 import { CONFIG } from '../config';
+import { Ads, type AdPlacement } from '../ads';
 import { Analytics } from '../analytics';
 import { Sfx } from '../audio/Sfx';
-import { MISSIONS, nextProgress, type RunStats } from '../meta/missions';
+import {
+  ACHIEVEMENT_ORDER,
+  ACHIEVEMENTS,
+  isMissionDone,
+  MISSIONS,
+  nextProgress,
+  type AchievementId,
+  type RunStats,
+} from '../meta/missions';
+import { dailyStatus, lantern } from '../meta/progress';
 import { Save } from '../meta/save';
 import { Telegram } from '../telegram';
-import { UI, HINTS, type DeathReason } from '../ui/UI';
-import { damp, rng, todayKey } from '../util/math';
+import { UI, HINTS, type DeathReason, type LobbyData } from '../ui/UI';
+import { damp, hashString, rng, todayKey } from '../util/math';
 import { createRow, judge, leafPose, occupant, updateRow, type Leaf, type LeafType, type Row } from './Course';
 import { Particles } from './Particles';
 import { SKINS, SPARK_LIFT, type SkinId } from './sprites';
 import { View } from './View';
 
-type Phase = 'menu' | 'playing' | 'dying' | 'over';
+type Phase = 'menu' | 'playing' | 'dying' | 'revive' | 'over';
+type Mode = 'normal' | 'reto';
 
 /** Hoja que lleva la chispa (o la que la está por recibir). */
 export interface Carrier {
@@ -83,8 +94,18 @@ export class Game {
   private nextTick = 0;
   private dyingT = 0;
   private death: { reason: DeathReason; delta?: number } | null = null;
-  private rand = Math.random;
+  private seed = 1;
+  private mode: Mode = 'normal';
   private beatRecord = false;
+  private revivesUsed = 0;
+  /** Índice del próximo farol a encender en esta partida. */
+  private lanternIdx = 0;
+  private lanternsLit = 0;
+  private lanternCoins = 0;
+  private lastRunCoins = 0;
+  private doubled = false;
+  /** Hay un anuncio en pantalla: se ignoran otros pedidos. */
+  private adBusy = false;
   private lastFrame = performance.now();
   private hintShown: string | null = null;
   private autoplay: boolean;
@@ -99,17 +120,29 @@ export class Game {
     if (this.autoplay) Analytics.disable();
 
     this.ui = new UI({
-      onPlay: () => this.start(false),
-      onRetry: () => this.start(true),
+      onPlay: () => this.start(false, 'normal'),
+      onPlayReto: () => this.start(false, 'reto'),
+      onRetry: () => this.start(true, this.mode),
       onMenu: () => this.toMenu(),
       onShare: () => void this.share(),
+      onShareReto: () => void this.shareReto(),
       onMute: () => this.toggleMute(),
       onSkin: (id) => this.chooseSkin(id),
+      onClaimDaily: (double) => void this.claimDaily(double),
+      onClaimMission: (i) => this.claimMission(i),
+      onClaimChest: () => this.claimChest(),
+      onClaimAchievement: (id) => this.claimAchievement(id as AchievementId),
+      onRevive: () => void this.acceptRevive(),
+      onDeclineRevive: () => this.declineRevive(),
+      onDouble: () => void this.doubleCoins(),
     });
     this.ui.setMuted(save.muted);
+    // La primera partida nunca tiene anuncios; después se precarga el SDK.
+    if (save.runs >= CONFIG.revive.minRunsBefore) Ads.preload();
 
     this.trackOpen();
     this.toMenu();
+    if (Telegram.startParam?.startsWith('reto')) this.ui.openModal('reto');
     this.bindInput();
     requestAnimationFrame(this.frame);
   }
@@ -134,14 +167,19 @@ export class Game {
     };
   }
 
+  /** Cada relevo tiene su propia semilla: en el reto del día, el relevo N es igual para todos. */
+  private rowRand(n: number): () => number {
+    return rng(hashString(`${this.seed}:${n}`));
+  }
+
   private resetWorld(seed: number, gap: number): void {
-    this.rand = rng(seed);
+    this.seed = seed;
     this.particles.clear();
     this.ghosts = [];
     this.incoming = null;
     this.carrier = { x: 200, y: 0, angle: 0, type: 'normal', vx: 0 };
     this.spark = this.freshSpark();
-    this.row = createRow(0, this.carrier.x, -gap, this.rand);
+    this.row = createRow(0, this.carrier.x, -gap, this.rowRand(0));
     this.camY = this.carrier.y - this.anchor();
   }
 
@@ -156,11 +194,13 @@ export class Game {
     this.ui.showMenu(this.menuData());
   }
 
-  private start(retry: boolean): void {
+  private start(retry: boolean, mode: Mode): void {
     this.sfx.unlock();
     this.sfx.click();
     this.phase = 'playing';
-    this.resetWorld((Math.random() * 2 ** 32) >>> 0, this.view.rowGap());
+    this.mode = mode;
+    const seed = mode === 'reto' ? hashString(`reto:${todayKey()}`) : (Math.random() * 2 ** 32) >>> 0;
+    this.resetWorld(seed, this.view.rowGap());
     this.paused = false;
     this.chain = 0;
     this.score = 0;
@@ -174,13 +214,22 @@ export class Game {
     this.death = null;
     this.beatRecord = false;
     this.hintShown = null;
+    this.revivesUsed = 0;
+    this.lanternIdx = 0;
+    this.lanternsLit = 0;
+    this.lanternCoins = 0;
 
     const save = Save.data;
-    this.ui.showHud(save.bestChain, save.coins);
+    this.ui.showHud(save.bestChain, save.coins, mode === 'reto');
+    this.ui.setLantern(lantern(0), 0, 0);
     this.onRowStart();
 
-    Analytics.track('run_started', { run_index: save.runs + 1, retry, skin: this.skin });
+    Analytics.track('run_started', { run_index: save.runs + 1, retry, skin: this.skin, mode });
     if (save.runs === 0) Analytics.track('first_run_started');
+    if (mode === 'reto') {
+      Save.update((d) => d.reto.attempts++);
+      Analytics.track('daily_challenge_started', { attempt: Save.data.reto.attempts });
+    }
   }
 
   /** Cada relevo nuevo: tutorial contextual. */
@@ -218,8 +267,8 @@ export class Game {
         this.tap(e.timeStamp);
       } else if (e.code === 'Space' || e.code === 'Enter') {
         e.preventDefault();
-        if (this.phase === 'menu') this.start(false);
-        else if (this.phase === 'over') this.start(true);
+        if (this.phase === 'menu') this.start(false, 'normal');
+        else if (this.phase === 'over') this.start(true, this.mode);
       }
     });
     document.addEventListener('visibilitychange', () => {
@@ -364,12 +413,32 @@ export class Game {
       this.ui.recordBeaten();
       this.particles.text('¡Nuevo récord!', 200, this.carrier.y - 110, '#ffd76a', 24, 1.4);
     }
+    this.checkLantern();
 
-    this.row = createRow(this.chain, this.carrier.x, this.carrier.y - this.view.rowGap(), this.rand);
+    this.row = createRow(this.chain, this.carrier.x, this.carrier.y - this.view.rowGap(), this.rowRand(this.chain));
     this.fuseLeft = this.row.fuse;
     this.grace = this.runTime + CONFIG.timing.landGrace;
     this.nextTick = 0;
     this.onRowStart();
+  }
+
+  /** Faroles: hitos que pagan monedas durante la partida. */
+  private checkLantern(): void {
+    const L = lantern(this.lanternIdx);
+    if (this.chain >= L.at) {
+      this.lanternIdx++;
+      this.lanternsLit++;
+      this.lanternCoins += L.reward;
+      this.ui.bumpCoins(L.reward);
+      this.ui.lanternLit();
+      this.sfx.record();
+      Telegram.success();
+      this.particles.burst(200, this.carrier.y - 140, '#ffb347', 30, 200, 9);
+      this.particles.text(`¡Farol encendido! +${L.reward}`, 200, this.carrier.y - 140, '#ffd76a', 24, 1.5);
+      Analytics.track('lantern_lit', { at: L.at, reward: L.reward });
+    }
+    const prevAt = this.lanternIdx > 0 ? lantern(this.lanternIdx - 1).at : 0;
+    this.ui.setLantern(lantern(this.lanternIdx), prevAt, this.chain);
   }
 
   /** Toque sobre una hoja seca: la chispa salta... y se apaga ahí. */
@@ -408,37 +477,158 @@ export class Game {
     this.view.shake(6);
   }
 
+  // ------------------------------------------------------------ revivir
+
+  /**
+   * Se ofrece revivir sólo cuando hay algo que perder: una cadena larga, un récord
+   * o un farol cerca. Con una cadena corta, reintentar es más rápido que un anuncio.
+   */
+  private canRevive(): boolean {
+    const r = CONFIG.revive;
+    return (
+      this.mode === 'normal' &&
+      this.chain >= r.minChain &&
+      this.revivesUsed < r.perRun &&
+      Save.data.runs >= r.minRunsBefore
+    );
+  }
+
+  /** Lo que el jugador pierde si no revive (lo más fuerte primero). */
+  private reviveStakes(): string[] {
+    const out: string[] = [];
+    const best = Save.data.bestChain;
+    if (best >= this.chain) {
+      const miss = best + 1 - this.chain;
+      if (miss <= 8) out.push(`Te ${miss === 1 ? 'falta' : 'faltan'} <b>${miss}</b> para tu récord (${best})`);
+    } else {
+      out.push('Estás en <b>récord</b>: cada relevo lo agranda');
+    }
+    const L = lantern(this.lanternIdx);
+    const left = L.at - this.chain;
+    if (left <= 8) out.push(`Farol ${L.at} a <b>${left}</b> ${left === 1 ? 'relevo' : 'relevos'}: +${L.reward} monedas`);
+    const mult = 1 + Math.floor(this.chain / CONFIG.score.chainStep);
+    if (mult > 1) out.push(`Conservás el multiplicador <b>×${mult}</b>`);
+    if (!out.length) out.push(`Seguís desde la cadena <b>${this.chain}</b>`);
+    return out.slice(0, 3);
+  }
+
+  private offerRevive(): void {
+    this.phase = 'revive';
+    this.ui.showRevive({
+      chain: this.chain,
+      mult: 1 + Math.floor(this.chain / CONFIG.score.chainStep),
+      stakes: this.reviveStakes(),
+      seconds: CONFIG.revive.offerSeconds,
+    });
+    Analytics.track('ad_offer_shown', { ad_placement: 'revive', ad_format: Ads.format, chain: this.chain });
+  }
+
+  /** Muestra un anuncio recompensado y devuelve si se completó. */
+  private async rewarded(placement: AdPlacement): Promise<boolean> {
+    this.adBusy = true;
+    Analytics.track('ad_accepted', { ad_placement: placement, ad_format: Ads.format });
+    this.sfx.suspend();
+    const ok = await Ads.showRewarded(placement);
+    this.sfx.unlock();
+    this.adBusy = false;
+    Analytics.track(ok ? 'ad_completed' : 'ad_failed', { ad_placement: placement, ad_format: Ads.format });
+    if (!ok) this.ui.toast('No hay anuncio disponible ahora');
+    return ok;
+  }
+
+  private async acceptRevive(): Promise<void> {
+    if (this.phase !== 'revive' || this.adBusy) return;
+    this.ui.reviveLoading();
+    const ok = await this.rewarded('revive');
+    if (this.phase !== 'revive') return;
+    if (ok) this.revive();
+    else this.endRun();
+  }
+
+  private declineRevive(): void {
+    if (this.phase !== 'revive' || this.adBusy) return;
+    Analytics.track('ad_declined', { ad_placement: 'revive', chain: this.chain });
+    this.endRun();
+  }
+
+  /** Vuelve a la hoja segura con la cadena, el multiplicador y los faroles intactos. */
+  private revive(): void {
+    this.revivesUsed++;
+    if (this.incoming) this.ghosts.push({ ...this.incoming, vx: 0, vy: 30, alpha: 1, fade: 0.8 });
+    this.incoming = null;
+    if (this.row) {
+      for (const l of this.row.leaves)
+        this.ghosts.push({ x: l.x, y: l.y, angle: l.angle, type: l.type, vx: 0, vy: 0, alpha: l.alpha, fade: 0.4 });
+    }
+    const s = this.spark;
+    s.state = 'idle';
+    s.t = 0;
+    s.toLeaf = null;
+    s.landT = 0;
+    s.happyT = 1;
+
+    this.phase = 'playing';
+    this.death = null;
+    this.row = createRow(
+      this.chain,
+      this.carrier.x,
+      this.carrier.y - this.view.rowGap(),
+      this.rowRand(this.chain),
+      CONFIG.revive.firstArrival,
+    );
+    this.fuseLeft = this.row.fuse;
+    this.grace = this.runTime + CONFIG.revive.grace;
+    this.nextTick = 0;
+
+    const light = SKINS[this.skin].light;
+    this.particles.burst(this.carrier.x, this.carrier.y - SPARK_LIFT, light, 34, 220, 9);
+    this.particles.wave(this.carrier.x, this.carrier.y, 40, 16, '#fff1c2', 0.8);
+    this.particles.text('¡Seguís!', this.carrier.x, this.carrier.y - 50, '#fff1c2', 28, 1.2);
+    this.sfx.record();
+    Telegram.success();
+    this.ui.resumeHud();
+    this.ui.showHint('Tocá cuando se encienda el aro');
+    this.hintShown = 'revive';
+    Analytics.track('revive_used', { chain: this.chain });
+  }
+
   // ------------------------------------------------------------ fin de partida
 
   private endRun(): void {
     this.phase = 'over';
     const eco = CONFIG.economy;
-    const coins = eco.coinsPerRun + Math.floor(this.chain / eco.relaysPerCoin) + this.golds * eco.coinsPerGold;
+    const coins =
+      eco.coinsPerRun + Math.floor(this.chain / eco.relaysPerCoin) + this.golds * eco.coinsPerGold + this.lanternCoins;
+    this.lastRunCoins = coins;
+    this.doubled = false;
+    const reto = this.mode === 'reto';
     const stats: RunStats = {
       chain: this.chain,
       score: this.score,
       perfects: this.perfects,
       bestStreak: this.bestStreak,
       golds: this.golds,
+      lanterns: this.lanternsLit,
       duration: this.runTime,
+      reto,
     };
     const prevBest = Save.data.bestChain;
     const isRecord = this.chain > prevBest;
-    let missionDone = false;
 
     const save = Save.update((d) => {
       d.runs++;
       d.coins += coins;
       d.bestChain = Math.max(d.bestChain, this.chain);
       d.bestScore = Math.max(d.bestScore, this.score);
-      if (!d.mission.done) {
-        d.mission.progress = nextProgress(d.mission.id, d.mission.progress, stats);
-        if (d.mission.progress >= MISSIONS[d.mission.id].target) {
-          d.mission.done = true;
-          d.coins += eco.missionReward;
-          missionDone = true;
-        }
-      }
+      if (reto) d.reto.best = Math.max(d.reto.best, this.chain);
+      const st = d.stats;
+      st.runs++;
+      st.relays += this.chain;
+      st.perfects += this.perfects;
+      st.golds += this.golds;
+      st.lanterns += this.lanternsLit;
+      st.bestChain = Math.max(st.bestChain, this.chain);
+      for (const m of d.missions.list) if (!m.claimed) m.progress = nextProgress(m, stats);
     });
 
     const reason = this.death?.reason ?? 'fuse';
@@ -449,17 +639,24 @@ export class Game {
       combo: this.bestStreak,
       perfects: this.perfects,
       golds: this.golds,
+      lanterns: this.lanternsLit,
+      revives: this.revivesUsed,
+      mode: this.mode,
       duration: Math.round(this.runTime * 10) / 10,
     });
     Analytics.track('currency_earned', { amount: coins, source: 'run' });
     if (isRecord && this.chain > 0) Analytics.track('personal_best', { chain: this.chain, previous: prevBest });
-    if (missionDone) {
-      Analytics.track('mission_completed', { id: save.mission.id });
-      Analytics.track('currency_earned', { amount: eco.missionReward, source: 'mission' });
-      Telegram.success();
-    }
 
-    const m = MISSIONS[save.mission.id];
+    const lobby = this.menuData();
+    const ready =
+      lobby.missions.filter((m) => m.done && !m.claimed).length +
+      lobby.achievements.filter((a) => a.done && !a.claimed).length;
+    if (ready) Telegram.success();
+
+    // "Duplicar monedas": nunca en la primera partida de la vida.
+    const canDouble = coins >= CONFIG.ads.doubleMinCoins && save.runs > CONFIG.revive.minRunsBefore;
+    if (canDouble) Analytics.track('ad_offer_shown', { ad_placement: 'double', ad_format: Ads.format, coins });
+
     this.ui.showResults({
       reason,
       delta: this.death?.delta,
@@ -469,25 +666,145 @@ export class Game {
       score: this.score,
       perfects: this.perfects,
       coins,
-      totalCoins: save.coins,
-      mission: { text: m.text, progress: save.mission.progress, target: m.target, done: save.mission.done, justDone: missionDone },
+      canDouble,
+      reto,
+      retoBest: save.reto.best,
+      missionsReady: ready,
+      lanterns: this.lanternsLit,
     });
   }
 
-  private menuData() {
+  private async doubleCoins(): Promise<void> {
+    if (this.phase !== 'over' || this.doubled || this.adBusy) return;
+    this.ui.doubleLoading(true);
+    const ok = await this.rewarded('double');
+    this.ui.doubleLoading(false);
+    if (!ok || this.doubled) return;
+    this.doubled = true;
+    Save.update((d) => (d.coins += this.lastRunCoins));
+    Analytics.track('currency_earned', { amount: this.lastRunCoins, source: 'ad_double' });
+    this.sfx.record();
+    this.ui.setDoubled(this.lastRunCoins * 2);
+  }
+
+  // ------------------------------------------------------------ lobby
+
+  private menuData(): LobbyData {
     const save = Save.data;
-    const m = MISSIONS[save.mission.id];
+    const missions = save.missions.list.map((m) => {
+      const def = MISSIONS[m.id];
+      return { text: def.text, progress: m.progress, target: def.target, reward: def.reward, done: isMissionDone(m), claimed: m.claimed };
+    });
+    const achievements = ACHIEVEMENT_ORDER.map((id) => {
+      const def = ACHIEVEMENTS[id];
+      const progress = def.value(save.stats);
+      return { id, text: def.text, progress, target: def.target, reward: def.reward, done: progress >= def.target, claimed: save.achievements.includes(id) };
+    });
+    const now = new Date();
+    const midnight = new Date(now);
+    midnight.setHours(24, 0, 0, 0);
+    const mins = Math.max(1, Math.round((midnight.getTime() - now.getTime()) / 60000));
     return {
-      best: save.bestChain,
       coins: save.coins,
+      best: save.bestChain,
       skin: this.skin,
       owned: save.skins,
-      mission: { text: m.text, progress: save.mission.progress, target: m.target, done: save.mission.done, reward: CONFIG.economy.missionReward },
+      daily: dailyStatus(save.daily, save.skins.includes(CONFIG.daily.skin)),
+      reto: {
+        best: save.reto.best,
+        attempts: save.reto.attempts,
+        dateLabel: now.toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' }),
+      },
+      missions,
+      chest: { claimed: save.missions.chestClaimed, done: save.missions.list.filter((m) => m.claimed).length, reward: CONFIG.economy.chestReward },
+      achievements,
+      resetIn: mins >= 60 ? `${Math.floor(mins / 60)} h ${mins % 60} min` : `${mins} min`,
       showStats: new URLSearchParams(location.search).has('stats'),
     };
   }
 
-  private chooseSkin(id: SkinId): 'selected' | 'bought' | 'poor' {
+  private refreshLobby(gained: number): void {
+    if (this.phase !== 'menu') return;
+    this.ui.showMenu(this.menuData());
+    if (gained > 0) {
+      this.ui.coinsBump();
+      this.sfx.record();
+      Telegram.success();
+    }
+  }
+
+  private async claimDaily(double: boolean): Promise<void> {
+    if (this.adBusy) return;
+    this.sfx.unlock();
+    const save = Save.data;
+    const st = dailyStatus(save.daily, save.skins.includes(CONFIG.daily.skin));
+    if (!st.claimable) return;
+    let coins = st.coins;
+    if (double) {
+      if (!(await this.rewarded('daily'))) return;
+      coins *= 2;
+    }
+    Save.update((d) => {
+      d.daily = { last: todayKey(), streak: st.day };
+      d.coins += coins;
+      if (st.skin) d.skins.push(CONFIG.daily.skin);
+    });
+    Analytics.track('daily_reward_claimed', { day: st.day, coins, doubled: double });
+    Analytics.track('currency_earned', { amount: coins, source: double ? 'daily_x2' : 'daily' });
+    if (st.skin) Analytics.track('cosmetic_unlocked', { skin: CONFIG.daily.skin, source: 'daily' });
+    this.ui.toast(st.skin ? `+${coins} monedas y la chispa Aurora` : `+${coins} monedas`);
+    this.refreshLobby(coins);
+  }
+
+  private claimMission(i: number): void {
+    const m = Save.data.missions.list[i];
+    if (!m || m.claimed || !isMissionDone(m)) return;
+    const reward = MISSIONS[m.id].reward;
+    Save.update((d) => {
+      d.missions.list[i].claimed = true;
+      d.coins += reward;
+    });
+    Analytics.track('mission_completed', { id: m.id });
+    Analytics.track('currency_earned', { amount: reward, source: 'mission' });
+    this.ui.toast(`+${reward} monedas`);
+    this.refreshLobby(reward);
+  }
+
+  private claimChest(): void {
+    const ms = Save.data.missions;
+    if (ms.chestClaimed || !ms.list.every((m) => m.claimed)) return;
+    const reward = CONFIG.economy.chestReward;
+    Save.update((d) => {
+      d.missions.chestClaimed = true;
+      d.coins += reward;
+    });
+    Analytics.track('currency_earned', { amount: reward, source: 'chest' });
+    this.ui.toast(`¡Cofre abierto! +${reward} monedas`);
+    this.refreshLobby(reward);
+  }
+
+  private claimAchievement(id: AchievementId): void {
+    const save = Save.data;
+    const def = ACHIEVEMENTS[id];
+    if (!def || save.achievements.includes(id) || def.value(save.stats) < def.target) return;
+    Save.update((d) => {
+      d.achievements.push(id);
+      if (typeof def.reward === 'number') d.coins += def.reward;
+      else if (!d.skins.includes(def.reward)) d.skins.push(def.reward);
+    });
+    Analytics.track('achievement_claimed', { id });
+    if (typeof def.reward === 'number') {
+      Analytics.track('currency_earned', { amount: def.reward, source: 'achievement' });
+      this.ui.toast(`+${def.reward} monedas`);
+      this.refreshLobby(def.reward);
+    } else {
+      Analytics.track('cosmetic_unlocked', { skin: def.reward, source: 'achievement' });
+      this.ui.toast(`¡Desbloqueaste la chispa ${SKINS[def.reward].name}!`);
+      this.refreshLobby(1);
+    }
+  }
+
+  private chooseSkin(id: SkinId): 'selected' | 'bought' | 'poor' | 'locked' {
     const save = Save.data;
     this.sfx.unlock();
     if (save.skins.includes(id)) {
@@ -497,27 +814,45 @@ export class Game {
       this.ui.showMenu(this.menuData());
       return 'selected';
     }
-    const price = SKINS[id].price;
-    if (save.coins < price) return 'poor';
+    const st = SKINS[id];
+    if (st.unlock) return 'locked';
+    if (save.coins < st.price) return 'poor';
     Save.update((d) => {
-      d.coins -= price;
+      d.coins -= st.price;
       d.skins.push(id);
       d.skin = id;
     });
     this.skin = id;
     this.sfx.record();
-    Analytics.track('currency_spent', { amount: price, item: id });
-    Analytics.track('cosmetic_unlocked', { skin: id });
+    Analytics.track('currency_spent', { amount: st.price, item: id });
+    Analytics.track('cosmetic_unlocked', { skin: id, source: 'shop' });
     this.ui.showMenu(this.menuData());
     return 'bought';
   }
 
+  private shareLink(param?: string): string {
+    if (CONFIG.shareUrl) return param ? `${CONFIG.shareUrl}?startapp=${param}` : CONFIG.shareUrl;
+    return location.href.split('?')[0];
+  }
+
   private async share(): Promise<void> {
     const best = Save.data.bestChain;
-    const text = `Sostuve la chispa ${this.chain} relevos en Relevo de Luz ✨ (récord ${best}). ¿Llegás a ${Math.max(this.chain + 1, 10)}?`;
-    const url = CONFIG.shareUrl || location.href.split('?')[0];
-    Analytics.track('share_clicked', { chain: this.chain });
-    const how = await Telegram.share(text, url);
+    const text =
+      this.mode === 'reto'
+        ? `Reto del día de Relevo de Luz: hice ${this.chain} relevos ✨ Es la misma partida para todos. ¿Me superás?`
+        : `Sostuve la chispa ${this.chain} relevos en Relevo de Luz ✨ (récord ${best}). ¿Llegás a ${Math.max(this.chain + 1, 10)}?`;
+    Analytics.track('share_clicked', { chain: this.chain, mode: this.mode });
+    const how = await Telegram.share(text, this.shareLink(this.mode === 'reto' ? 'reto' : undefined));
+    if (how === 'copied') this.ui.toast('Copiado: pegalo en un chat');
+  }
+
+  private async shareReto(): Promise<void> {
+    const best = Save.data.reto.best;
+    const text = best
+      ? `Reto del día de Relevo de Luz: hice ${best} relevos ✨ Misma partida para todos. ¿Me superás?`
+      : 'Reto del día de Relevo de Luz ✨ Misma partida para todos. ¿Quién llega más lejos?';
+    Analytics.track('share_clicked', { chain: best, mode: 'reto_invite' });
+    const how = await Telegram.share(text, this.shareLink('reto'));
     if (how === 'copied') this.ui.toast('Copiado: pegalo en un chat');
   }
 
@@ -561,7 +896,7 @@ export class Game {
     if (this.paused) return;
 
     // En la derrota todo pasa en cámara lenta: se ve exactamente qué pasó.
-    const world = this.phase === 'dying' || this.phase === 'over' ? dt * 0.3 : dt;
+    const world = this.phase === 'playing' || this.phase === 'menu' ? dt : dt * 0.3;
 
     if (this.phase === 'playing') this.runTime += dt;
     if (this.row) updateRow(this.row, world);
@@ -590,7 +925,10 @@ export class Game {
 
     if (this.phase === 'dying') {
       this.dyingT += dt;
-      if (this.dyingT >= CONFIG.timing.deathDelay) this.endRun();
+      if (this.dyingT >= CONFIG.timing.deathDelay) {
+        if (this.canRevive()) this.offerRevive();
+        else this.endRun();
+      }
     }
   }
 

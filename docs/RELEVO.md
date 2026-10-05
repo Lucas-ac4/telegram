@@ -28,12 +28,48 @@
 | Botón compartir récord dentro de Telegram | ✅ |
 | Telemetría | ✅ eventos de la sección 12, guardados en el dispositivo |
 | Modo de bajo rendimiento | ✅ automático si el teléfono no llega a ~40 FPS |
-| Anuncios (Monetag) | ⏸ a propósito: la propuesta dice validar retención primero |
+| Anuncios recompensados (Monetag) | ✅ revivir, duplicar monedas y regalo diario ×2 — siempre opcionales |
 | Premios en dinero | ⏸ apagado (la propuesta lo deja fuera del MVP) |
+
+## Anuncios: por qué alguien mira uno para revivir
+
+Nadie mira un anuncio para "seguir jugando" si perder no le cuesta nada. El anuncio rinde cuando, en el momento exacto de morir, el jugador **ve lo que está por perder** y revivir es barato y seguro.
+
+1. **Hay algo en juego.** Durante la partida se encienden **faroles** (cadena 10, 25, 40, 60, 80, 100 y luego cada 25) que pagan monedas (+3, +6, +10…). El HUD muestra siempre el próximo: "Farol 25 · +6". También están el multiplicador (×2, ×3…) y el récord.
+2. **La pantalla de revivir nombra la pérdida**, lo más fuerte primero: "Te faltan 2 para tu récord (24)", "Farol 25 a 3 relevos: +6 monedas", "Conservás el multiplicador ×3".
+3. **Barato y sin riesgo:** un toque, el anuncio y volvés a la hoja segura con mecha llena, la primera hoja tarda más en llegar y un cartel "Tocá cuando se encienda el aro".
+4. **Escaso y con urgencia:** 1 vez por partida y cuenta regresiva de 5 s.
+5. **Sólo cuando vale la pena:** desde cadena 8 (antes, "UNA MÁS" es más rápido que un anuncio) y nunca en la primera partida de la vida (la propuesta pide primera sesión sin anuncios). El reto del día no tiene revivir.
+
+Otros dos lugares con anuncio, siempre opcionales:
+
+- **Duplicar monedas** en la pantalla de resultados (si la partida dio 3 o más).
+- **Regalo diario ×2.**
+
+Las monedas sólo compran apariencias: nunca dinero ni puntos canjeables.
+
+Para anuncios reales, compilar con `VITE_MONETAG_ZONE=<id de zona>`. Usa el SDK de Monetag para Telegram (`libtl.com/sdk.js` + `show_<zona>()`); verificar el código de la zona en el panel de Monetag. Sin zona aparece un **anuncio de prueba** de 3 s para probar todo el flujo.
+
+Métricas en el panel `?stats=1`: revivir ofrecido / aceptado, duplicar aceptado, anuncios completos y anuncios por partida.
+
+## Lobby
+
+Tres pestañas abajo, con puntos rojos cuando hay algo para cobrar:
+
+- **Inicio:** JUGAR, récord y dos accesos:
+  - **Regalo diario:** racha de 7 días (+5 … +50); el día 7 regala la chispa exclusiva **Aurora**.
+  - **Reto diario:** la misma partida para todos ese día, sin revivir, con tu mejor marca, intentos y "Desafiar a un amigo".
+- **Misiones:**
+  - **3 misiones diarias** que se cobran a mano.
+  - **Cofre del día** (+25) cuando cobrás las tres.
+  - **Logros** permanentes: cadena 10, 25 y 50 (este último regala la chispa **Estrella**), 100 perfectos, 20 doradas y 50 partidas.
+- **Chispas:** 6 apariencias por rareza: Común, Rara, Épica (Brasa, 120) y Exclusiva (se ganan, no se compran).
+
+El ranking semanal queda para cuando haya backend: sin servidor no hay jugadores reales para mostrar.
 
 ## Tecnología
 
-Canvas 2D + TypeScript + Vite, **sin librerías**: el juego completo pesa ~22 KB comprimido y no carga imágenes ni audios (todo se dibuja y se sintetiza por código). La propuesta sugería Phaser; para una sola pantalla con un toque no hacía falta y así carga instantáneo dentro de Telegram. Si más adelante hay muchas escenas, se puede migrar.
+Canvas 2D + TypeScript + Vite, **sin librerías**: el juego completo pesa ~32 KB comprimido y no carga imágenes ni audios (todo se dibuja y se sintetiza por código). La propuesta sugería Phaser; para una sola pantalla con un toque no hacía falta y así carga instantáneo dentro de Telegram. Si más adelante hay muchas escenas, se puede migrar.
 
 ```text
 relevo/
@@ -75,6 +111,8 @@ Un jugador perfecto llega a 30 relevos en ~40 s (la propuesta pide partidas de 3
 - Para mandar los eventos a un servidor propio: compilar con `VITE_ANALYTICS_URL=https://...` (POST JSON por lotes).
 - `?autoplay` juega solo (sirve para grabar clips o probar; no guarda métricas).
 
+Eventos de anuncios: `ad_offer_shown`, `ad_accepted`, `ad_completed`, `ad_failed`, `ad_declined` (con `ad_placement`: revive / double / daily), `revive_used`, `lantern_lit`, `daily_reward_claimed`, `daily_challenge_started`, `achievement_claimed`.
+
 Eventos: `install_or_first_open`, `session_started`, `telegram_launch_source`, `tutorial_started`, `first_run_started`, `run_started`, `pass_attempted`, `pass_success`, `pass_perfect`, `run_ended` (death_reason, score, chain, combo, duration), `personal_best`, `mission_completed`, `currency_earned`, `currency_spent`, `cosmetic_unlocked`, `share_clicked`.
 
 ## Publicar en Telegram
@@ -87,5 +125,5 @@ Eventos: `install_or_first_open`, `session_started`, `telegram_launch_source`, `
 
 1. Jugar 20 pruebas reales y mirar "Datos de prueba": ¿reintentan? ¿dónde mueren?
 2. Backend chico (Node + Postgres): validar `initData`, guardar récords, ranking semanal, reto diario con semilla común (el generador ya usa semillas).
-3. Recién con retención validada: Monetag rewarded cosmético (segunda oportunidad / duplicar monedas).
+3. Poner la zona real de Monetag y comparar cohortes: si el revivir baja la retención, subir `revive.minChain`.
 4. Premios en dinero: sólo después de ingresos cobrados, reglas publicadas y confirmación escrita de Monetag y PayPal.

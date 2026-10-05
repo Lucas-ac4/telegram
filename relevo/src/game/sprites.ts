@@ -13,11 +13,14 @@ export interface Sprite {
   h: number;
 }
 
-export type SkinId = 'ambar' | 'erizo' | 'luna';
+export type SkinId = 'ambar' | 'erizo' | 'luna' | 'brasa' | 'aurora' | 'estrella';
 
 export interface SkinStyle {
   name: string;
+  rarity: 'Común' | 'Rara' | 'Épica' | 'Exclusiva';
+  /** Precio en monedas. 0 + `unlock` = no se compra, se gana. */
   price: number;
+  unlock?: string;
   glow: string;
   /** Color de las partículas y del puente. */
   light: string;
@@ -29,12 +32,37 @@ export interface SkinStyle {
 }
 
 export const SKINS: Record<SkinId, SkinStyle> = {
-  ambar: { name: 'Ámbar', price: 0, glow: '#ffae3d', light: '#ffc861', eye: '#3b1a05', eyeX: 0, eyeY: 3, eyeGap: 8.4 },
-  erizo: { name: 'Erizo', price: 30, glow: '#62d4ff', light: '#9fe8ff', eye: '#0d2a55', eyeX: 0, eyeY: 2.5, eyeGap: 8.4 },
-  luna: { name: 'Luna', price: 60, glow: '#b9a6ff', light: '#d8ccff', eye: '#2c2160', eyeX: -3.6, eyeY: 4.5, eyeGap: 7.2 },
+  ambar: { name: 'Ámbar', rarity: 'Común', price: 0, glow: '#ffae3d', light: '#ffc861', eye: '#3b1a05', eyeX: 0, eyeY: 3, eyeGap: 8.4 },
+  erizo: { name: 'Erizo', rarity: 'Rara', price: 30, glow: '#62d4ff', light: '#9fe8ff', eye: '#0d2a55', eyeX: 0, eyeY: 2.5, eyeGap: 8.4 },
+  luna: { name: 'Luna', rarity: 'Rara', price: 60, glow: '#b9a6ff', light: '#d8ccff', eye: '#2c2160', eyeX: -3.6, eyeY: 4.5, eyeGap: 7.2 },
+  brasa: { name: 'Brasa', rarity: 'Épica', price: 120, glow: '#ff6a3d', light: '#ff9a6a', eye: '#3a0a00', eyeX: 0.5, eyeY: 3, eyeGap: 8.4 },
+  aurora: {
+    name: 'Aurora',
+    rarity: 'Exclusiva',
+    price: 0,
+    unlock: 'Regalo diario: día 7',
+    glow: '#5fffd0',
+    light: '#9dffe0',
+    eye: '#0b3340',
+    eyeX: 0,
+    eyeY: 3,
+    eyeGap: 8.4,
+  },
+  estrella: {
+    name: 'Estrella',
+    rarity: 'Exclusiva',
+    price: 0,
+    unlock: 'Logro: cadena 50',
+    glow: '#ffe27a',
+    light: '#fff0a8',
+    eye: '#4a3000',
+    eyeX: 0,
+    eyeY: 3,
+    eyeGap: 6.6,
+  },
 };
 
-export const SKIN_ORDER: SkinId[] = ['ambar', 'erizo', 'luna'];
+export const SKIN_ORDER: SkinId[] = ['ambar', 'erizo', 'luna', 'brasa', 'aurora', 'estrella'];
 
 export function makeSprite(w: number, h: number, k: number, draw: (ctx: CanvasRenderingContext2D) => void): Sprite {
   const canvas = document.createElement('canvas');
@@ -252,6 +280,29 @@ function sparkBodyPath(ctx: CanvasRenderingContext2D, skin: SkinId): void {
       if (i === 0) ctx.moveTo(x, y);
       else ctx.lineTo(x, y);
     }
+  } else if (skin === 'brasa') {
+    // Llama con dos puntas
+    ctx.moveTo(4, -19);
+    ctx.bezierCurveTo(5, -10, 11.5, -6, 11.5, 3);
+    ctx.arc(0, 3, 11.5, 0, Math.PI, false);
+    ctx.bezierCurveTo(-11.5, -4, -10, -8, -8, -14);
+    ctx.bezierCurveTo(-5.5, -9, -3.5, -8, -1.5, -10);
+    ctx.bezierCurveTo(-0.5, -14, 1.5, -16, 4, -19);
+  } else if (skin === 'aurora') {
+    // Gota redondeada
+    ctx.moveTo(0, -17);
+    ctx.bezierCurveTo(7, -9, 12, -3, 12, 3);
+    ctx.arc(0, 3, 12, 0, Math.PI, false);
+    ctx.bezierCurveTo(-12, -3, -7, -9, 0, -17);
+  } else if (skin === 'estrella') {
+    for (let i = 0; i <= 10; i++) {
+      const a = (i / 10) * Math.PI * 2 - Math.PI / 2;
+      const r = i % 2 === 0 ? 15.5 : 8;
+      const x = Math.cos(a) * r;
+      const y = Math.sin(a) * r + 3;
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
   } else {
     ctx.arc(0, 2, 12.5, 0, Math.PI * 2);
   }
@@ -262,6 +313,9 @@ const SPARK_GRADIENT: Record<SkinId, [string, string, string, string]> = {
   ambar: ['#fffbe0', '#ffd36b', '#ff9a2a', '#ff7a12'],
   erizo: ['#f4fdff', '#aef0ff', '#5ab8f0', '#2f7fd8'],
   luna: ['#ffffff', '#ece6ff', '#b7a8ff', '#7d6ae0'],
+  brasa: ['#fff0d0', '#ffb36b', '#ff5a2a', '#c82a10'],
+  aurora: ['#f2fff8', '#9dffd6', '#4fd6c0', '#5a6ee0'],
+  estrella: ['#ffffff', '#fff3b0', '#ffd34a', '#e8a020'],
 };
 
 function drawSparkBody(ctx: CanvasRenderingContext2D, skin: SkinId): void {
@@ -284,6 +338,12 @@ function drawSparkBody(ctx: CanvasRenderingContext2D, skin: SkinId): void {
   sparkBodyPath(g, skin);
   g.fillStyle = grad;
   g.fill();
+  if (skin === 'estrella') {
+    g.strokeStyle = grad;
+    g.lineJoin = 'round';
+    g.lineWidth = 3.5;
+    g.stroke();
+  }
   if (skin === 'luna') {
     g.globalCompositeOperation = 'destination-out';
     g.beginPath();
@@ -501,7 +561,7 @@ export function buildSprites(k: number): SpriteSet {
   const spark = (s: SkinId) => makeSprite(56, 56, k, (c) => drawSparkBody(c, s));
   return {
     leaves: { normal: leaf('normal'), gold: leaf('gold'), dry: leaf('dry') },
-    sparks: { ambar: spark('ambar'), erizo: spark('erizo'), luna: spark('luna') },
+    sparks: Object.fromEntries(SKIN_ORDER.map((id) => [id, spark(id)])) as Record<SkinId, Sprite>,
     fern: makeSprite(140, 80, k, drawFern),
     bells: makeSprite(80, 120, k, drawBells),
     lotus: makeSprite(80, 60, k, drawLotus),

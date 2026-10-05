@@ -88,9 +88,13 @@ function hintFor(n: number): HintKey | null {
   return null;
 }
 
-/** Crea el relevo `n`. `fromX` es la posición de la hoja que tiene la chispa. */
-export function createRow(n: number, fromX: number, y: number, rand: () => number): Row {
+/**
+ * Crea el relevo `n`. `fromX` es la posición de la hoja que tiene la chispa.
+ * `firstArrival` permite dar más tiempo a la primera hoja (por ejemplo, al revivir).
+ */
+export function createRow(n: number, fromX: number, y: number, rand: () => number, firstArrival?: number): Row {
   const p = difficulty(n);
+  if (firstArrival !== undefined) p.firstArrival = Math.max(p.firstArrival, firstArrival);
 
   let speed = p.speed;
   if (n >= D.speedJitter.startAt) speed *= 1 + (rand() * 2 - 1) * D.speedJitter.amount;

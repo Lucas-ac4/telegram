@@ -114,6 +114,10 @@ export const Analytics = {
     for (const c of chains) buckets[c < 5 ? 0 : c < 10 ? 1 : c < 20 ? 2 : c < 30 ? 3 : 4][1]++;
 
     const pct = (a: number, b: number) => (b ? `${Math.round((a / b) * 100)}%` : '—');
+    const ads = (name: string, placement: string) => of(name).filter((e) => e.props?.ad_placement === placement).length;
+    const reviveOffers = ads('ad_offer_shown', 'revive');
+    const reviveAccepted = ads('ad_accepted', 'revive');
+    const accepted = of('ad_accepted').length;
     return {
       rows: [
         ['Sesiones', String(sessions)],
@@ -128,6 +132,11 @@ export const Analytics = {
         ['Precisión de pases', pct(success, attempts)],
         ['Pases perfectos', pct(perfect, success)],
         ['Compartidos', String(of('share_clicked').length)],
+        ['Revivir ofrecido', String(reviveOffers)],
+        ['Revivir aceptado', pct(reviveAccepted, reviveOffers)],
+        ['Duplicar aceptado', pct(ads('ad_accepted', 'double'), ads('ad_offer_shown', 'double'))],
+        ['Anuncios completos', pct(of('ad_completed').length, accepted)],
+        ['Anuncios por partida', ended.length ? (of('ad_completed').length / ended.length).toFixed(2) : '—'],
       ] as [string, string][],
       reasons: Object.entries(reasons).sort((a, b) => b[1] - a[1]).map(([k, v]) => [k, pct(v, ended.length)] as [string, string]),
       buckets: buckets.map(([k, v]) => [k, pct(v, ended.length)] as [string, string]),

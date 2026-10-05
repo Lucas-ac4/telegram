@@ -64,7 +64,47 @@ export const CONFIG = {
     /** +1 moneda cada N relevos. */
     relaysPerCoin: 5,
     coinsPerGold: 1,
-    missionReward: 10,
+    /** Cofre del día: se abre al cobrar las 3 misiones. */
+    chestReward: 25,
+  },
+
+  /**
+   * Faroles: hitos dentro de la partida que pagan monedas.
+   * Son lo que hace que morir "duela" y que revivir valga la pena.
+   */
+  lanterns: {
+    at: [10, 25, 40, 60, 80, 100],
+    rewards: [3, 6, 10, 15, 20, 25],
+    /** Después del último: uno cada `every` relevos, con `rewardAfter` monedas. */
+    every: 25,
+    rewardAfter: 30,
+  },
+
+  /** Revivir viendo un anuncio (rewarded). */
+  revive: {
+    /** Con menos relevos, reintentar es más rápido que mirar un anuncio: no se ofrece. */
+    minChain: 8,
+    perRun: 1,
+    /** Segundos para decidir. */
+    offerSeconds: 5,
+    /** Partidas jugadas antes de ofrecerlo (la primera partida nunca tiene anuncios). */
+    minRunsBefore: 1,
+    /** La primera hoja después de revivir tarda más en llegar: volver a entrar en ritmo. */
+    firstArrival: 1.6,
+    grace: 0.5,
+  },
+
+  /** Recompensa diaria con racha de 7 días (el día 7 trae una chispa exclusiva). */
+  daily: {
+    rewards: [5, 10, 15, 20, 30, 40, 50],
+    skin: 'aurora',
+  },
+
+  ads: {
+    /** Zona de Monetag (rewarded interstitial). Sin zona se usa un anuncio de prueba. */
+    monetagZone: (import.meta.env.VITE_MONETAG_ZONE as string | undefined) ?? '',
+    /** Ofrecer "duplicar monedas" sólo si la partida dio al menos esto. */
+    doubleMinCoins: 3,
   },
 
   /** Textos de tutorial: se muestran hasta que el jugador los vio esta cantidad de veces. */
