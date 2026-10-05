@@ -39,6 +39,11 @@ export const Telegram = {
     return webApp()?.platform ?? 'web';
   },
 
+  /** Nombre para mostrar (no verificado: sólo visual). */
+  get firstName(): string | null {
+    return webApp()?.initDataUnsafe.user?.first_name ?? null;
+  },
+
   /** Parámetro del deep link (t.me/bot/app?startapp=...). Sirve para medir de dónde vienen. */
   get startParam(): string | null {
     const app = webApp();

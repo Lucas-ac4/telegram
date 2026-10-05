@@ -5,21 +5,28 @@ import { Sfx } from '../audio/Sfx';
 import {
   ACHIEVEMENT_ORDER,
   ACHIEVEMENTS,
-  isMissionDone,
-  MISSIONS,
-  nextProgress,
+  applyEvent,
+  applyRun,
+  DAILY,
+  isDone,
+  WEEKLY,
   type AchievementId,
+  type MissionDef,
+  type MissionEvent,
+  type MissionState,
   type RunStats,
 } from '../meta/missions';
-import { dailyStatus, lantern } from '../meta/progress';
-import { Save } from '../meta/save';
+import { dailyStatus, lantern, levelFromXp, levelReward, untilNextWeek, untilTomorrow } from '../meta/progress';
+import { Save, type SaveData } from '../meta/save';
 import { Telegram } from '../telegram';
-import { UI, HINTS, type DeathReason, type LobbyData } from '../ui/UI';
+import { UI, HINTS, type DeathReason, type LobbyData, type PowerState } from '../ui/UI';
 import { damp, hashString, rng, todayKey } from '../util/math';
-import { createRow, judge, leafPose, occupant, updateRow, type Leaf, type LeafType, type Row } from './Course';
+import { createRow, judge, leafPose, occupant, ringXAt, updateRow, type Leaf, type LeafType, type Row, type RowOpts } from './Course';
 import { Particles } from './Particles';
-import { SKINS, SPARK_LIFT, type SkinId } from './sprites';
+import { POWERS, type PowerId } from './powers';
+import { SKIN_ORDER, SKINS, SPARK_LIFT, type Perk, type SkinId } from './sprites';
 import { View } from './View';
+import { ZONES, zoneIndex } from './zones';
 
 type Phase = 'menu' | 'playing' | 'dying' | 'revive' | 'over';
 type Mode = 'normal' | 'reto';
@@ -59,8 +66,15 @@ export interface Spark {
   blinkAt: number;
 }
 
+interface Landing {
+  perfect: boolean;
+  gold: boolean;
+  power: PowerId | null;
+}
+
 /**
- * Orquesta el juego: estados, loop, toques, reglas de puntaje y conexión con UI, sonido y telemetría.
+ * Orquesta el juego: estados, loop, toques, reglas de puntaje, mundos, potenciadores
+ * y la conexión con UI, sonido y telemetría.
  * El dibujo vive en View; la generación de relevos y el juicio de cada toque en Course.
  */
 export class Game {
@@ -83,6 +97,7 @@ export class Game {
 
   // Partida
   chain = 0;
+  zone = 0;
   private score = 0;
   private perfects = 0;
   streak = 0;
@@ -97,19 +112,29 @@ export class Game {
   private seed = 1;
   private mode: Mode = 'normal';
   private beatRecord = false;
-  private revivesUsed = 0;
-  /** Índice del próximo farol a encender en esta partida. */
-  private lanternIdx = 0;
-  private lanternsLit = 0;
-  private lanternCoins = 0;
-  private lastRunCoins = 0;
-  private doubled = false;
-  /** Hay un anuncio en pantalla: se ignoran otros pedidos. */
-  private adBusy = false;
   private lastFrame = performance.now();
   private hintShown: string | null = null;
   private autoplay: boolean;
-  private pendingLanding: { perfect: boolean; gold: boolean } | null = null;
+  private pendingLanding: Landing | null = null;
+
+  // Faroles, revivir, potenciadores y habilidad del personaje
+  private revivesUsed = 0;
+  private lanternIdx = 0;
+  private lanternsLit = 0;
+  private lanternCoins = 0;
+  private magnetCoins = 0;
+  private lastRunCoins = 0;
+  private doubled = false;
+  private adBusy = false;
+  shields = 0;
+  private magnetLeft = 0;
+  private calmLeft = 0;
+  private fuseBoostLeft = 0;
+  private phoenixLeft = 0;
+  private powersCaught = 0;
+  private fragiles = 0;
+  /** Habilidad activa (null en el reto: ahí todos juegan igual). */
+  private perk: Perk | null = null;
 
   constructor(container: HTMLElement) {
     this.view = new View(container);
@@ -129,9 +154,11 @@ export class Game {
       onMute: () => this.toggleMute(),
       onSkin: (id) => this.chooseSkin(id),
       onClaimDaily: (double) => void this.claimDaily(double),
-      onClaimMission: (i) => this.claimMission(i),
-      onClaimChest: () => this.claimChest(),
+      onClaimMission: (weekly, i) => this.claimMission(weekly, i),
+      onClaimChest: (weekly) => this.claimChest(weekly),
       onClaimAchievement: (id) => this.claimAchievement(id as AchievementId),
+      onClaimZone: (i) => this.claimZone(i),
+      onBoost: (withAd) => void this.buyBoost(withAd),
       onRevive: () => void this.acceptRevive(),
       onDeclineRevive: () => this.declineRevive(),
       onDouble: () => void this.doubleCoins(),
@@ -172,6 +199,27 @@ export class Game {
     return rng(hashString(`${this.seed}:${n}`));
   }
 
+  /** Modificadores del próximo relevo: personaje, potenciadores activos y hoja frágil. */
+  private rowOpts(extra: RowOpts = {}): RowOpts {
+    const perk = this.perk;
+    const P = CONFIG.powers;
+    let fuseMul = perk?.kind === 'fuse' ? perk.value : 1;
+    if (this.fuseBoostLeft > 0) fuseMul *= P.fuseBoost;
+    if (this.carrier.type === 'fragile') fuseMul *= CONFIG.difficulty.fragile.fuseMul;
+    return {
+      fuseMul,
+      speedMul: this.calmLeft > 0 ? P.calmSpeed : 1,
+      ringMul: perk?.kind === 'ring' ? perk.value : 1,
+      goldMul: perk?.kind === 'gold' ? perk.value : 1,
+      powerMul: perk?.kind === 'power' ? perk.value : 1,
+      ...extra,
+    };
+  }
+
+  private makeRow(extra: RowOpts = {}): Row {
+    return createRow(this.chain, this.carrier.x, this.carrier.y - this.view.rowGap(), this.rowRand(this.chain), this.rowOpts(extra));
+  }
+
   private resetWorld(seed: number, gap: number): void {
     this.seed = seed;
     this.particles.clear();
@@ -179,7 +227,10 @@ export class Game {
     this.incoming = null;
     this.carrier = { x: 200, y: 0, angle: 0, type: 'normal', vx: 0 };
     this.spark = this.freshSpark();
-    this.row = createRow(0, this.carrier.x, -gap, this.rowRand(0));
+    this.chain = 0;
+    this.zone = 0;
+    this.view.setZone(0, true);
+    this.row = createRow(0, this.carrier.x, -gap, this.rowRand(0), this.rowOpts());
     this.camY = this.carrier.y - this.anchor();
   }
 
@@ -190,6 +241,7 @@ export class Game {
 
   private toMenu(): void {
     this.phase = 'menu';
+    this.perk = null;
     this.resetWorld(1, Math.min(150, this.view.rowGap()));
     this.ui.showMenu(this.menuData());
   }
@@ -199,10 +251,15 @@ export class Game {
     this.sfx.click();
     this.phase = 'playing';
     this.mode = mode;
+    const save = Save.data;
+    this.perk = mode === 'reto' ? null : SKINS[this.skin].perk;
+    this.shields = 0;
+    this.magnetLeft = 0;
+    this.calmLeft = 0;
+    this.fuseBoostLeft = 0;
     const seed = mode === 'reto' ? hashString(`reto:${todayKey()}`) : (Math.random() * 2 ** 32) >>> 0;
     this.resetWorld(seed, this.view.rowGap());
     this.paused = false;
-    this.chain = 0;
     this.score = 0;
     this.perfects = 0;
     this.streak = 0;
@@ -218,13 +275,24 @@ export class Game {
     this.lanternIdx = 0;
     this.lanternsLit = 0;
     this.lanternCoins = 0;
+    this.magnetCoins = 0;
+    this.powersCaught = 0;
+    this.fragiles = 0;
+    this.phoenixLeft = this.perk?.kind === 'phoenix' ? this.perk.value : 0;
+    if (this.perk?.kind === 'shield') this.shields += this.perk.value;
+    let boosted = false;
+    if (mode === 'normal' && save.boost.shield) {
+      this.shields++;
+      boosted = true;
+      Save.update((d) => (d.boost.shield = false));
+    }
 
-    const save = Save.data;
     this.ui.showHud(save.bestChain, save.coins, mode === 'reto');
     this.ui.setLantern(lantern(0), 0, 0);
+    this.ui.setPowers(this.powerState());
     this.onRowStart();
 
-    Analytics.track('run_started', { run_index: save.runs + 1, retry, skin: this.skin, mode });
+    Analytics.track('run_started', { run_index: save.runs + 1, retry, skin: this.skin, mode, boost_shield: boosted });
     if (save.runs === 0) Analytics.track('first_run_started');
     if (mode === 'reto') {
       Save.update((d) => d.reto.attempts++);
@@ -250,6 +318,10 @@ export class Game {
       this.ui.showHint(null);
       this.hintShown = null;
     }
+  }
+
+  private powerState(): PowerState {
+    return { shield: this.shields, magnet: this.magnetLeft, calm: this.calmLeft, fuse: this.fuseBoostLeft };
   }
 
   // ------------------------------------------------------------ input
@@ -308,11 +380,12 @@ export class Game {
       speed: Math.round(row.speed),
       ring: Math.round(row.ringR),
       leaf: occ ? occ.leaf.type : 'none',
+      zone: this.zone,
     });
 
     if (j.kind === 'hit') this.pass(j.leaf, t, j.precision, j.perfect);
-    else if (j.kind === 'dry') this.jumpTo(j.leaf, t, true);
-    else this.miss(j.kind, j.kind === 'empty' ? undefined : j.delta);
+    else if (j.kind === 'dry') this.jumpToDry(j.leaf, t);
+    else this.miss(t, j.kind, j.kind === 'empty' ? undefined : j.delta);
   }
 
   // ------------------------------------------------------------ pases
@@ -320,11 +393,13 @@ export class Game {
   private catchLeaf(leaf: Leaf, t: number): Carrier {
     const row = this.row!;
     const p = leafPose(row, leaf, t);
-    const c: Carrier = { x: p.x, y: p.y, angle: p.angle, type: leaf.type, vx: row.dir * row.speed };
+    const dir = row.currents[leaf.c].dir;
+    const c: Carrier = { x: p.x, y: p.y, angle: p.angle, type: leaf.type, vx: dir * row.speed };
     // El resto de las hojas del relevo siguen su camino y se desvanecen.
     for (const l of row.leaves) {
       if (l === leaf) continue;
-      this.ghosts.push({ x: l.x, y: l.y, angle: l.angle, type: l.type, vx: row.dir * row.speed, vy: 0, alpha: l.alpha, fade: 2.5 });
+      const d = row.currents[l.c].dir;
+      this.ghosts.push({ x: l.x, y: l.y, angle: l.angle, type: l.type, vx: d * row.speed, vy: 0, alpha: l.alpha, fade: 2.5 });
     }
     this.row = null;
     return c;
@@ -355,6 +430,7 @@ export class Game {
       this.streak = 0;
     }
     if (gold) this.golds++;
+    if (leaf.type === 'fragile') this.fragiles++;
 
     // Respuesta inmediata al toque (sonido + vibración); la luz llega al aterrizar.
     if (perfect) {
@@ -364,24 +440,24 @@ export class Game {
       this.sfx.pass(this.chain);
       Telegram.tap();
     }
-    if (gold) this.sfx.gold();
+    if (gold || leaf.power) this.sfx.gold();
 
     this.incoming = this.catchLeaf(leaf, t);
     this.launch(this.incoming.x, this.incoming.y, this.incoming);
     this.ui.setChain(this.chain, perfect);
 
-    Analytics.track('pass_success', { chain: this.chain, precision: Math.round(precision * 100) / 100, gold });
+    Analytics.track('pass_success', { chain: this.chain, precision: Math.round(precision * 100) / 100, gold, leaf: leaf.type });
     if (perfect) Analytics.track('pass_perfect', { chain: this.chain, streak: this.streak });
 
-    this.pendingLanding = { perfect, gold };
+    this.pendingLanding = { perfect, gold, power: leaf.power };
   }
 
   private land(): void {
     const s = this.spark;
-    const info = this.pendingLanding ?? { perfect: false, gold: false };
+    const info = this.pendingLanding ?? { perfect: false, gold: false, power: null };
     this.pendingLanding = null;
     const old = this.carrier;
-    this.ghosts.push({ ...old, vx: 0, vy: 18, alpha: 1, fade: 1.2 });
+    this.ghosts.push({ ...old, vx: 0, vy: old.type === 'fragile' ? 60 : 18, alpha: 1, fade: 1.2 });
     this.carrier = this.incoming!;
     this.incoming = null;
     s.state = 'idle';
@@ -391,17 +467,30 @@ export class Game {
     const light = SKINS[this.skin].light;
     const x = this.carrier.x;
     const y = this.carrier.y - SPARK_LIFT;
+    let textY = y - 34;
     this.particles.burst(x, y, light, info.perfect ? 26 : 12, info.perfect ? 190 : 120);
     this.particles.wave(x, this.carrier.y, 30, 12, info.perfect ? '#fff1c2' : light, info.perfect ? 0.6 : 0.4);
     if (info.perfect) {
       s.happyT = 0.7;
       this.particles.burst(x, y, '#ffffff', 10, 240, 5);
-      this.particles.text(this.streak > 1 ? `¡Perfecto! ×${this.streak}` : '¡Perfecto!', x, y - 34, '#fff1c2', 24);
+      this.particles.text(this.streak > 1 ? `¡Perfecto! ×${this.streak}` : '¡Perfecto!', x, textY, '#fff1c2', 24);
+      textY -= 26;
     }
     if (info.gold) {
       this.particles.burst(x, y, '#ffc24a', 18, 160);
-      this.particles.text('+1 moneda', x, y - (info.perfect ? 60 : 34), '#ffd76a', 18);
+      this.particles.text('+1 moneda', x, textY, '#ffd76a', 18);
+      textY -= 24;
       this.ui.bumpCoins(CONFIG.economy.coinsPerGold);
+    }
+    if (info.power) {
+      this.gainPower(info.power);
+      this.particles.text(POWERS[info.power].name, x, textY, POWERS[info.power].color, 20, 1.2);
+    }
+    if (this.magnetLeft > 0) {
+      this.magnetLeft--;
+      this.magnetCoins++;
+      this.ui.bumpCoins(1);
+      this.particles.burst(x, y, '#ffd76a', 6, 90, 5);
     }
     if (this.chain % CONFIG.score.chainStep === 0) {
       this.particles.text(`Cadena ×${1 + this.chain / CONFIG.score.chainStep}`, 200, this.carrier.y - 80, '#9ff3ff', 22, 1.2);
@@ -414,51 +503,89 @@ export class Game {
       this.particles.text('¡Nuevo récord!', 200, this.carrier.y - 110, '#ffd76a', 24, 1.4);
     }
     this.checkLantern();
+    this.checkZone();
 
-    this.row = createRow(this.chain, this.carrier.x, this.carrier.y - this.view.rowGap(), this.rowRand(this.chain));
+    this.row = this.makeRow();
+    if (this.calmLeft > 0) this.calmLeft--;
+    if (this.fuseBoostLeft > 0) this.fuseBoostLeft--;
+    this.ui.setPowers(this.powerState());
     this.fuseLeft = this.row.fuse;
     this.grace = this.runTime + CONFIG.timing.landGrace;
     this.nextTick = 0;
     this.onRowStart();
   }
 
+  private gainPower(id: PowerId): void {
+    const scale = this.perk?.kind === 'power' ? 1.5 : 1;
+    const relays = Math.round(POWERS[id].relays * scale);
+    if (id === 'shield') this.shields++;
+    else if (id === 'magnet') this.magnetLeft += relays;
+    else if (id === 'calm') this.calmLeft += relays;
+    else this.fuseBoostLeft += relays;
+    this.powersCaught++;
+    this.ui.powerToast(POWERS[id].name, POWERS[id].short, POWERS[id].color);
+    Analytics.track('power_caught', { power: id, chain: this.chain });
+  }
+
   /** Faroles: hitos que pagan monedas durante la partida. */
   private checkLantern(): void {
     const L = lantern(this.lanternIdx);
     if (this.chain >= L.at) {
+      const reward = Math.round(L.reward * (this.perk?.kind === 'lantern' ? this.perk.value : 1));
       this.lanternIdx++;
       this.lanternsLit++;
-      this.lanternCoins += L.reward;
-      this.ui.bumpCoins(L.reward);
+      this.lanternCoins += reward;
+      this.ui.bumpCoins(reward);
       this.ui.lanternLit();
       this.sfx.record();
       Telegram.success();
       this.particles.burst(200, this.carrier.y - 140, '#ffb347', 30, 200, 9);
-      this.particles.text(`¡Farol encendido! +${L.reward}`, 200, this.carrier.y - 140, '#ffd76a', 24, 1.5);
-      Analytics.track('lantern_lit', { at: L.at, reward: L.reward });
+      this.particles.text(`¡Farol encendido! +${reward}`, 200, this.carrier.y - 140, '#ffd76a', 24, 1.5);
+      Analytics.track('lantern_lit', { at: L.at, reward });
     }
     const prevAt = this.lanternIdx > 0 ? lantern(this.lanternIdx - 1).at : 0;
     this.ui.setLantern(lantern(this.lanternIdx), prevAt, this.chain);
   }
 
+  /** Mundos: al llegar a la altura de uno nuevo cambia el escenario y aparece su mecánica. */
+  private checkZone(): void {
+    const z = zoneIndex(this.chain);
+    if (z <= this.zone) return;
+    this.zone = z;
+    const zone = ZONES[z];
+    this.view.setZone(z);
+    this.ui.zoneBanner(z + 1, zone.name, zone.intro);
+    this.sfx.record();
+    this.particles.burst(200, this.carrier.y - 160, zone.firefly, 40, 260, 10);
+    Analytics.track('zone_reached', { zone: zone.id, chain: this.chain });
+    if (z > Save.data.zones.reached) Save.update((d) => (d.zones.reached = z));
+  }
+
   /** Toque sobre una hoja seca: la chispa salta... y se apaga ahí. */
-  private jumpTo(leaf: Leaf, t: number, dry: boolean): void {
+  private jumpToDry(leaf: Leaf, t: number): void {
     const c = this.catchLeaf(leaf, t);
     this.incoming = c;
     this.launch(c.x, c.y, c);
     this.sfx.jump();
-    if (dry) this.die('dry');
+    this.die('dry');
   }
 
   /** Toque fuera de la ventana: la chispa salta al aro vacío y cae. */
-  private miss(kind: 'early' | 'late' | 'empty', delta?: number): void {
+  private miss(t: number, kind: 'early' | 'late' | 'empty', delta?: number): void {
     const row = this.row!;
-    this.launch(row.ringX, row.y, null);
+    this.launch(ringXAt(row, t), row.y, null);
     this.sfx.jump();
     this.die(kind, delta);
   }
 
   private die(reason: DeathReason, delta?: number): void {
+    // El escudo absorbe cualquier error.
+    if (this.shields > 0) {
+      this.shields--;
+      Analytics.track('shield_used', { reason, chain: this.chain });
+      this.restore('¡Escudo!', '#7fe3ff', 1.1);
+      return;
+    }
     this.phase = 'dying';
     this.dyingT = 0;
     this.death = { reason, delta };
@@ -477,20 +604,51 @@ export class Game {
     this.view.shake(6);
   }
 
+  /** Vuelve a la hoja segura con todo intacto (escudo, Fénix o revivir con anuncio). */
+  private restore(text: string, color: string, firstArrival: number): void {
+    if (this.incoming) this.ghosts.push({ ...this.incoming, vx: 0, vy: 30, alpha: 1, fade: 0.8 });
+    this.incoming = null;
+    if (this.row) {
+      for (const l of this.row.leaves)
+        this.ghosts.push({ x: l.x, y: l.y, angle: l.angle, type: l.type, vx: 0, vy: 0, alpha: l.alpha, fade: 0.4 });
+    }
+    const s = this.spark;
+    s.state = 'idle';
+    s.t = 0;
+    s.toLeaf = null;
+    s.landT = 0;
+    s.happyT = 1;
+    this.pendingLanding = null;
+
+    this.phase = 'playing';
+    this.death = null;
+    // Si estaba sobre una hoja frágil, se cambia por una sana para no castigar dos veces.
+    if (this.carrier.type === 'fragile') this.carrier.type = 'normal';
+    this.row = this.makeRow({ firstArrival });
+    this.fuseLeft = this.row.fuse;
+    this.grace = this.runTime + CONFIG.revive.grace;
+    this.nextTick = 0;
+
+    this.particles.burst(this.carrier.x, this.carrier.y - SPARK_LIFT, color, 34, 220, 9);
+    this.particles.wave(this.carrier.x, this.carrier.y, 40, 16, color, 0.8);
+    this.particles.text(text, this.carrier.x, this.carrier.y - 50, color, 28, 1.2);
+    this.sfx.record();
+    Telegram.success();
+    this.ui.resumeHud();
+    this.ui.setPowers(this.powerState());
+    this.ui.showHint('Tocá cuando se encienda el aro');
+    this.hintShown = 'revive';
+  }
+
   // ------------------------------------------------------------ revivir
 
   /**
-   * Se ofrece revivir sólo cuando hay algo que perder: una cadena larga, un récord
-   * o un farol cerca. Con una cadena corta, reintentar es más rápido que un anuncio.
+   * Se ofrece revivir sólo cuando hay algo que perder: una cadena larga, un récord,
+   * un farol o un mundo nuevo cerca. Con una cadena corta, reintentar es más rápido.
    */
   private canRevive(): boolean {
     const r = CONFIG.revive;
-    return (
-      this.mode === 'normal' &&
-      this.chain >= r.minChain &&
-      this.revivesUsed < r.perRun &&
-      Save.data.runs >= r.minRunsBefore
-    );
+    return this.mode === 'normal' && this.chain >= r.minChain && this.revivesUsed < r.perRun && Save.data.runs >= r.minRunsBefore;
   }
 
   /** Lo que el jugador pierde si no revive (lo más fuerte primero). */
@@ -503,6 +661,8 @@ export class Game {
     } else {
       out.push('Estás en <b>récord</b>: cada relevo lo agranda');
     }
+    const next = ZONES[this.zone + 1];
+    if (next && next.at - this.chain <= 10) out.push(`<b>${next.name}</b> está a ${next.at - this.chain} relevos`);
     const L = lantern(this.lanternIdx);
     const left = L.at - this.chain;
     if (left <= 8) out.push(`Farol ${L.at} a <b>${left}</b> ${left === 1 ? 'relevo' : 'relevos'}: +${L.reward} monedas`);
@@ -541,8 +701,13 @@ export class Game {
     this.ui.reviveLoading();
     const ok = await this.rewarded('revive');
     if (this.phase !== 'revive') return;
-    if (ok) this.revive();
-    else this.endRun();
+    if (!ok) {
+      this.endRun();
+      return;
+    }
+    this.revivesUsed++;
+    Analytics.track('revive_used', { chain: this.chain });
+    this.restore('¡Seguís!', '#fff1c2', CONFIG.revive.firstArrival);
   }
 
   private declineRevive(): void {
@@ -551,54 +716,18 @@ export class Game {
     this.endRun();
   }
 
-  /** Vuelve a la hoja segura con la cadena, el multiplicador y los faroles intactos. */
-  private revive(): void {
-    this.revivesUsed++;
-    if (this.incoming) this.ghosts.push({ ...this.incoming, vx: 0, vy: 30, alpha: 1, fade: 0.8 });
-    this.incoming = null;
-    if (this.row) {
-      for (const l of this.row.leaves)
-        this.ghosts.push({ x: l.x, y: l.y, angle: l.angle, type: l.type, vx: 0, vy: 0, alpha: l.alpha, fade: 0.4 });
-    }
-    const s = this.spark;
-    s.state = 'idle';
-    s.t = 0;
-    s.toLeaf = null;
-    s.landT = 0;
-    s.happyT = 1;
-
-    this.phase = 'playing';
-    this.death = null;
-    this.row = createRow(
-      this.chain,
-      this.carrier.x,
-      this.carrier.y - this.view.rowGap(),
-      this.rowRand(this.chain),
-      CONFIG.revive.firstArrival,
-    );
-    this.fuseLeft = this.row.fuse;
-    this.grace = this.runTime + CONFIG.revive.grace;
-    this.nextTick = 0;
-
-    const light = SKINS[this.skin].light;
-    this.particles.burst(this.carrier.x, this.carrier.y - SPARK_LIFT, light, 34, 220, 9);
-    this.particles.wave(this.carrier.x, this.carrier.y, 40, 16, '#fff1c2', 0.8);
-    this.particles.text('¡Seguís!', this.carrier.x, this.carrier.y - 50, '#fff1c2', 28, 1.2);
-    this.sfx.record();
-    Telegram.success();
-    this.ui.resumeHud();
-    this.ui.showHint('Tocá cuando se encienda el aro');
-    this.hintShown = 'revive';
-    Analytics.track('revive_used', { chain: this.chain });
-  }
-
   // ------------------------------------------------------------ fin de partida
 
   private endRun(): void {
     this.phase = 'over';
     const eco = CONFIG.economy;
-    const coins =
-      eco.coinsPerRun + Math.floor(this.chain / eco.relaysPerCoin) + this.golds * eco.coinsPerGold + this.lanternCoins;
+    const raw =
+      eco.coinsPerRun +
+      Math.floor(this.chain / eco.relaysPerCoin) +
+      this.golds * eco.coinsPerGold +
+      this.lanternCoins +
+      this.magnetCoins;
+    const coins = Math.round(raw * (this.perk?.kind === 'coins' ? 1 + this.perk.value : 1));
     this.lastRunCoins = coins;
     this.doubled = false;
     const reto = this.mode === 'reto';
@@ -611,9 +740,17 @@ export class Game {
       lanterns: this.lanternsLit,
       duration: this.runTime,
       reto,
+      zone: this.zone,
+      powers: this.powersCaught,
+      revives: this.revivesUsed,
+      fragiles: this.fragiles,
     };
+    const X = CONFIG.xp;
+    const xp = this.chain * X.perRelay + this.perfects * X.perPerfect + this.lanternsLit * X.perLantern + this.zone * X.perZone;
     const prevBest = Save.data.bestChain;
     const isRecord = this.chain > prevBest;
+    const levelBefore = levelFromXp(Save.data.stats.xp).level;
+    let levelCoins = 0;
 
     const save = Save.update((d) => {
       d.runs++;
@@ -627,9 +764,18 @@ export class Game {
       st.perfects += this.perfects;
       st.golds += this.golds;
       st.lanterns += this.lanternsLit;
+      st.powers += this.powersCaught;
+      st.revives += this.revivesUsed;
+      st.playTime += this.runTime;
       st.bestChain = Math.max(st.bestChain, this.chain);
-      for (const m of d.missions.list) if (!m.claimed) m.progress = nextProgress(m, stats);
+      st.xp += xp;
+      const levelAfter = levelFromXp(st.xp).level;
+      for (let l = levelBefore + 1; l <= levelAfter; l++) levelCoins += levelReward(l);
+      d.coins += levelCoins;
+      for (const m of d.dailyMissions.list) applyRun(DAILY, m, stats);
+      for (const m of d.weeklyMissions.list) applyRun(WEEKLY, m, stats);
     });
+    const lv = levelFromXp(save.stats.xp);
 
     const reason = this.death?.reason ?? 'fuse';
     Analytics.track('run_ended', {
@@ -641,17 +787,21 @@ export class Game {
       golds: this.golds,
       lanterns: this.lanternsLit,
       revives: this.revivesUsed,
+      powers: this.powersCaught,
+      zone: this.zone,
+      skin: this.skin,
       mode: this.mode,
       duration: Math.round(this.runTime * 10) / 10,
     });
     Analytics.track('currency_earned', { amount: coins, source: 'run' });
+    if (levelCoins) {
+      Analytics.track('level_up', { level: lv.level });
+      Analytics.track('currency_earned', { amount: levelCoins, source: 'level' });
+    }
     if (isRecord && this.chain > 0) Analytics.track('personal_best', { chain: this.chain, previous: prevBest });
 
-    const lobby = this.menuData();
-    const ready =
-      lobby.missions.filter((m) => m.done && !m.claimed).length +
-      lobby.achievements.filter((a) => a.done && !a.claimed).length;
-    if (ready) Telegram.success();
+    const ready = this.claimableCount(save);
+    if (ready || levelCoins) Telegram.success();
 
     // "Duplicar monedas": nunca en la primera partida de la vida.
     const canDouble = coins >= CONFIG.ads.doubleMinCoins && save.runs > CONFIG.revive.minRunsBefore;
@@ -664,14 +814,29 @@ export class Game {
       best: save.bestChain,
       isRecord: isRecord && this.chain > 0,
       score: this.score,
-      perfects: this.perfects,
+      lanterns: this.lanternsLit,
       coins,
       canDouble,
       reto,
       retoBest: save.reto.best,
       missionsReady: ready,
-      lanterns: this.lanternsLit,
+      zoneName: ZONES[this.zone].name,
+      xp,
+      level: lv.level,
+      levelInto: lv.into,
+      levelNeed: lv.need,
+      levelUp: levelCoins ? { level: lv.level, coins: levelCoins } : null,
     });
+  }
+
+  private claimableCount(save: SaveData): number {
+    const dm = save.dailyMissions.list.filter((m) => isDone(DAILY, m) && !m.claimed).length;
+    const wm = save.weeklyMissions.list.filter((m) => isDone(WEEKLY, m) && !m.claimed).length;
+    const ach = ACHIEVEMENT_ORDER.filter(
+      (id) => !save.achievements.includes(id) && ACHIEVEMENTS[id].value(save.stats) >= ACHIEVEMENTS[id].target,
+    ).length;
+    const zones = ZONES.filter((z, i) => z.reward > 0 && i <= save.zones.reached && !save.zones.claimed.includes(i)).length;
+    return dm + wm + ach + zones;
   }
 
   private async doubleCoins(): Promise<void> {
@@ -681,29 +846,31 @@ export class Game {
     this.ui.doubleLoading(false);
     if (!ok || this.doubled) return;
     this.doubled = true;
-    Save.update((d) => (d.coins += this.lastRunCoins));
+    Save.update((d) => {
+      d.coins += this.lastRunCoins;
+      this.missionEvent(d, 'double');
+    });
     Analytics.track('currency_earned', { amount: this.lastRunCoins, source: 'ad_double' });
     this.sfx.record();
     this.ui.setDoubled(this.lastRunCoins * 2);
+  }
+
+  private missionEvent(d: SaveData, event: MissionEvent): void {
+    for (const m of d.dailyMissions.list) applyEvent(DAILY, m, event);
+    for (const m of d.weeklyMissions.list) applyEvent(WEEKLY, m, event);
   }
 
   // ------------------------------------------------------------ lobby
 
   private menuData(): LobbyData {
     const save = Save.data;
-    const missions = save.missions.list.map((m) => {
-      const def = MISSIONS[m.id];
-      return { text: def.text, progress: m.progress, target: def.target, reward: def.reward, done: isMissionDone(m), claimed: m.claimed };
-    });
-    const achievements = ACHIEVEMENT_ORDER.map((id) => {
-      const def = ACHIEVEMENTS[id];
-      const progress = def.value(save.stats);
-      return { id, text: def.text, progress, target: def.target, reward: def.reward, done: progress >= def.target, claimed: save.achievements.includes(id) };
-    });
-    const now = new Date();
-    const midnight = new Date(now);
-    midnight.setHours(24, 0, 0, 0);
-    const mins = Math.max(1, Math.round((midnight.getTime() - now.getTime()) / 60000));
+    const mission = (pool: Record<string, MissionDef>) => (m: MissionState) => {
+      const def = pool[m.id];
+      return { text: def.text, progress: m.progress, target: def.target, reward: def.reward, done: isDone(pool, m), claimed: m.claimed };
+    };
+    const lv = levelFromXp(save.stats.xp);
+    const st = save.stats;
+    const mins = Math.round(st.playTime / 60);
     return {
       coins: save.coins,
       best: save.bestChain,
@@ -713,12 +880,65 @@ export class Game {
       reto: {
         best: save.reto.best,
         attempts: save.reto.attempts,
-        dateLabel: now.toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' }),
+        dateLabel: new Date().toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' }),
       },
-      missions,
-      chest: { claimed: save.missions.chestClaimed, done: save.missions.list.filter((m) => m.claimed).length, reward: CONFIG.economy.chestReward },
-      achievements,
-      resetIn: mins >= 60 ? `${Math.floor(mins / 60)} h ${mins % 60} min` : `${mins} min`,
+      dailyMissions: {
+        list: save.dailyMissions.list.map(mission(DAILY)),
+        chestClaimed: save.dailyMissions.chestClaimed,
+        chestReward: CONFIG.economy.dailyChest,
+        resetIn: untilTomorrow(),
+      },
+      weeklyMissions: {
+        list: save.weeklyMissions.list.map(mission(WEEKLY)),
+        chestClaimed: save.weeklyMissions.chestClaimed,
+        chestReward: CONFIG.economy.weeklyChest,
+        resetIn: untilNextWeek(),
+      },
+      achievements: ACHIEVEMENT_ORDER.map((id) => {
+        const def = ACHIEVEMENTS[id];
+        const progress = def.value(save.stats);
+        return {
+          id,
+          text: def.text,
+          progress,
+          target: def.target,
+          reward: def.reward,
+          done: progress >= def.target,
+          claimed: save.achievements.includes(id),
+        };
+      }),
+      zones: ZONES.map((z, i) => ({
+        name: z.name,
+        at: z.at,
+        intro: z.intro,
+        reward: z.reward,
+        card: z.card,
+        reached: i <= save.zones.reached,
+        claimed: z.reward === 0 || save.zones.claimed.includes(i),
+      })),
+      profile: {
+        name: Telegram.firstName ?? 'Jugador',
+        level: lv.level,
+        into: lv.into,
+        need: lv.need,
+        stats: [
+          ['Mejor cadena', String(save.bestChain)],
+          ['Mejor puntaje', save.bestScore.toLocaleString('es-AR')],
+          ['Partidas', String(st.runs)],
+          ['Relevos totales', st.relays.toLocaleString('es-AR')],
+          ['Pases perfectos', String(st.perfects)],
+          ['Hojas doradas', String(st.golds)],
+          ['Faroles encendidos', String(st.lanterns)],
+          ['Potenciadores', String(st.powers)],
+          ['Revividas', String(st.revives)],
+          ['Tiempo jugado', mins >= 60 ? `${Math.floor(mins / 60)} h ${mins % 60} min` : `${mins} min`],
+          ['Días jugados', String(save.daysPlayed)],
+          ['Mundo más lejano', ZONES[save.zones.reached].name],
+        ],
+        chars: `${save.skins.length}/${SKIN_ORDER.length}`,
+        worlds: `${save.zones.reached + 1}/${ZONES.length}`,
+      },
+      boost: { armed: save.boost.shield, price: CONFIG.powers.startShieldPrice },
       showStats: new URLSearchParams(location.search).has('stats'),
     };
   }
@@ -748,37 +968,41 @@ export class Game {
       d.daily = { last: todayKey(), streak: st.day };
       d.coins += coins;
       if (st.skin) d.skins.push(CONFIG.daily.skin);
+      this.missionEvent(d, 'dailyGift');
     });
     Analytics.track('daily_reward_claimed', { day: st.day, coins, doubled: double });
     Analytics.track('currency_earned', { amount: coins, source: double ? 'daily_x2' : 'daily' });
     if (st.skin) Analytics.track('cosmetic_unlocked', { skin: CONFIG.daily.skin, source: 'daily' });
-    this.ui.toast(st.skin ? `+${coins} monedas y la chispa Aurora` : `+${coins} monedas`);
+    this.ui.toast(st.skin ? `+${coins} monedas y Aurora` : `+${coins} monedas`);
     this.refreshLobby(coins);
   }
 
-  private claimMission(i: number): void {
-    const m = Save.data.missions.list[i];
-    if (!m || m.claimed || !isMissionDone(m)) return;
-    const reward = MISSIONS[m.id].reward;
+  private claimMission(weekly: boolean, i: number): void {
+    const pool = weekly ? WEEKLY : DAILY;
+    const box = weekly ? Save.data.weeklyMissions : Save.data.dailyMissions;
+    const m = box.list[i];
+    if (!m || m.claimed || !isDone(pool, m)) return;
+    const reward = pool[m.id].reward;
     Save.update((d) => {
-      d.missions.list[i].claimed = true;
+      (weekly ? d.weeklyMissions : d.dailyMissions).list[i].claimed = true;
       d.coins += reward;
+      if (!weekly) this.missionEvent(d, 'dailyMission');
     });
-    Analytics.track('mission_completed', { id: m.id });
-    Analytics.track('currency_earned', { amount: reward, source: 'mission' });
+    Analytics.track('mission_completed', { id: m.id, weekly });
+    Analytics.track('currency_earned', { amount: reward, source: weekly ? 'weekly_mission' : 'mission' });
     this.ui.toast(`+${reward} monedas`);
     this.refreshLobby(reward);
   }
 
-  private claimChest(): void {
-    const ms = Save.data.missions;
-    if (ms.chestClaimed || !ms.list.every((m) => m.claimed)) return;
-    const reward = CONFIG.economy.chestReward;
+  private claimChest(weekly: boolean): void {
+    const box = weekly ? Save.data.weeklyMissions : Save.data.dailyMissions;
+    if (box.chestClaimed || !box.list.every((m) => m.claimed)) return;
+    const reward = weekly ? CONFIG.economy.weeklyChest : CONFIG.economy.dailyChest;
     Save.update((d) => {
-      d.missions.chestClaimed = true;
+      (weekly ? d.weeklyMissions : d.dailyMissions).chestClaimed = true;
       d.coins += reward;
     });
-    Analytics.track('currency_earned', { amount: reward, source: 'chest' });
+    Analytics.track('currency_earned', { amount: reward, source: weekly ? 'weekly_chest' : 'daily_chest' });
     this.ui.toast(`¡Cofre abierto! +${reward} monedas`);
     this.refreshLobby(reward);
   }
@@ -799,9 +1023,43 @@ export class Game {
       this.refreshLobby(def.reward);
     } else {
       Analytics.track('cosmetic_unlocked', { skin: def.reward, source: 'achievement' });
-      this.ui.toast(`¡Desbloqueaste la chispa ${SKINS[def.reward].name}!`);
+      this.ui.toast(`¡Desbloqueaste a ${SKINS[def.reward].name}!`);
       this.refreshLobby(1);
     }
+  }
+
+  private claimZone(i: number): void {
+    const save = Save.data;
+    const z = ZONES[i];
+    if (!z || z.reward <= 0 || i > save.zones.reached || save.zones.claimed.includes(i)) return;
+    Save.update((d) => {
+      d.zones.claimed.push(i);
+      d.coins += z.reward;
+    });
+    Analytics.track('currency_earned', { amount: z.reward, source: 'zone' });
+    this.ui.toast(`¡${z.name} explorado! +${z.reward} monedas`);
+    this.refreshLobby(z.reward);
+  }
+
+  /** Escudo de arranque para la próxima partida: con anuncio o con monedas. */
+  private async buyBoost(withAd: boolean): Promise<void> {
+    if (this.adBusy || Save.data.boost.shield) return;
+    this.sfx.unlock();
+    if (withAd) {
+      if (!(await this.rewarded('boost'))) return;
+    } else {
+      const price = CONFIG.powers.startShieldPrice;
+      if (Save.data.coins < price) {
+        this.ui.toast(`Te faltan ${price - Save.data.coins} monedas`);
+        return;
+      }
+      Save.update((d) => (d.coins -= price));
+      Analytics.track('currency_spent', { amount: price, item: 'start_shield' });
+    }
+    Save.update((d) => (d.boost.shield = true));
+    this.ui.toast('Escudo listo para la próxima partida');
+    this.refreshLobby(0);
+    this.sfx.record();
   }
 
   private chooseSkin(id: SkinId): 'selected' | 'bought' | 'poor' | 'locked' {
@@ -840,7 +1098,7 @@ export class Game {
     const text =
       this.mode === 'reto'
         ? `Reto del día de Relevo de Luz: hice ${this.chain} relevos ✨ Es la misma partida para todos. ¿Me superás?`
-        : `Sostuve la chispa ${this.chain} relevos en Relevo de Luz ✨ (récord ${best}). ¿Llegás a ${Math.max(this.chain + 1, 10)}?`;
+        : `Sostuve la chispa ${this.chain} relevos y llegué a ${ZONES[this.zone].name} en Relevo de Luz ✨ (récord ${best}). ¿Llegás más lejos?`;
     Analytics.track('share_clicked', { chain: this.chain, mode: this.mode });
     const how = await Telegram.share(text, this.shareLink(this.mode === 'reto' ? 'reto' : undefined));
     if (how === 'copied') this.ui.toast('Copiado: pegalo en un chat');
@@ -926,7 +1184,11 @@ export class Game {
     if (this.phase === 'dying') {
       this.dyingT += dt;
       if (this.dyingT >= CONFIG.timing.deathDelay) {
-        if (this.canRevive()) this.offerRevive();
+        if (this.phoenixLeft > 0 && this.mode === 'normal') {
+          this.phoenixLeft--;
+          Analytics.track('phoenix_used', { chain: this.chain });
+          this.restore('¡Renace Fénix!', '#ffb36b', CONFIG.revive.firstArrival);
+        } else if (this.canRevive()) this.offerRevive();
         else this.endRun();
       }
     }
@@ -934,7 +1196,8 @@ export class Game {
 
   private autoTap(): void {
     const occ = this.row && occupant(this.row);
-    if (occ && occ.leaf.type !== 'dry' && occ.e < 0.15) this.tap(this.lastFrame);
+    // A alta velocidad la hoja cruza el aro en pocos fotogramas: se toca apenas está bien adentro.
+    if (occ && occ.leaf.type !== 'dry' && occ.e < 0.4) this.tap(this.lastFrame);
   }
 
   private updateLeaves(dt: number): void {

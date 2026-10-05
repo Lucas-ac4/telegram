@@ -13,14 +13,24 @@ export interface Sprite {
   h: number;
 }
 
-export type SkinId = 'ambar' | 'erizo' | 'luna' | 'brasa' | 'aurora' | 'estrella';
+export type SkinId = 'ambar' | 'erizo' | 'rocio' | 'luna' | 'brasa' | 'cometa' | 'fenix' | 'aurora' | 'estrella';
+
+/** Habilidad de cada personaje. En el reto del día no se aplican: ahí todos juegan igual. */
+export type PerkKind = 'coins' | 'gold' | 'fuse' | 'power' | 'ring' | 'phoenix' | 'lantern' | 'shield';
+
+export interface Perk {
+  kind: PerkKind;
+  value: number;
+  text: string;
+}
 
 export interface SkinStyle {
   name: string;
-  rarity: 'Común' | 'Rara' | 'Épica' | 'Exclusiva';
+  rarity: 'Común' | 'Rara' | 'Épica' | 'Legendaria' | 'Exclusiva';
   /** Precio en monedas. 0 + `unlock` = no se compra, se gana. */
   price: number;
   unlock?: string;
+  perk: Perk | null;
   glow: string;
   /** Color de las partículas y del puente. */
   light: string;
@@ -32,15 +42,96 @@ export interface SkinStyle {
 }
 
 export const SKINS: Record<SkinId, SkinStyle> = {
-  ambar: { name: 'Ámbar', rarity: 'Común', price: 0, glow: '#ffae3d', light: '#ffc861', eye: '#3b1a05', eyeX: 0, eyeY: 3, eyeGap: 8.4 },
-  erizo: { name: 'Erizo', rarity: 'Rara', price: 30, glow: '#62d4ff', light: '#9fe8ff', eye: '#0d2a55', eyeX: 0, eyeY: 2.5, eyeGap: 8.4 },
-  luna: { name: 'Luna', rarity: 'Rara', price: 60, glow: '#b9a6ff', light: '#d8ccff', eye: '#2c2160', eyeX: -3.6, eyeY: 4.5, eyeGap: 7.2 },
-  brasa: { name: 'Brasa', rarity: 'Épica', price: 120, glow: '#ff6a3d', light: '#ff9a6a', eye: '#3a0a00', eyeX: 0.5, eyeY: 3, eyeGap: 8.4 },
+  ambar: {
+    name: 'Ámbar',
+    rarity: 'Común',
+    price: 0,
+    perk: null,
+    glow: '#ffae3d',
+    light: '#ffc861',
+    eye: '#3b1a05',
+    eyeX: 0,
+    eyeY: 3,
+    eyeGap: 8.4,
+  },
+  erizo: {
+    name: 'Erizo',
+    rarity: 'Rara',
+    price: 300,
+    perk: { kind: 'coins', value: 0.15, text: '+15% monedas en cada partida' },
+    glow: '#62d4ff',
+    light: '#9fe8ff',
+    eye: '#0d2a55',
+    eyeX: 0,
+    eyeY: 2.5,
+    eyeGap: 8.4,
+  },
+  rocio: {
+    name: 'Rocío',
+    rarity: 'Rara',
+    price: 450,
+    perk: { kind: 'gold', value: 1.6, text: '+60% hojas doradas' },
+    glow: '#6fd0ff',
+    light: '#bfeaff',
+    eye: '#0b2a50',
+    eyeX: 0,
+    eyeY: 3,
+    eyeGap: 8,
+  },
+  luna: {
+    name: 'Luna',
+    rarity: 'Épica',
+    price: 700,
+    perk: { kind: 'fuse', value: 1.12, text: 'Mecha 12% más larga' },
+    glow: '#b9a6ff',
+    light: '#d8ccff',
+    eye: '#2c2160',
+    eyeX: -3.6,
+    eyeY: 4.5,
+    eyeGap: 7.2,
+  },
+  brasa: {
+    name: 'Brasa',
+    rarity: 'Épica',
+    price: 1000,
+    perk: { kind: 'power', value: 1.6, text: 'Potenciadores más seguido y más largos' },
+    glow: '#ff6a3d',
+    light: '#ff9a6a',
+    eye: '#3a0a00',
+    eyeX: 0.5,
+    eyeY: 3,
+    eyeGap: 8.4,
+  },
+  cometa: {
+    name: 'Cometa',
+    rarity: 'Legendaria',
+    price: 1800,
+    perk: { kind: 'ring', value: 1.08, text: 'Aro 8% más grande' },
+    glow: '#9ab8ff',
+    light: '#d6e2ff',
+    eye: '#1a2350',
+    eyeX: 3,
+    eyeY: 4,
+    eyeGap: 7.6,
+  },
+  fenix: {
+    name: 'Fénix',
+    rarity: 'Legendaria',
+    price: 3000,
+    perk: { kind: 'phoenix', value: 1, text: 'Renace gratis 1 vez por partida' },
+    glow: '#ff7a3d',
+    light: '#ffb36b',
+    eye: '#3a0a00',
+    eyeX: 0,
+    eyeY: 3,
+    eyeGap: 8.4,
+  },
   aurora: {
     name: 'Aurora',
     rarity: 'Exclusiva',
     price: 0,
     unlock: 'Regalo diario: día 7',
+    perk: { kind: 'lantern', value: 1.5, text: 'Faroles +50% monedas' },
     glow: '#5fffd0',
     light: '#9dffe0',
     eye: '#0b3340',
@@ -53,6 +144,7 @@ export const SKINS: Record<SkinId, SkinStyle> = {
     rarity: 'Exclusiva',
     price: 0,
     unlock: 'Logro: cadena 50',
+    perk: { kind: 'shield', value: 1, text: 'Empieza cada partida con escudo' },
     glow: '#ffe27a',
     light: '#fff0a8',
     eye: '#4a3000',
@@ -62,7 +154,7 @@ export const SKINS: Record<SkinId, SkinStyle> = {
   },
 };
 
-export const SKIN_ORDER: SkinId[] = ['ambar', 'erizo', 'luna', 'brasa', 'aurora', 'estrella'];
+export const SKIN_ORDER: SkinId[] = ['ambar', 'erizo', 'rocio', 'luna', 'brasa', 'cometa', 'fenix', 'aurora', 'estrella'];
 
 export function makeSprite(w: number, h: number, k: number, draw: (ctx: CanvasRenderingContext2D) => void): Sprite {
   const canvas = document.createElement('canvas');
@@ -143,6 +235,7 @@ const LEAF_PALETTES: Record<LeafType, LeafPalette> = {
   normal: { hull: ['#0b3b47', '#1d8a8e'], inner: ['#3fd2c8', '#0f5a63'], rim: '#9ffaff', glow: '#3fe9ff' },
   gold: { hull: ['#6b3d05', '#d08f1d'], inner: ['#ffe28a', '#c07a12'], rim: '#fff3c2', glow: '#ffc24a' },
   dry: { hull: ['#1d1512', '#3e2b20'], inner: ['#5a4232', '#2c1f17'], rim: '#6d5643', glow: null },
+  fragile: { hull: ['#14304a', '#3f7fa8'], inner: ['#cdeeff', '#3f88b0'], rim: '#eef9ff', glow: '#9fd8ff' },
 };
 
 export const LEAF_W = 64;
@@ -236,6 +329,25 @@ function drawLeafShape(ctx: CanvasRenderingContext2D, type: LeafType): void {
   ctx.stroke();
   ctx.globalAlpha = 1;
 
+  if (type === 'fragile') {
+    // Grietas claras: se lee "se rompe" sin texto.
+    ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(-14, -6);
+    ctx.lineTo(-9, -1);
+    ctx.lineTo(-12, 4);
+    ctx.moveTo(-9, -1);
+    ctx.lineTo(-3, 0);
+    ctx.moveTo(6, -7);
+    ctx.lineTo(9, -2);
+    ctx.lineTo(5, 3);
+    ctx.lineTo(9, 8);
+    ctx.moveTo(9, -2);
+    ctx.lineTo(15, -1);
+    ctx.stroke();
+  }
+
   if (dry) {
     // Agujeros y grietas: se lee "apagada" sin texto.
     ctx.save();
@@ -288,6 +400,24 @@ function sparkBodyPath(ctx: CanvasRenderingContext2D, skin: SkinId): void {
     ctx.bezierCurveTo(-11.5, -4, -10, -8, -8, -14);
     ctx.bezierCurveTo(-5.5, -9, -3.5, -8, -1.5, -10);
     ctx.bezierCurveTo(-0.5, -14, 1.5, -16, 4, -19);
+  } else if (skin === 'rocio') {
+    // Gota fina
+    ctx.moveTo(0, -19);
+    ctx.bezierCurveTo(6, -10, 11.5, -3, 11.5, 3);
+    ctx.arc(0, 3, 11.5, 0, Math.PI, false);
+    ctx.bezierCurveTo(-11.5, -3, -6, -10, 0, -19);
+  } else if (skin === 'cometa') {
+    ctx.arc(3, 4, 10.5, 0, Math.PI * 2);
+  } else if (skin === 'fenix') {
+    // Llama con alas
+    ctx.moveTo(0, -19);
+    ctx.bezierCurveTo(3, -12, 6, -10, 9, -12);
+    ctx.bezierCurveTo(12, -14, 15, -11, 16.5, -6);
+    ctx.bezierCurveTo(13, -6, 12, -2, 11.5, 3);
+    ctx.arc(0, 3, 11.5, 0, Math.PI, false);
+    ctx.bezierCurveTo(-12, -2, -13, -6, -16.5, -6);
+    ctx.bezierCurveTo(-15, -11, -12, -14, -9, -12);
+    ctx.bezierCurveTo(-6, -10, -3, -12, 0, -19);
   } else if (skin === 'aurora') {
     // Gota redondeada
     ctx.moveTo(0, -17);
@@ -316,6 +446,9 @@ const SPARK_GRADIENT: Record<SkinId, [string, string, string, string]> = {
   brasa: ['#fff0d0', '#ffb36b', '#ff5a2a', '#c82a10'],
   aurora: ['#f2fff8', '#9dffd6', '#4fd6c0', '#5a6ee0'],
   estrella: ['#ffffff', '#fff3b0', '#ffd34a', '#e8a020'],
+  rocio: ['#ffffff', '#c9f2ff', '#5cc8ff', '#2a6fd0'],
+  cometa: ['#ffffff', '#e0f0ff', '#9ab8ff', '#5a6ee0'],
+  fenix: ['#fffbe0', '#ffd36b', '#ff6a2a', '#b8200a'],
 };
 
 function drawSparkBody(ctx: CanvasRenderingContext2D, skin: SkinId): void {
@@ -335,6 +468,21 @@ function drawSparkBody(ctx: CanvasRenderingContext2D, skin: SkinId): void {
   const g = tmp.getContext('2d')!;
   g.scale(k, k);
   g.translate(20, 20);
+  if (skin === 'cometa') {
+    // Cola: tres estelas que se desvanecen
+    for (let i = 0; i < 3; i++) {
+      const tail = g.createLinearGradient(0, 0, -19, -12);
+      tail.addColorStop(0, 'rgba(214,226,255,0.95)');
+      tail.addColorStop(1, 'rgba(154,184,255,0)');
+      g.fillStyle = tail;
+      g.beginPath();
+      g.moveTo(0, -4 + i * 5);
+      g.quadraticCurveTo(-9, -8 + i * 4, -19, -15 + i * 6);
+      g.quadraticCurveTo(-8, -3 + i * 4, 1, 3 + i * 4);
+      g.closePath();
+      g.fill();
+    }
+  }
   sparkBodyPath(g, skin);
   g.fillStyle = grad;
   g.fill();
@@ -355,7 +503,7 @@ function drawSparkBody(ctx: CanvasRenderingContext2D, skin: SkinId): void {
   g.globalAlpha = 0.55;
   g.fillStyle = '#ffffff';
   g.beginPath();
-  g.ellipse(skin === 'luna' ? -7 : -4.5, skin === 'luna' ? -1 : -2, 2.6, 3.6, -0.5, 0, Math.PI * 2);
+  g.ellipse(skin === 'luna' ? -7 : skin === 'cometa' ? -2 : -4.5, skin === 'luna' ? -1 : -2, 2.6, 3.6, -0.5, 0, Math.PI * 2);
   g.fill();
 
   ctx.save();
@@ -546,6 +694,86 @@ function drawLotus(ctx: CanvasRenderingContext2D): void {
   ctx.fill();
 }
 
+function drawCloud(ctx: CanvasRenderingContext2D): void {
+  const puffs: [number, number, number][] = [
+    [-30, 6, 18],
+    [-10, -4, 24],
+    [14, -2, 22],
+    [34, 8, 16],
+    [0, 10, 22],
+  ];
+  for (const [x, y, r] of puffs) {
+    const g = ctx.createRadialGradient(x, y - r * 0.3, 0, x, y, r);
+    g.addColorStop(0, 'rgba(255,245,255,0.55)');
+    g.addColorStop(0.7, 'rgba(220,200,255,0.28)');
+    g.addColorStop(1, 'rgba(200,180,255,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+function drawCrystal(ctx: CanvasRenderingContext2D): void {
+  ctx.save();
+  ctx.shadowColor = '#7fffe0';
+  ctx.shadowBlur = 14;
+  const shards: [number, number, number, number][] = [
+    [0, 30, 9, 62],
+    [-12, 30, 7, 40],
+    [12, 30, 6, 34],
+  ];
+  for (const [x, base, w, h] of shards) {
+    const g = ctx.createLinearGradient(x, base - h, x, base);
+    g.addColorStop(0, 'rgba(220,255,250,0.95)');
+    g.addColorStop(1, 'rgba(60,170,190,0.35)');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.moveTo(x, base - h);
+    ctx.lineTo(x + w, base - h * 0.75);
+    ctx.lineTo(x + w * 0.7, base);
+    ctx.lineTo(x - w * 0.7, base);
+    ctx.lineTo(x - w, base - h * 0.75);
+    ctx.closePath();
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+function drawRock(ctx: CanvasRenderingContext2D): void {
+  ctx.beginPath();
+  const pts = [
+    [-22, -4],
+    [-14, -16],
+    [2, -18],
+    [18, -10],
+    [22, 4],
+    [10, 16],
+    [-8, 15],
+    [-20, 8],
+  ];
+  pts.forEach(([x, y], i) => (i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y)));
+  ctx.closePath();
+  const g = ctx.createLinearGradient(-20, -18, 20, 16);
+  g.addColorStop(0, '#3a2a5e');
+  g.addColorStop(1, '#0b0718');
+  ctx.fillStyle = g;
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(200,170,255,0.35)';
+  ctx.lineWidth = 1.2;
+  ctx.stroke();
+  ctx.fillStyle = 'rgba(0,0,0,0.35)';
+  for (const [x, y, r] of [
+    [-6, -5, 4],
+    [8, 4, 3],
+    [-10, 7, 2],
+  ]) {
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
 // ---------------------------------------------------------------- set completo
 
 export interface SpriteSet {
@@ -554,17 +782,23 @@ export interface SpriteSet {
   fern: Sprite;
   bells: Sprite;
   lotus: Sprite;
+  cloud: Sprite;
+  crystal: Sprite;
+  rock: Sprite;
 }
 
 export function buildSprites(k: number): SpriteSet {
   const leaf = (t: LeafType) => makeSprite(LEAF_W + 30, LEAF_H + 30, k, (c) => drawLeafShape(c, t));
   const spark = (s: SkinId) => makeSprite(56, 56, k, (c) => drawSparkBody(c, s));
   return {
-    leaves: { normal: leaf('normal'), gold: leaf('gold'), dry: leaf('dry') },
+    leaves: { normal: leaf('normal'), gold: leaf('gold'), dry: leaf('dry'), fragile: leaf('fragile') },
     sparks: Object.fromEntries(SKIN_ORDER.map((id) => [id, spark(id)])) as Record<SkinId, Sprite>,
     fern: makeSprite(140, 80, k, drawFern),
     bells: makeSprite(80, 120, k, drawBells),
     lotus: makeSprite(80, 60, k, drawLotus),
+    cloud: makeSprite(110, 60, k, drawCloud),
+    crystal: makeSprite(50, 80, k, drawCrystal),
+    rock: makeSprite(56, 44, k, drawRock),
   };
 }
 

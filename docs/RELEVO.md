@@ -41,10 +41,13 @@ Nadie mira un anuncio para "seguir jugando" si perder no le cuesta nada. El anun
 4. **Escaso y con urgencia:** 1 vez por partida y cuenta regresiva de 5 s.
 5. **Sólo cuando vale la pena:** desde cadena 8 (antes, "UNA MÁS" es más rápido que un anuncio) y nunca en la primera partida de la vida (la propuesta pide primera sesión sin anuncios). El reto del día no tiene revivir.
 
-Otros dos lugares con anuncio, siempre opcionales:
+Otros lugares con anuncio, siempre opcionales:
 
-- **Duplicar monedas** en la pantalla de resultados (si la partida dio 3 o más).
+- **Duplicar monedas** en la pantalla de resultados (si la partida dio 5 o más).
 - **Regalo diario ×2.**
+- **Escudo inicial** antes de jugar.
+
+Además, revivir ahora también avisa si el próximo mundo está cerca ("Mar de nubes está a 4 relevos").
 
 Las monedas sólo compran apariencias: nunca dinero ni puntos canjeables.
 
@@ -52,24 +55,65 @@ Para anuncios reales, compilar con `VITE_MONETAG_ZONE=<id de zona>`. Usa el SDK 
 
 Métricas en el panel `?stats=1`: revivir ofrecido / aceptado, duplicar aceptado, anuncios completos y anuncios por partida.
 
-## Lobby
+## Progresión durante la partida (estilo Sky Jump)
 
-Tres pestañas abajo, con puntos rojos cuando hay algo para cobrar:
+A medida que la cadena crece, el juego sube de mundo: cambia el escenario, todo va un poco más rápido, la mecha se acorta y aparece una mecánica nueva. Al entrar a cada mundo aparece un cartel con lo nuevo.
 
-- **Inicio:** JUGAR, récord y dos accesos:
-  - **Regalo diario:** racha de 7 días (+5 … +50); el día 7 regala la chispa exclusiva **Aurora**.
-  - **Reto diario:** la misma partida para todos ese día, sin revivir, con tu mejor marca, intentos y "Desafiar a un amigo".
+| Mundo | Desde | Escenario | Mecánica nueva |
+|---|---|---|---|
+| 1. Jardín nocturno | 0 | Luna, arcos y cascadas | Mecha, hojas secas, doradas, ondas |
+| 2. Cascadas | 25 | Turquesa, muchas cascadas | **Hojas frágiles**: si caés en una, la mecha del relevo siguiente es más corta (la hoja se hunde y tiembla) |
+| 3. Mar de nubes | 50 | Atardecer lila, nubes | **Aro móvil**: va y viene sobre un riel visible |
+| 4. Aurora | 75 | Cortinas de aurora y picos nevados | **Corrientes cruzadas**: hojas desde los dos lados, intercaladas |
+| 5. Cosmos | 100 | Planetas y nebulosas | Todo junto y más rápido |
+
+**Potenciadores** (desde cadena 12, flotan sobre algunas hojas válidas; si le pasás la chispa a esa hoja, son tuyos):
+
+| Potenciador | Efecto |
+|---|---|
+| Escudo | Te salva de un error, cualquiera sea |
+| Imán | +1 moneda por relevo durante 10 relevos |
+| Calma | Hojas más lentas durante 6 relevos |
+| Mecha larga | +60% de mecha durante 8 relevos |
+
+Garantía de justicia: se simularon 84.600 relevos con todas las mecánicas y combinaciones (hoja frágil, calma, mecha larga, personajes). En todos hubo una hoja alcanzable antes de que se apague la mecha y nunca hubo dos hojas dentro del aro a la vez.
+
+## Personajes con habilidad
+
+Más caros que antes, y cada uno ayuda distinto. **En el reto diario las habilidades no cuentan**: ahí todos juegan igual.
+
+| Personaje | Rareza | Precio | Habilidad |
+|---|---|---|---|
+| Ámbar | Común | Gratis | Sin habilidad |
+| Erizo | Rara | 300 | +15% monedas |
+| Rocío | Rara | 450 | +60% hojas doradas |
+| Luna | Épica | 700 | Mecha 12% más larga |
+| Brasa | Épica | 1.000 | Potenciadores más seguido y más largos |
+| Cometa | Legendaria | 1.800 | Aro 8% más grande |
+| Fénix | Legendaria | 3.000 | Renace gratis 1 vez por partida |
+| Aurora | Exclusiva | — | Regalo diario, día 7 · Faroles +50% |
+| Estrella | Exclusiva | — | Logro cadena 50 · Empieza con escudo |
+
+## Lobby (5 pestañas)
+
+Hay puntos rojos en cada pestaña cuando hay algo para cobrar.
+
+- **Inicio:** JUGAR, récord y nivel, más estos accesos:
+  - **Regalo diario:** racha de 7 días.
+  - **Reto diario:** la misma partida para todos ese día, sin revivir ni habilidades.
+  - **Escudo inicial:** gratis viendo un anuncio, o 80 monedas.
 - **Misiones:**
-  - **3 misiones diarias** que se cobran a mano.
-  - **Cofre del día** (+25) cuando cobrás las tres.
-  - **Logros** permanentes: cadena 10, 25 y 50 (este último regala la chispa **Estrella**), 100 perfectos, 20 doradas y 50 partidas.
-- **Chispas:** 6 apariencias por rareza: Común, Rara, Épica (Brasa, 120) y Exclusiva (se ganan, no se compran).
-
-El ranking semanal queda para cuando haya backend: sin servidor no hay jugadores reales para mostrar.
+  - **4 diarias**, elegidas de 16, más el **cofre del día** (+40).
+  - **4 semanales**, elegidas de 10, más el **cofre semanal** (+250). Se renuevan los lunes.
+  - **Logros** permanentes.
+  - Algunas misiones empujan los anuncios opcionales: "Reviví 1 vez" y "Duplicá tus monedas".
+- **Personajes:** los 9, con rareza, habilidad y precio.
+- **Mundos:** mapa de abajo hacia arriba. Cada mundo da un premio de exploración la primera vez que llegás: +50, +100, +150 y +300.
+- **Perfil:** nivel con barra de XP (sube con relevos, perfectos, faroles y mundos; cada nivel da monedas), personajes y mundos desbloqueados, y 12 estadísticas.
 
 ## Tecnología
 
-Canvas 2D + TypeScript + Vite, **sin librerías**: el juego completo pesa ~32 KB comprimido y no carga imágenes ni audios (todo se dibuja y se sintetiza por código). La propuesta sugería Phaser; para una sola pantalla con un toque no hacía falta y así carga instantáneo dentro de Telegram. Si más adelante hay muchas escenas, se puede migrar.
+Canvas 2D + TypeScript + Vite, **sin librerías**: el juego completo pesa ~42 KB comprimido y no carga imágenes ni audios (todo se dibuja y se sintetiza por código). La propuesta sugería Phaser; para una sola pantalla con un toque no hacía falta y así carga instantáneo dentro de Telegram. Si más adelante hay muchas escenas, se puede migrar.
 
 ```text
 relevo/
@@ -111,7 +155,7 @@ Un jugador perfecto llega a 30 relevos en ~40 s (la propuesta pide partidas de 3
 - Para mandar los eventos a un servidor propio: compilar con `VITE_ANALYTICS_URL=https://...` (POST JSON por lotes).
 - `?autoplay` juega solo (sirve para grabar clips o probar; no guarda métricas).
 
-Eventos de anuncios: `ad_offer_shown`, `ad_accepted`, `ad_completed`, `ad_failed`, `ad_declined` (con `ad_placement`: revive / double / daily), `revive_used`, `lantern_lit`, `daily_reward_claimed`, `daily_challenge_started`, `achievement_claimed`.
+Eventos de anuncios: `ad_offer_shown`, `ad_accepted`, `ad_completed`, `ad_failed`, `ad_declined` (con `ad_placement`: revive / double / daily / boost), `zone_reached`, `power_caught`, `shield_used`, `phoenix_used`, `level_up`, `revive_used`, `lantern_lit`, `daily_reward_claimed`, `daily_challenge_started`, `achievement_claimed`.
 
 Eventos: `install_or_first_open`, `session_started`, `telegram_launch_source`, `tutorial_started`, `first_run_started`, `run_started`, `pass_attempted`, `pass_success`, `pass_perfect`, `run_ended` (death_reason, score, chain, combo, duration), `personal_best`, `mission_completed`, `currency_earned`, `currency_spent`, `cosmetic_unlocked`, `share_clicked`.
 

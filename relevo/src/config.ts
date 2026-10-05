@@ -37,6 +37,16 @@ export const CONFIG = {
     wave: { startAt: 14, perRow: 1.2, max: 26, wavelength: 220 },
     /** Variación visible de velocidad entre relevos (nunca dentro del mismo relevo). */
     speedJitter: { startAt: 18, amount: 0.12 },
+    /** Cada mundo nuevo: hojas un poco más rápidas y mecha un poco más corta. */
+    zone: { speedPerZone: 0.04, fusePerZone: 0.04, minFuse: 1.5 },
+    /** Mundo 2: hojas frágiles. Si la chispa cae en una, la mecha del relevo siguiente es más corta. */
+    fragile: { base: 0.12, perRow: 0.005, max: 0.32, fuseMul: 0.6, minFuse: 1.2 },
+    /** Mundo 3: el aro se mueve de lado a lado (siempre a la vista). */
+    moving: { chance: 0.4, ampMin: 22, ampExtra: 18, periodMin: 2.8, periodExtra: 0.8 },
+    /** Mundo 4: dos corrientes cruzadas que pasan por el mismo aro, intercaladas. */
+    double: { chance: 0.35, gap: 30 },
+    /** Potenciadores sobre hojas válidas. */
+    power: { startAt: 12, chance: 0.08 },
   },
 
   timing: {
@@ -64,8 +74,22 @@ export const CONFIG = {
     /** +1 moneda cada N relevos. */
     relaysPerCoin: 5,
     coinsPerGold: 1,
-    /** Cofre del día: se abre al cobrar las 3 misiones. */
-    chestReward: 25,
+    /** Cofres: se abren al cobrar todas las misiones diarias / semanales. */
+    dailyChest: 40,
+    weeklyChest: 250,
+  },
+
+  /** Nivel del jugador: XP por partida y monedas al subir. */
+  level: { base: 80, step: 40, rewardBase: 20, rewardStep: 10 },
+  xp: { perRelay: 1, perPerfect: 1, perLantern: 5, perZone: 15 },
+
+  /** Potenciadores en la partida. */
+  powers: {
+    /** Multiplicadores mientras están activos. */
+    calmSpeed: 0.78,
+    fuseBoost: 1.6,
+    /** Escudo de arranque: con anuncio o con monedas. */
+    startShieldPrice: 80,
   },
 
   /**
@@ -104,7 +128,7 @@ export const CONFIG = {
     /** Zona de Monetag (rewarded interstitial). Sin zona se usa un anuncio de prueba. */
     monetagZone: (import.meta.env.VITE_MONETAG_ZONE as string | undefined) ?? '',
     /** Ofrecer "duplicar monedas" sólo si la partida dio al menos esto. */
-    doubleMinCoins: 3,
+    doubleMinCoins: 5,
   },
 
   /** Textos de tutorial: se muestran hasta que el jugador los vio esta cantidad de veces. */

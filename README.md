@@ -4,7 +4,7 @@ Este repo publica dos juegos en el mismo sitio:
 
 | Juego | Ruta | Docs |
 |---|---|---|
-| ✨ **Relevo de Luz** — un toque, un relevo, una más (Canvas 2D, ~32 KB) | `/relevo/` | [`docs/RELEVO.md`](docs/RELEVO.md) |
+| ✨ **Relevo de Luz** — un toque, un relevo, una más (Canvas 2D, ~42 KB) | `/relevo/` | [`docs/RELEVO.md`](docs/RELEVO.md) |
 | ⚽ **Proyecto Golazo** — endless runner 3D | `/` | abajo |
 
 Relevo de Luz en local: `npm run dev` y abrir `http://localhost:5173/relevo/`. Todo lo ajustable está en [`relevo/src/config.ts`](relevo/src/config.ts).

@@ -1,8 +1,10 @@
 import { CONFIG } from '../config';
 import { clamp, hashString, rng } from '../util/math';
 import { Backdrop } from './Backdrop';
-import { occupant } from './Course';
+import { occupant, ringXAt, type LeafType } from './Course';
 import type { Game } from './Game';
+import { drawPowerGlyph, POWERS } from './powers';
+import { ZONES, zoneIndex, type DecorKind } from './zones';
 import {
   buildSprites,
   drawGlow,
@@ -41,7 +43,12 @@ export class View {
   /** Alto visible en unidades. */
   H = 700;
   private sprites!: SpriteSet;
-  private backdrop = new Backdrop();
+  /** Fondos por mundo (se crean al llegar y se funden uno con otro). */
+  private backdrops = new Map<number, Backdrop>();
+  private zone = 0;
+  private prevZone = 0;
+  private zoneFade = 1;
+  private lastTime = 0;
   private shakeAmt = 0;
   private fireflies: Firefly[] = [];
   private slowTime = 0;
@@ -66,7 +73,27 @@ export class View {
     this.offX = (this.canvas.width - colW) / 2;
     this.H = this.canvas.height / this.k;
     this.sprites = buildSprites(this.k);
-    this.backdrop.build(this.canvas.width, this.canvas.height);
+    this.backdrops.clear();
+  }
+
+  private backdrop(z: number): Backdrop {
+    let b = this.backdrops.get(z);
+    if (!b) {
+      b = new Backdrop(ZONES[z].palette);
+      b.build(this.canvas.width, this.canvas.height);
+      this.backdrops.set(z, b);
+    }
+    return b;
+  }
+
+  /** Cambia de mundo con un fundido de ~1,5 s. */
+  setZone(z: number, instant = false): void {
+    if (z === this.zone) return;
+    this.prevZone = instant ? z : this.zone;
+    this.zone = z;
+    this.zoneFade = instant ? 1 : 0;
+    // Sólo se guardan en memoria los dos fondos en uso.
+    for (const key of [...this.backdrops.keys()]) if (key !== z && key !== this.prevZone) this.backdrops.delete(key);
   }
 
   rowGap(): number {
@@ -100,7 +127,11 @@ export class View {
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.globalAlpha = 1;
     ctx.globalCompositeOperation = 'source-over';
-    this.backdrop.draw(ctx, g.time);
+    const dt = Math.max(0, g.time - this.lastTime);
+    this.lastTime = g.time;
+    this.zoneFade = Math.min(1, this.zoneFade + dt / 1.5);
+    if (this.zoneFade < 1) this.backdrop(this.prevZone).draw(ctx, g.time);
+    this.backdrop(this.zone).draw(ctx, g.time, this.zoneFade);
 
     ctx.save();
     ctx.beginPath();
@@ -113,7 +144,7 @@ export class View {
 
     // Capa media: faroles lejanos que pasan lento (sensación de subir).
     ctx.setTransform(k, 0, 0, k, this.offX, -g.camY * 0.5 * k);
-    this.drawLanterns(g.camY * 0.5, g.time);
+    this.drawLanterns(g.camY * 0.5, g.time, ZONES[this.zone].firefly);
 
     // Mundo
     ctx.setTransform(k, 0, 0, k, this.offX + sx * k, (-g.camY + sy) * k);
@@ -125,7 +156,7 @@ export class View {
 
     // Luciérnagas en pantalla: más a medida que crece la cadena (calma → caos)
     ctx.setTransform(k, 0, 0, k, this.offX, 0);
-    this.drawFireflies(g.time, 12 + Math.min(28, g.chain));
+    this.drawFireflies(g.time, 12 + Math.min(28, g.chain), ZONES[this.zone].firefly);
 
     ctx.restore();
     ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -148,14 +179,33 @@ export class View {
     const bad = occ && occ.leaf.type === 'dry';
     const lit = valid ? 1 - occ.e * 0.55 : 0;
 
-    // Trayectoria punteada (siempre se ve por dónde van a pasar las hojas)
-    ctx.fillStyle = 'rgba(143,233,255,0.22)';
+    const rx = ringXAt(row);
+
+    // Trayectoria punteada (siempre se ve por dónde van a pasar las hojas y hacia dónde)
     const kk = (Math.PI * 2) / row.wavelength;
-    const drift = (g.time * row.speed * 0.25) % 14;
-    for (let x = -20 + (row.dir > 0 ? drift : 14 - drift); x < W + 20; x += 14) {
-      const along = row.dir * (row.ringX - x);
-      const y = row.y + row.amp * Math.sin(along * kk);
-      ctx.fillRect(x - 1.2, y - 1.2, 2.4, 2.4);
+    row.currents.forEach((cur, c) => {
+      ctx.fillStyle = c === 0 ? 'rgba(143,233,255,0.22)' : 'rgba(200,170,255,0.3)';
+      const drift = (g.time * row.speed * 0.25) % 14;
+      const yOff = row.currents.length > 1 ? (c === 0 ? -3 : 3) : 0;
+      for (let x = -20 + (cur.dir > 0 ? drift : 14 - drift); x < W + 20; x += 14) {
+        const along = cur.dir * (row.ringX - x);
+        const y = row.y + yOff + row.amp * Math.sin(along * kk);
+        ctx.fillRect(x - 1.2, y - 1.2, 2.4, 2.4);
+      }
+    });
+
+    // Riel del aro móvil: se ve hasta dónde va y viene.
+    if (row.move) {
+      ctx.strokeStyle = 'rgba(255,214,240,0.35)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(row.ringX - row.move.amp, row.y + row.ringRy + 6);
+      ctx.lineTo(row.ringX + row.move.amp, row.y + row.ringRy + 6);
+      for (const e of [-1, 1]) {
+        ctx.moveTo(row.ringX + e * row.move.amp, row.y + row.ringRy + 1);
+        ctx.lineTo(row.ringX + e * row.move.amp, row.y + row.ringRy + 11);
+      }
+      ctx.stroke();
     }
 
     // Puente: de la chispa al aro
@@ -163,7 +213,7 @@ export class View {
     if (s.state === 'idle' && g.phase !== 'over') {
       const x0 = s.x;
       const y0 = s.y;
-      const x1 = row.ringX;
+      const x1 = rx;
       const y1 = row.y;
       const cx = (x0 + x1) / 2;
       const cy = Math.min(y0, y1) - 45;
@@ -204,7 +254,7 @@ export class View {
     const R = row.ringR;
     const Ry = row.ringRy;
     ctx.save();
-    ctx.translate(row.ringX, row.y);
+    ctx.translate(rx, row.y);
     if (lit > 0) {
       ctx.globalCompositeOperation = 'lighter';
       drawGlow(ctx, '#ffd47a', 0, 0, R * 1.9, 0.55 * lit);
@@ -245,7 +295,7 @@ export class View {
 
   // ------------------------------------------------------------ hojas
 
-  private leafSprite(type: 'normal' | 'dry' | 'gold'): Sprite {
+  private leafSprite(type: LeafType): Sprite {
     return this.sprites.leaves[type];
   }
 
@@ -272,15 +322,41 @@ export class View {
           ctx.globalCompositeOperation = 'source-over';
         }
         if (l.type === 'gold' && Math.random() < 0.15) g.particles.ember(l.x + (Math.random() - 0.5) * 40, l.y, '#ffd76a');
+        if (l.power) this.drawPowerOrb(l.power, l.x, l.y - 30 + Math.sin(g.time * 4 + l.i) * 2.5, l.alpha);
       }
       ctx.globalAlpha = 1;
     }
 
     for (const c of [g.carrier, g.incoming]) {
       if (!c) continue;
-      const bob = c === g.carrier ? Math.sin(g.time * 3) * 1.6 : 0;
-      drawSprite(ctx, this.leafSprite(c.type), c.x, c.y + SEAT_OFFSET + bob, LEAF_SCALE, c.angle);
+      let bob = c === g.carrier ? Math.sin(g.time * 3) * 1.6 : 0;
+      let dx = 0;
+      // La hoja frágil se hunde y tiembla a medida que se consume la mecha.
+      if (c === g.carrier && c.type === 'fragile' && row && isFinite(row.fuse) && g.phase === 'playing') {
+        const frac = clamp(g.fuseLeft / row.fuse, 0, 1);
+        bob += (1 - frac) * 7;
+        if (frac < 0.4) dx = Math.sin(g.time * 50) * 1.5;
+      }
+      drawSprite(ctx, this.leafSprite(c.type), c.x + dx, c.y + SEAT_OFFSET + bob, LEAF_SCALE, c.angle);
     }
+  }
+
+  private drawPowerOrb(id: keyof typeof POWERS, x: number, y: number, alpha: number): void {
+    const ctx = this.ctx;
+    const color = POWERS[id].color;
+    ctx.globalCompositeOperation = 'lighter';
+    drawGlow(ctx, color, x, y, 22, 0.8 * alpha);
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(x, y, 9, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+    ctx.lineWidth = 1.4;
+    ctx.stroke();
+    drawPowerGlyph(ctx, id, x, y, 1);
+    ctx.globalAlpha = 1;
   }
 
   // ------------------------------------------------------------ chispa y mecha
@@ -303,6 +379,18 @@ export class View {
     ctx.globalCompositeOperation = 'lighter';
     drawGlow(ctx, style.glow, s.x, s.y + 6, 52 * scale, 0.5 * alpha);
     ctx.globalCompositeOperation = 'source-over';
+
+    // Escudo: burbuja celeste alrededor de la chispa
+    if (g.shields > 0 && s.state !== 'out' && s.state !== 'falling') {
+      ctx.globalCompositeOperation = 'lighter';
+      drawGlow(ctx, '#7fe3ff', s.x, s.y, 40, 0.35);
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.strokeStyle = `rgba(160,240,255,${0.55 + 0.25 * Math.sin(g.time * 5)})`;
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, 31, 0, Math.PI * 2);
+      ctx.stroke();
+    }
 
     // Mecha: arco que se consume alrededor de la chispa
     const row = g.row;
@@ -364,30 +452,33 @@ export class View {
 
   // ------------------------------------------------------------ decoración
 
+  /** Decoración de los costados: depende de la altura (mundo) en la que está cada tramo. */
   private drawDecor(camY: number): void {
     const ctx = this.ctx;
     const tile = 230;
+    const gap = this.rowGap();
     const i0 = Math.floor(camY / tile) - 1;
     const i1 = Math.floor((camY + this.H) / tile) + 1;
     for (let i = i0; i <= i1; i++) {
+      const zone = ZONES[zoneIndex(Math.max(0, Math.round(-(i * tile) / gap)))];
       for (const side of [-1, 1]) {
         const r = rng(hashString(`${i}:${side}`));
-        const kind = r();
+        const kind: DecorKind = zone.decor[Math.floor(r() * zone.decor.length)];
         const x = side < 0 ? -8 + r() * 34 : W + 8 - r() * 34;
         const y = i * tile + r() * 200;
         const sc = 0.75 + r() * 0.45;
-        if (kind < 0.5) {
-          drawSprite(ctx, this.sprites.fern, x, y, sc, side * (0.35 + r() * 0.5), side < 0 ? 1 : -1);
-        } else if (kind < 0.75) {
-          drawSprite(ctx, this.sprites.bells, x + side * -6, y, sc * 0.9, 0, side < 0 ? 1 : -1);
-        } else {
-          drawSprite(ctx, this.sprites.lotus, x, y, sc);
-        }
+        const flip = side < 0 ? 1 : -1;
+        if (kind === 'fern') drawSprite(ctx, this.sprites.fern, x, y, sc, side * (0.35 + r() * 0.5), flip);
+        else if (kind === 'bells') drawSprite(ctx, this.sprites.bells, x + side * -6, y, sc * 0.9, 0, flip);
+        else if (kind === 'lotus') drawSprite(ctx, this.sprites.lotus, x, y, sc);
+        else if (kind === 'cloud') drawSprite(ctx, this.sprites.cloud, x + side * -10, y, sc * 1.2);
+        else if (kind === 'crystal') drawSprite(ctx, this.sprites.crystal, x, y, sc, side * 0.2);
+        else drawSprite(ctx, this.sprites.rock, x, y, sc, r() * 3);
       }
     }
   }
 
-  private drawLanterns(camY: number, time: number): void {
+  private drawLanterns(camY: number, time: number, tint: string): void {
     const ctx = this.ctx;
     const tile = 160;
     const i0 = Math.floor(camY / tile) - 1;
@@ -399,13 +490,13 @@ export class View {
         const x = r() * W;
         const y = i * tile + r() * tile;
         const a = 0.25 + 0.15 * Math.sin(time * (1 + r()) + i);
-        drawGlow(ctx, r() < 0.5 ? '#ffb347' : '#7fdcff', x, y, 10 + r() * 10, a);
+        drawGlow(ctx, r() < 0.5 ? tint : '#7fdcff', x, y, 10 + r() * 10, a);
       }
     }
     ctx.globalCompositeOperation = 'source-over';
   }
 
-  private drawFireflies(time: number, count: number): void {
+  private drawFireflies(time: number, count: number, color: string): void {
     const ctx = this.ctx;
     ctx.globalCompositeOperation = 'lighter';
     for (let i = 0; i < count && i < this.fireflies.length; i++) {
@@ -413,7 +504,7 @@ export class View {
       const x = f.x + Math.sin(time * f.sp + f.ph) * 24;
       const y = (((f.y * this.H - time * f.vy) % this.H) + this.H) % this.H;
       const a = 0.35 + 0.45 * Math.max(0, Math.sin(time * 2.2 * f.sp + f.ph * 3));
-      drawGlow(ctx, '#ffcf6b', x, y, 6, a);
+      drawGlow(ctx, color, x, y, 6, a);
     }
     ctx.globalCompositeOperation = 'source-over';
   }

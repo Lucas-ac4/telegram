@@ -7,7 +7,7 @@ import type { DailyStatus, Lantern } from '../meta/progress';
 
 export type DeathReason = 'early' | 'late' | 'empty' | 'dry' | 'fuse';
 type ScreenName = 'menu' | 'hud' | 'over' | 'pause' | 'stats' | 'revive';
-type Tab = 'home' | 'missions' | 'sparks';
+type Tab = 'home' | 'missions' | 'chars' | 'worlds' | 'profile';
 
 /** Textos del tutorial: cortos, se enseña jugando. */
 export const HINTS: Record<HintKey, string> = {
@@ -38,15 +38,37 @@ const ICON = {
   home: svg('<path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/>'),
   list: svg('<path d="M10 6h10M10 12h10M10 18h10"/><path d="M3.5 6l1.5 1.5L7.5 5M3.5 12l1.5 1.5 2.5-2.5M3.5 18l1.5 1.5 2.5-2.5"/>'),
   flame: svg('<path d="M12 3c1 4 6 6 6 11a6 6 0 0 1-12 0c0-3 2-5 3-6 0 2 1 3 2 3 0-3 0-6 1-8z"/>'),
+  map: svg('<path d="M9 4L3 6v14l6-2 6 2 6-2V4l-6 2z"/><path d="M9 4v14M15 6v14"/>'),
+  user: svg('<circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4-6 8-6s7 2 8 6"/>'),
   lantern: svg('<path d="M9 3h6M12 3v2M10 21h4"/><rect x="7" y="5" width="10" height="14" rx="4"/><path d="M12 9v6"/>'),
   chest: svg('<rect x="3" y="9" width="18" height="11" rx="2"/><path d="M3 13h18M5 9a7 4 0 0 1 14 0"/><rect x="10.5" y="11.5" width="3" height="4" rx="1"/>'),
   trophy: svg('<path d="M8 4h8v5a4 4 0 0 1-8 0z"/><path d="M8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4M12 13v4M8 20h8"/>'),
   play: svg('<path d="M8 5l11 7-11 7z"/>', true),
   check: svg('<path d="M5 12l5 5 9-10"/>'),
   lock: svg('<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>'),
+  shield: svg('<path d="M12 3l7 3v5c0 5-3.5 8-7 10-3.5-2-7-5-7-10V6z"/>'),
+  magnet: svg('<path d="M6 4v8a6 6 0 0 0 12 0V4"/><path d="M6 8h3M15 8h3"/>'),
+  clock: svg('<circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/>'),
+  fuse: svg('<path d="M4 20c4-1 6-6 12-9"/><circle cx="18" cy="9" r="2.5"/>'),
 };
 
 const COIN = '<i class="coin"></i>';
+
+export interface MissionView {
+  text: string;
+  progress: number;
+  target: number;
+  reward: number;
+  done: boolean;
+  claimed: boolean;
+}
+
+export interface MissionBox {
+  list: MissionView[];
+  chestClaimed: boolean;
+  chestReward: number;
+  resetIn: string;
+}
 
 export interface LobbyData {
   coins: number;
@@ -55,10 +77,12 @@ export interface LobbyData {
   owned: SkinId[];
   daily: DailyStatus;
   reto: { best: number; attempts: number; dateLabel: string };
-  missions: { text: string; progress: number; target: number; reward: number; done: boolean; claimed: boolean }[];
-  chest: { claimed: boolean; done: number; reward: number };
+  dailyMissions: MissionBox;
+  weeklyMissions: MissionBox;
   achievements: { id: string; text: string; progress: number; target: number; reward: number | string; done: boolean; claimed: boolean }[];
-  resetIn: string;
+  zones: { name: string; at: number; intro: string; reward: number; card: string; reached: boolean; claimed: boolean }[];
+  profile: { name: string; level: number; into: number; need: number; stats: [string, string][]; chars: string; worlds: string };
+  boost: { armed: boolean; price: number };
   showStats: boolean;
 }
 
@@ -69,13 +93,18 @@ export interface ResultData {
   best: number;
   isRecord: boolean;
   score: number;
-  perfects: number;
+  lanterns: number;
   coins: number;
   canDouble: boolean;
   reto: boolean;
   retoBest: number;
   missionsReady: number;
-  lanterns: number;
+  zoneName: string;
+  xp: number;
+  level: number;
+  levelInto: number;
+  levelNeed: number;
+  levelUp: { level: number; coins: number } | null;
 }
 
 export interface ReviveData {
@@ -83,6 +112,13 @@ export interface ReviveData {
   mult: number;
   stakes: string[];
   seconds: number;
+}
+
+export interface PowerState {
+  shield: number;
+  magnet: number;
+  calm: number;
+  fuse: number;
 }
 
 interface Handlers {
@@ -95,9 +131,11 @@ interface Handlers {
   onMute(): void;
   onSkin(id: SkinId): 'selected' | 'bought' | 'poor' | 'locked';
   onClaimDaily(double: boolean): void;
-  onClaimMission(index: number): void;
-  onClaimChest(): void;
+  onClaimMission(weekly: boolean, index: number): void;
+  onClaimChest(weekly: boolean): void;
   onClaimAchievement(id: string): void;
+  onClaimZone(index: number): void;
+  onBoost(withAd: boolean): void;
   onRevive(): void;
   onDeclineRevive(): void;
   onDouble(): void;
@@ -109,6 +147,8 @@ export class UI {
   private screens: Record<ScreenName, HTMLElement>;
   private hudCoins = 0;
   private toastTimer = 0;
+  private bannerTimer = 0;
+  private powerTimer = 0;
   private previews = new Map<SkinId, string>();
   private tab: Tab = 'home';
   private reviveTimer = 0;
@@ -140,7 +180,8 @@ export class UI {
                 <span class="tile-text"><b>Reto diario</b><small data-reto-sub></small></span>
               </button>
             </div>
-            <div class="best-line"><span class="star">★</span> Récord <b data-best>0</b></div>
+            <div class="boost" data-boost></div>
+            <div class="best-line"><span class="star">★</span> Récord <b data-best>0</b> · <span data-home-level></span></div>
             <button class="btn primary" data-play>JUGAR</button>
             <button class="link" data-stats hidden>Datos de prueba</button>
           </div>
@@ -148,33 +189,53 @@ export class UI {
 
         <div class="pane list-pane" data-pane="missions" hidden>
           <div class="pane-scroll">
-            <div class="pane-head"><h2>Misiones de hoy</h2><span class="muted" data-reset></span></div>
-            <div class="list" data-missions></div>
-            <div class="chest-card" data-chest></div>
+            <div class="pane-head"><h2>Diarias</h2><span class="muted" data-daily-reset></span></div>
+            <div class="list" data-missions-daily></div>
+            <div class="chest-card" data-chest-daily></div>
+            <div class="pane-head"><h2>Semanales</h2><span class="muted" data-weekly-reset></span></div>
+            <div class="list" data-missions-weekly></div>
+            <div class="chest-card weekly" data-chest-weekly></div>
             <div class="pane-head"><h2>Logros</h2></div>
             <div class="list" data-achievements></div>
           </div>
         </div>
 
-        <div class="pane list-pane" data-pane="sparks" hidden>
+        <div class="pane list-pane" data-pane="chars" hidden>
           <div class="pane-scroll">
-            <div class="pane-head"><h2>Chispas</h2><span class="muted">Sólo cambian el look, nunca la dificultad</span></div>
+            <div class="pane-head"><h2>Personajes</h2><span class="muted">Cada uno tiene una habilidad</span></div>
             <div class="skin-grid" data-skins></div>
+            <p class="muted center">En el reto diario las habilidades no cuentan: ahí todos juegan igual.</p>
+          </div>
+        </div>
+
+        <div class="pane list-pane" data-pane="worlds" hidden>
+          <div class="pane-scroll">
+            <div class="pane-head"><h2>Mundos</h2><span class="muted">Subí la cadena para descubrirlos</span></div>
+            <div class="journey" data-worlds></div>
+          </div>
+        </div>
+
+        <div class="pane list-pane" data-pane="profile" hidden>
+          <div class="pane-scroll">
+            <div class="profile-card" data-profile-card></div>
+            <div class="stat-grid" data-profile-stats></div>
           </div>
         </div>
 
         <nav class="tabbar">
           <button data-tab="home">${ICON.home}<span>Inicio</span></button>
           <button data-tab="missions">${ICON.list}<span>Misiones</span><i class="dot" data-missions-dot hidden></i></button>
-          <button data-tab="sparks">${ICON.flame}<span>Chispas</span><i class="dot" data-sparks-dot hidden></i></button>
+          <button data-tab="chars">${ICON.flame}<span>Personajes</span><i class="dot" data-chars-dot hidden></i></button>
+          <button data-tab="worlds">${ICON.map}<span>Mundos</span><i class="dot" data-worlds-dot hidden></i></button>
+          <button data-tab="profile">${ICON.user}<span>Perfil</span></button>
         </nav>
       </section>
 
       <section class="screen modal" data-modal="daily" hidden>
         <div class="sheet">
-          <button class="close" data-close aria-label="Cerrar">✕</button>
+          <button class="sheet-close" data-close aria-label="Cerrar">✕</button>
           <h2>Regalo diario</h2>
-          <p class="muted">Volvé todos los días. El día 7 trae una chispa exclusiva.</p>
+          <p class="muted">Volvé todos los días. El día 7 trae a Aurora, una chispa exclusiva.</p>
           <div class="days" data-days></div>
           <div class="daily-actions" data-daily-actions></div>
         </div>
@@ -182,10 +243,10 @@ export class UI {
 
       <section class="screen modal" data-modal="reto" hidden>
         <div class="sheet">
-          <button class="close" data-close aria-label="Cerrar">✕</button>
+          <button class="sheet-close" data-close aria-label="Cerrar">✕</button>
           <h2>Reto del día</h2>
           <p class="muted" data-reto-date></p>
-          <p class="sheet-text">La misma partida para todos hoy. Sin revivir: pura habilidad.</p>
+          <p class="sheet-text">La misma partida para todos hoy. Sin revivir ni habilidades: pura habilidad tuya.</p>
           <div class="result-stats two">
             <div><span>Tu mejor hoy</span><b data-reto-best>0</b></div>
             <div><span>Intentos</span><b data-reto-attempts>0</b></div>
@@ -209,6 +270,13 @@ export class UI {
           </div>
           <div class="hud-coins"><i class="coin"></i><span data-hud-coins>0</span></div>
         </div>
+        <div class="powers" data-powers></div>
+        <div class="zone-banner" data-zone-banner hidden>
+          <small data-zb-num></small>
+          <b data-zb-name></b>
+          <span data-zb-intro></span>
+        </div>
+        <div class="power-toast" data-power-toast hidden></div>
         <div class="hint" data-hint hidden></div>
       </section>
 
@@ -235,13 +303,19 @@ export class UI {
           <div class="reason" data-reason></div>
           <div class="reason-detail" data-reason-detail></div>
           <div class="result-num" data-r-chain>0</div>
-          <div class="result-label">relevos</div>
+          <div class="result-label">relevos · <span data-r-zone></span></div>
           <div class="record-line" data-record-line></div>
           <div class="result-stats">
             <div><span>Puntos</span><b data-r-score>0</b></div>
             <div><span>Faroles</span><b data-r-lanterns>0</b></div>
             <div><span>Monedas</span><b data-r-coins>0</b></div>
           </div>
+          <div class="xp-line">
+            <span data-r-level></span>
+            <span class="xp-bar"><i data-r-xpfill></i></span>
+            <span data-r-xp></span>
+          </div>
+          <div class="levelup" data-r-levelup hidden></div>
           <button class="btn ad-pill" data-double hidden>${ICON.play}<span>Duplicar monedas</span><b data-double-amt></b></button>
           <div class="mission-line" data-r-mission></div>
           <button class="btn primary big" data-retry>UNA MÁS</button>
@@ -327,7 +401,7 @@ export class UI {
       );
     });
 
-    for (const sel of ['[data-chain]', '.hud-coins', '.lantern-pill', '[data-menu-coins]']) {
+    for (const sel of ['[data-chain]', '.hud-coins', '.lantern-pill', '[data-menu-coins]', '[data-r-coins]']) {
       const el = this.$(sel);
       el.addEventListener('animationend', () => el.classList.remove('pop', 'perfect', 'lit'));
     }
@@ -348,12 +422,18 @@ export class UI {
     el.classList.add(cls);
   }
 
+  private preview(id: SkinId): string {
+    if (!this.previews.has(id)) this.previews.set(id, skinPreview(id));
+    return this.previews.get(id)!;
+  }
+
   // ------------------------------------------------------------ lobby
 
   showMenu(d: LobbyData): void {
     this.only('menu');
-    this.$('[data-menu-coins]').textContent = String(d.coins);
+    this.$('[data-menu-coins]').textContent = d.coins.toLocaleString('es-AR');
     this.$('[data-best]').textContent = String(d.best);
+    this.$('[data-home-level]').textContent = `Nivel ${d.profile.level}`;
     this.$('[data-stats]').hidden = !d.showStats;
 
     // Inicio
@@ -362,17 +442,24 @@ export class UI {
     this.$('[data-daily-dot]').hidden = !dl.claimable;
     this.$('.tile.gift').classList.toggle('ready', dl.claimable);
     this.$('[data-reto-sub]').textContent = d.reto.attempts ? `Tu mejor: ${d.reto.best}` : 'Nuevo hoy';
+    this.renderBoost(d);
 
     // Misiones
     this.renderMissions(d);
-    const claimable =
-      d.missions.some((m) => m.done && !m.claimed) || this.chestReady(d) || d.achievements.some((a) => a.done && !a.claimed);
-    this.$('[data-missions-dot]').hidden = !claimable;
+    const boxReady = (b: MissionBox) => b.list.some((m) => m.done && !m.claimed) || (!b.chestClaimed && b.list.every((m) => m.claimed));
+    this.$('[data-missions-dot]').hidden = !(
+      boxReady(d.dailyMissions) ||
+      boxReady(d.weeklyMissions) ||
+      d.achievements.some((a) => a.done && !a.claimed)
+    );
 
-    // Chispas
+    // Personajes, mundos y perfil
     this.renderSkins(d);
     const affordable = SKIN_ORDER.some((id) => !d.owned.includes(id) && SKINS[id].price > 0 && SKINS[id].price <= d.coins);
-    this.$('[data-sparks-dot]').hidden = !affordable;
+    this.$('[data-chars-dot]').hidden = !affordable;
+    this.renderWorlds(d);
+    this.$('[data-worlds-dot]').hidden = !d.zones.some((z) => z.reached && !z.claimed);
+    this.renderProfile(d);
 
     this.renderDaily(d);
     this.renderReto(d);
@@ -385,55 +472,53 @@ export class UI {
     this.root.querySelectorAll<HTMLElement>('[data-tab]').forEach((b) => b.classList.toggle('on', b.dataset.tab === tab));
   }
 
-  /** Para que el juego sepa si mostrar la escena (sólo en Inicio). */
-  get onHome(): boolean {
-    return this.tab === 'home';
-  }
-
   openModal(name: string): void {
     this.root.querySelectorAll<HTMLElement>('[data-modal]').forEach((m) => (m.hidden = m.dataset.modal !== name));
-    const sheet = this.$(`[data-modal="${name}"] .sheet`);
-    this.replay(sheet, 'in');
+    this.replay(this.$(`[data-modal="${name}"] .sheet`), 'in');
   }
 
   private closeModals(): void {
     this.root.querySelectorAll<HTMLElement>('[data-modal]').forEach((m) => (m.hidden = true));
   }
 
-  private chestReady(d: LobbyData): boolean {
-    return !d.chest.claimed && d.chest.done >= d.missions.length;
+  private renderBoost(d: LobbyData): void {
+    const box = this.$('[data-boost]');
+    box.innerHTML = '';
+    box.classList.toggle('armed', d.boost.armed);
+    const ico = document.createElement('span');
+    ico.className = 'boost-ico';
+    ico.innerHTML = ICON.shield;
+    const text = document.createElement('span');
+    text.className = 'boost-text';
+    text.innerHTML = d.boost.armed
+      ? '<b>Escudo listo</b><small>Te salva de un error en la próxima partida</small>'
+      : '<b>Escudo inicial</b><small>Arrancá con una vida extra</small>';
+    box.append(ico, text);
+    if (d.boost.armed) {
+      const ok = document.createElement('span');
+      ok.className = 'claimed-mark';
+      ok.innerHTML = ICON.check;
+      box.append(ok);
+      return;
+    }
+    const ad = document.createElement('button');
+    ad.className = 'mini ad';
+    ad.innerHTML = `${ICON.play}Gratis`;
+    ad.addEventListener('click', () => this.h.onBoost(true));
+    const buy = document.createElement('button');
+    buy.className = 'mini';
+    buy.innerHTML = `${d.boost.price} ${COIN}`;
+    buy.addEventListener('click', () => this.h.onBoost(false));
+    box.append(ad, buy);
   }
 
   private renderMissions(d: LobbyData): void {
-    this.$('[data-reset]').textContent = `Nuevas en ${d.resetIn}`;
-    const box = this.$('[data-missions]');
-    box.innerHTML = '';
-    d.missions.forEach((m, i) => {
-      const row = document.createElement('div');
-      row.className = `row-item${m.claimed ? ' claimed' : ''}${m.done && !m.claimed ? ' ready' : ''}`;
-      const pct = Math.round((m.progress / m.target) * 100);
-      row.innerHTML = `
-        <div class="ri-main">
-          <div class="ri-text">${m.text}</div>
-          <div class="bar"><div class="fill" style="width:${pct}%"></div></div>
-          <div class="ri-sub">${m.progress}/${m.target}</div>
-        </div>`;
-      row.appendChild(this.claimButton(m.claimed, m.done, `+${m.reward} ${COIN}`, () => this.h.onClaimMission(i)));
-      box.appendChild(row);
-    });
-
-    const chest = this.$('[data-chest]');
-    const ready = this.chestReady(d);
-    chest.className = `chest-card${ready ? ' ready' : ''}${d.chest.claimed ? ' claimed' : ''}`;
-    const pips = d.missions.map((_, i) => `<i class="${i < d.chest.done ? 'on' : ''}"></i>`).join('');
-    chest.innerHTML = `
-      <span class="chest-ico">${ICON.chest}</span>
-      <div class="ri-main">
-        <div class="ri-text">Cofre del día</div>
-        <div class="ri-sub">${d.chest.claimed ? 'Abierto. Mañana hay otro.' : 'Cobrá las 3 misiones para abrirlo'}</div>
-        <div class="pips">${pips}</div>
-      </div>`;
-    chest.appendChild(this.claimButton(d.chest.claimed, ready, `Abrir +${d.chest.reward} ${COIN}`, () => this.h.onClaimChest()));
+    this.$('[data-daily-reset]').textContent = `Nuevas en ${d.dailyMissions.resetIn}`;
+    this.$('[data-weekly-reset]').textContent = `Nuevas en ${d.weeklyMissions.resetIn}`;
+    this.renderMissionList(this.$('[data-missions-daily]'), d.dailyMissions, false);
+    this.renderMissionList(this.$('[data-missions-weekly]'), d.weeklyMissions, true);
+    this.renderChest(this.$('[data-chest-daily]'), d.dailyMissions, false);
+    this.renderChest(this.$('[data-chest-weekly]'), d.weeklyMissions, true);
 
     const ach = this.$('[data-achievements]');
     ach.innerHTML = '';
@@ -441,7 +526,7 @@ export class UI {
       const row = document.createElement('div');
       row.className = `row-item${a.claimed ? ' claimed' : ''}${a.done && !a.claimed ? ' ready' : ''}`;
       const pct = Math.round((Math.min(a.progress, a.target) / a.target) * 100);
-      const reward = typeof a.reward === 'number' ? `+${a.reward} ${COIN}` : `Chispa ${SKINS[a.reward as SkinId]?.name ?? a.reward}`;
+      const reward = typeof a.reward === 'number' ? `+${a.reward} ${COIN}` : `${SKINS[a.reward as SkinId]?.name ?? a.reward}`;
       row.innerHTML = `
         <span class="ri-ico">${ICON.trophy}</span>
         <div class="ri-main">
@@ -452,6 +537,39 @@ export class UI {
       row.appendChild(this.claimButton(a.claimed, a.done, reward, () => this.h.onClaimAchievement(a.id)));
       ach.appendChild(row);
     }
+  }
+
+  private renderMissionList(box: HTMLElement, data: MissionBox, weekly: boolean): void {
+    box.innerHTML = '';
+    data.list.forEach((m, i) => {
+      const row = document.createElement('div');
+      row.className = `row-item${m.claimed ? ' claimed' : ''}${m.done && !m.claimed ? ' ready' : ''}${weekly ? ' weekly' : ''}`;
+      const pct = Math.round((m.progress / m.target) * 100);
+      row.innerHTML = `
+        <div class="ri-main">
+          <div class="ri-text">${m.text}</div>
+          <div class="bar"><div class="fill" style="width:${pct}%"></div></div>
+          <div class="ri-sub">${m.progress}/${m.target}</div>
+        </div>`;
+      row.appendChild(this.claimButton(m.claimed, m.done, `+${m.reward} ${COIN}`, () => this.h.onClaimMission(weekly, i)));
+      box.appendChild(row);
+    });
+  }
+
+  private renderChest(el: HTMLElement, data: MissionBox, weekly: boolean): void {
+    const claimedCount = data.list.filter((m) => m.claimed).length;
+    const ready = !data.chestClaimed && claimedCount >= data.list.length;
+    el.className = `chest-card${weekly ? ' weekly' : ''}${ready ? ' ready' : ''}${data.chestClaimed ? ' claimed' : ''}`;
+    const pips = data.list.map((_, i) => `<i class="${i < claimedCount ? 'on' : ''}"></i>`).join('');
+    const name = weekly ? 'Cofre semanal' : 'Cofre del día';
+    el.innerHTML = `
+      <span class="chest-ico">${ICON.chest}</span>
+      <div class="ri-main">
+        <div class="ri-text">${name}</div>
+        <div class="ri-sub">${data.chestClaimed ? 'Abierto. Pronto hay otro.' : `Cobrá las ${data.list.length} misiones para abrirlo`}</div>
+        <div class="pips">${pips}</div>
+      </div>`;
+    el.appendChild(this.claimButton(data.chestClaimed, ready, `+${data.chestReward} ${COIN}`, () => this.h.onClaimChest(weekly)));
   }
 
   private claimButton(claimed: boolean, done: boolean, label: string, fn: () => void): HTMLElement {
@@ -472,33 +590,77 @@ export class UI {
   private renderSkins(d: LobbyData): void {
     const box = this.$('[data-skins]');
     box.innerHTML = '';
+    const tiers: Record<string, string> = { Común: 'common', Rara: 'rare', Épica: 'epic', Legendaria: 'legend', Exclusiva: 'excl' };
     for (const id of SKIN_ORDER) {
       const st = SKINS[id];
       const owned = d.owned.includes(id);
-      if (!this.previews.has(id)) this.previews.set(id, skinPreview(id));
       const b = document.createElement('button');
-      const tier = { Común: 'common', Rara: 'rare', Épica: 'epic', Exclusiva: 'excl' }[st.rarity];
-      b.className = `skin-card ${tier}${id === d.skin ? ' selected' : ''}${owned ? '' : ' locked'}`;
+      b.className = `skin-card ${tiers[st.rarity]}${id === d.skin ? ' selected' : ''}${owned ? '' : ' locked'}`;
       let state: string;
       if (owned) state = id === d.skin ? 'En uso' : 'Usar';
       else if (st.unlock) state = `${ICON.lock}<span>${st.unlock}</span>`;
-      else state = `${st.price} ${COIN}`;
+      else state = `${st.price.toLocaleString('es-AR')} ${COIN}`;
       b.innerHTML = `
         <span class="rarity">${st.rarity}</span>
-        <img alt="" src="${this.previews.get(id)}" />
+        <img alt="" src="${this.preview(id)}" />
         <span class="skin-name">${st.name}</span>
+        <span class="perk">${st.perk ? st.perk.text : 'Sin habilidad: puro talento'}</span>
         <span class="skin-state">${state}</span>`;
       b.addEventListener('click', () => {
         const r = this.h.onSkin(id);
         if (r === 'poor' || r === 'locked') {
           this.replay(b, 'nope');
-          this.toast(r === 'poor' ? `Te faltan ${st.price - d.coins} monedas` : `Se desbloquea con: ${st.unlock}`);
+          this.toast(r === 'poor' ? `Te faltan ${(st.price - d.coins).toLocaleString('es-AR')} monedas` : `Se consigue con: ${st.unlock}`);
         } else if (r === 'bought') {
-          this.toast(`¡Desbloqueaste ${st.name}!`);
+          this.toast(`¡Desbloqueaste a ${st.name}!`);
         }
       });
       box.appendChild(b);
     }
+  }
+
+  private renderWorlds(d: LobbyData): void {
+    const box = this.$('[data-worlds]');
+    box.innerHTML = '';
+    d.zones.forEach((z, i) => {
+      const card = document.createElement('div');
+      card.className = `world${z.reached ? ' reached' : ' locked'}`;
+      card.style.background = z.card;
+      let state = '';
+      if (!z.reached) state = `<span class="world-lock">${ICON.lock} Llegá a cadena ${z.at}</span>`;
+      else if (z.claimed) state = `<span class="world-ok">${ICON.check} ${i === 0 ? 'Tu punto de partida' : 'Explorado'}</span>`;
+      card.innerHTML = `
+        <span class="world-num">Mundo ${i + 1} · desde cadena ${z.at}</span>
+        <b class="world-name">${z.name}</b>
+        <span class="world-intro">${z.intro}</span>
+        ${state}`;
+      if (z.reached && !z.claimed) card.appendChild(this.claimButton(false, true, `+${z.reward} ${COIN}`, () => this.h.onClaimZone(i)));
+      else if (!z.reached && z.reward > 0) {
+        const r = document.createElement('span');
+        r.className = 'world-reward';
+        r.innerHTML = `Premio: +${z.reward} ${COIN}`;
+        card.appendChild(r);
+      }
+      box.appendChild(card);
+    });
+  }
+
+  private renderProfile(d: LobbyData): void {
+    const p = d.profile;
+    const pct = Math.round((p.into / p.need) * 100);
+    this.$('[data-profile-card]').innerHTML = `
+      <img alt="" src="${this.preview(d.skin)}" />
+      <div class="pc-main">
+        <b class="pc-name">${escapeHtml(p.name)}</b>
+        <span class="pc-level">Nivel ${p.level}</span>
+        <div class="bar"><div class="fill" style="width:${pct}%"></div></div>
+        <span class="ri-sub">${p.into}/${p.need} XP para el nivel ${p.level + 1}</span>
+      </div>
+      <div class="pc-chips">
+        <span><b>${p.chars}</b> personajes</span>
+        <span><b>${p.worlds}</b> mundos</span>
+      </div>`;
+    this.$('[data-profile-stats]').innerHTML = p.stats.map(([k, v]) => `<div class="stat"><span>${k}</span><b>${v}</b></div>`).join('');
   }
 
   private renderDaily(d: LobbyData): void {
@@ -513,7 +675,7 @@ export class UI {
       const coins = CONFIG.daily.rewards[day - 1];
       const prize =
         day === 7
-          ? `<img alt="" src="${this.previews.get('aurora') ?? skinPreview('aurora')}" /><span>+${coins} ${COIN}</span>`
+          ? `<img alt="" src="${this.preview('aurora')}" /><span>+${coins} ${COIN}</span>`
           : `<span class="day-coin">${COIN}</span><span>+${coins}</span>`;
       cell.innerHTML = `<small>Día ${day}</small>${prize}${past ? `<span class="tick">${ICON.check}</span>` : ''}`;
       box.appendChild(cell);
@@ -550,8 +712,10 @@ export class UI {
     bestEl.textContent = best > 0 ? `Récord ${best}` : '';
     bestEl.classList.remove('beaten');
     this.$('[data-hud-mode]').hidden = !reto;
+    this.$('[data-zone-banner]').hidden = true;
+    this.$('[data-power-toast]').hidden = true;
     this.hudCoins = coins;
-    this.$('[data-hud-coins]').textContent = String(coins);
+    this.$('[data-hud-coins]').textContent = coins.toLocaleString('es-AR');
     this.showHint(null);
   }
 
@@ -580,9 +744,40 @@ export class UI {
     this.replay(this.$('.lantern-pill'), 'lit');
   }
 
+  /** Potenciadores activos (con relevos restantes). */
+  setPowers(p: PowerState): void {
+    const chips: string[] = [];
+    if (p.shield > 0) chips.push(`<span class="pw shield">${ICON.shield}${p.shield > 1 ? `×${p.shield}` : ''}</span>`);
+    if (p.magnet > 0) chips.push(`<span class="pw magnet">${ICON.magnet}${p.magnet}</span>`);
+    if (p.calm > 0) chips.push(`<span class="pw calm">${ICON.clock}${p.calm}</span>`);
+    if (p.fuse > 0) chips.push(`<span class="pw fuse">${ICON.fuse}${p.fuse}</span>`);
+    this.$('[data-powers]').innerHTML = chips.join('');
+  }
+
+  powerToast(name: string, short: string, color: string): void {
+    const el = this.$('[data-power-toast]');
+    el.innerHTML = `<b style="color:${color}">${name}</b> ${short}`;
+    el.hidden = false;
+    this.replay(el, 'in');
+    clearTimeout(this.powerTimer);
+    this.powerTimer = window.setTimeout(() => (el.hidden = true), 1800);
+  }
+
+  /** Cartel grande al entrar a un mundo nuevo. */
+  zoneBanner(num: number, name: string, intro: string): void {
+    const el = this.$('[data-zone-banner]');
+    this.$('[data-zb-num]').textContent = `Mundo ${num}`;
+    this.$('[data-zb-name]').textContent = name;
+    this.$('[data-zb-intro]').textContent = `Nuevo: ${intro}`;
+    el.hidden = false;
+    this.replay(el, 'in');
+    clearTimeout(this.bannerTimer);
+    this.bannerTimer = window.setTimeout(() => (el.hidden = true), 2600);
+  }
+
   bumpCoins(n: number): void {
     this.hudCoins += n;
-    this.$('[data-hud-coins]').textContent = String(this.hudCoins);
+    this.$('[data-hud-coins]').textContent = this.hudCoins.toLocaleString('es-AR');
     this.replay(this.$('.hud-coins'), 'pop');
   }
 
@@ -657,9 +852,16 @@ export class UI {
     this.$('[data-reason]').textContent = title;
     this.$('[data-reason-detail]').textContent = detail(r.delta);
     this.$('[data-r-chain]').textContent = String(r.chain);
+    this.$('[data-r-zone]').textContent = r.zoneName;
     this.$('[data-r-score]').textContent = r.score.toLocaleString('es-AR');
     this.$('[data-r-lanterns]').textContent = String(r.lanterns);
     this.$('[data-r-coins]').textContent = `+${r.coins}`;
+    this.$('[data-r-level]').textContent = `Nivel ${r.level}`;
+    this.$('[data-r-xp]').textContent = `+${r.xp} XP`;
+    this.$('[data-r-xpfill]').style.width = `${Math.round((r.levelInto / r.levelNeed) * 100)}%`;
+    const lu = this.$('[data-r-levelup]');
+    lu.hidden = !r.levelUp;
+    if (r.levelUp) lu.innerHTML = `¡Subiste a nivel ${r.levelUp.level}! +${r.levelUp.coins} ${COIN}`;
 
     const dbl = this.$<HTMLButtonElement>('[data-double]');
     dbl.hidden = !r.canDouble;
@@ -669,8 +871,9 @@ export class UI {
     const line = this.$('[data-record-line]');
     line.className = 'record-line';
     if (r.reto) {
-      line.textContent = r.chain >= r.retoBest && r.chain > 0 ? '¡Tu mejor reto de hoy!' : `Mejor reto de hoy: ${r.retoBest}`;
-      if (r.chain >= r.retoBest && r.chain > 0) line.classList.add('new');
+      const best = r.chain >= r.retoBest && r.chain > 0;
+      line.textContent = best ? '¡Tu mejor reto de hoy!' : `Mejor reto de hoy: ${r.retoBest}`;
+      if (best) line.classList.add('new');
     } else if (r.isRecord) {
       line.textContent = '¡Nuevo récord!';
       line.classList.add('new');
@@ -687,7 +890,7 @@ export class UI {
     const ml = this.$('[data-r-mission]');
     ml.className = 'mission-line';
     if (r.missionsReady > 0) {
-      ml.textContent = r.missionsReady === 1 ? '¡Misión cumplida! Cobrala en el menú' : `¡${r.missionsReady} premios para cobrar en el menú!`;
+      ml.textContent = r.missionsReady === 1 ? '¡Tenés 1 premio para cobrar en el menú!' : `¡${r.missionsReady} premios para cobrar en el menú!`;
       ml.classList.add('done');
     } else {
       ml.textContent = '';
@@ -697,16 +900,14 @@ export class UI {
 
   /** Después del anuncio de "duplicar". */
   setDoubled(total: number): void {
-    const dbl = this.$<HTMLButtonElement>('[data-double]');
-    dbl.hidden = true;
+    this.$<HTMLButtonElement>('[data-double]').hidden = true;
     const c = this.$('[data-r-coins]');
     c.textContent = `+${total}`;
     this.replay(c, 'pop');
   }
 
   doubleLoading(on: boolean): void {
-    const dbl = this.$<HTMLButtonElement>('[data-double]');
-    dbl.disabled = on;
+    this.$<HTMLButtonElement>('[data-double]').disabled = on;
   }
 
   showPause(show: boolean): void {
@@ -746,4 +947,8 @@ export class UI {
       <p class="muted">${s.total} eventos guardados.</p>`;
     this.screens.stats.hidden = false;
   }
+}
+
+function escapeHtml(s: string): string {
+  return s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
 }

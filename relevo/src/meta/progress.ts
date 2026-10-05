@@ -2,7 +2,7 @@ import { CONFIG } from '../config';
 import { todayKey } from '../util/math';
 
 /**
- * Faroles (hitos dentro de la partida) y racha diaria.
+ * Faroles (hitos dentro de la partida), nivel del jugador, racha diaria y semanas.
  */
 
 export interface Lantern {
@@ -18,12 +18,23 @@ export function lantern(index: number): Lantern {
   return { index, at: last + (index - L.at.length + 1) * L.every, reward: L.rewardAfter };
 }
 
-/** Próximo farol por encima de una cadena dada. */
-export function nextLantern(chain: number): Lantern {
-  let i = 0;
-  while (lantern(i).at <= chain) i++;
-  return lantern(i);
+// ---------------------------------------------------------------- nivel
+
+/** XP para pasar del nivel `level` al siguiente. */
+export const xpToNext = (level: number) => CONFIG.level.base + CONFIG.level.step * (level - 1);
+
+export function levelFromXp(xp: number): { level: number; into: number; need: number } {
+  let level = 1;
+  let rest = xp;
+  while (rest >= xpToNext(level)) {
+    rest -= xpToNext(level);
+    level++;
+  }
+  return { level, into: rest, need: xpToNext(level) };
 }
+
+/** Monedas al llegar a un nivel. */
+export const levelReward = (level: number) => CONFIG.level.rewardBase + CONFIG.level.rewardStep * level;
 
 // ---------------------------------------------------------------- racha diaria
 
@@ -63,4 +74,35 @@ export function dailyStatus(s: DailyState, hasSkin: boolean): DailyStatus {
   }
   const coins = CONFIG.daily.rewards[day - 1];
   return { day, claimable, coins, skin: day === 7 && !hasSkin };
+}
+
+// ---------------------------------------------------------------- semanas
+
+/** Lunes de la semana actual (YYYY-MM-DD): las semanales se renuevan los lunes. */
+export function weekKey(d = new Date()): string {
+  const monday = new Date(d);
+  monday.setHours(0, 0, 0, 0);
+  monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
+  return todayKey(monday);
+}
+
+function fmtLeft(ms: number): string {
+  const mins = Math.max(1, Math.round(ms / 60000));
+  if (mins >= 1440) return `${Math.floor(mins / 1440)} d ${Math.floor((mins % 1440) / 60)} h`;
+  if (mins >= 60) return `${Math.floor(mins / 60)} h ${mins % 60} min`;
+  return `${mins} min`;
+}
+
+export function untilTomorrow(): string {
+  const now = new Date();
+  const next = new Date(now);
+  next.setHours(24, 0, 0, 0);
+  return fmtLeft(next.getTime() - now.getTime());
+}
+
+export function untilNextWeek(): string {
+  const now = new Date();
+  const next = new Date(weekKey(now) + 'T00:00:00');
+  next.setDate(next.getDate() + 7);
+  return fmtLeft(next.getTime() - now.getTime());
 }
