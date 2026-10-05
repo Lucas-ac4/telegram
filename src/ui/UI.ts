@@ -56,6 +56,7 @@ export class UI {
     this.root = document.createElement('div');
     this.root.id = 'ui';
     this.root.innerHTML = `
+      <div class="vignette"></div>
       <header class="topbar" hidden>
         <div class="chip" data-best-chip>🏆 <span data-best>0 m</span></div>
         <div class="wallet"><span class="coin-ico"></span><span data-wallet>0</span></div>
@@ -244,9 +245,9 @@ export class UI {
   private renderLocker(): void {
     const look = this.profile.look;
     const tabs: [LockerTab, string][] = [
-      ['kit', '👕 Camiseta'],
-      ['color', '🎨 Pelo'],
-      ['style', '💇 Peinado'],
+      ['kit', '👕'],
+      ['color', '🎨'],
+      ['style', '💇'],
     ];
     this.$('[data-tabs]').innerHTML = tabs
       .map(([id, label]) => `<button class="tab ${this.tab === id ? 'on' : ''}" data-action="tab" data-tab="${id}">${label}</button>`)
@@ -255,18 +256,18 @@ export class UI {
     let html = '';
     if (this.tab === 'color') {
       html = HAIR_COLORS.map(
-        (c) => `<button class="opt ${look.hairColor === c.id ? 'on' : ''}" data-action="look" data-key="hairColor" data-value="${c.id}">
-          <span class="swatch" style="background:${c.hex}"></span><span>${c.name}</span></button>`,
+        (c) => `<button class="opt ${look.hairColor === c.id ? 'on' : ''}" aria-label="${c.name}" data-action="look" data-key="hairColor" data-value="${c.id}">
+          <span class="swatch" style="background:${c.hex}"></span></button>`,
       ).join('');
     } else if (this.tab === 'style') {
       html = HAIR_STYLES.map(
-        (s) => `<button class="opt ${look.hairStyle === s.id ? 'on' : ''}" data-action="look" data-key="hairStyle" data-value="${s.id}">
-          <span class="swatch emoji">${s.icon}</span><span>${s.name}</span></button>`,
+        (s) => `<button class="opt ${look.hairStyle === s.id ? 'on' : ''}" aria-label="${s.name}" data-action="look" data-key="hairStyle" data-value="${s.id}">
+          <span class="swatch emoji">${s.icon}</span></button>`,
       ).join('');
     } else {
       html = KITS.map(
-        (k) => `<button class="opt ${look.kit === k.id ? 'on' : ''}" data-action="look" data-key="kit" data-value="${k.id}">
-          <span class="swatch shirt" style="background:${kitCss(k)}"></span><span>${k.name}</span></button>`,
+        (k) => `<button class="opt ${look.kit === k.id ? 'on' : ''}" aria-label="${k.name}" data-action="look" data-key="kit" data-value="${k.id}">
+          <span class="swatch shirt" style="background:${kitCss(k)}"></span></button>`,
       ).join('');
     }
     this.$('[data-options]').innerHTML = html;

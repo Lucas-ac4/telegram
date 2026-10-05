@@ -59,6 +59,13 @@ body {
   -webkit-text-stroke: 6px var(--navy);
 }
 
+/* Viñeta suave: oscurece los bordes y centra la mirada en el juego. */
+.vignette {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 85% 70% at 50% 55%, transparent 55%, rgba(10, 12, 40, 0.32) 100%);
+}
+
 /* ---------- Barra superior (récord · monedas · sonido) ---------- */
 .topbar {
   position: absolute;
@@ -408,7 +415,7 @@ body {
 }
 
 .tab {
-  font-size: 15px;
+  font-size: 24px;
   padding: 8px 4px 6px;
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.1);
@@ -422,7 +429,7 @@ body {
 
 .options {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(76px, 1fr));
+  grid-template-columns: repeat(5, 1fr);
   gap: 8px;
   min-height: 0;
 }
@@ -448,8 +455,8 @@ body {
 }
 
 .swatch {
-  width: 40px;
-  height: 40px;
+  width: 46px;
+  height: 46px;
   border-radius: 50%;
   border: 3px solid var(--white);
   box-sizing: border-box;
@@ -458,13 +465,13 @@ body {
 .swatch.emoji {
   display: grid;
   place-items: center;
-  font-size: 22px;
+  font-size: 26px;
   background: rgba(255, 255, 255, 0.12);
 }
 
 .swatch.shirt {
   border-radius: 10px 10px 12px 12px;
-  width: 44px;
+  width: 46px;
 }
 
 /* ---------- Navegación inferior ---------- */

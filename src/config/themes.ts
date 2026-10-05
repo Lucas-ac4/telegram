@@ -15,6 +15,11 @@ export interface Theme {
   cloudColor: number;
   cloudOpacity: number;
   stars: boolean;
+  /** Sol / luna en el cielo: color del disco, color del halo, posición y tamaño. */
+  disc: { inner: string; outer: string; pos: [number, number, number]; size: number };
+  /** Reflectores encendidos (brillo en las torres de luz). */
+  floodlights: boolean;
+  rim: number;
 }
 
 export const THEMES: Record<Theme['id'], Theme> = {
@@ -31,6 +36,9 @@ export const THEMES: Record<Theme['id'], Theme> = {
     cloudColor: 0xffffff,
     cloudOpacity: 0.9,
     stars: false,
+    disc: { inner: 'rgba(255,252,235,1)', outer: 'rgba(255,240,200,0.35)', pos: [70, 62, -230], size: 34 },
+    floodlights: false,
+    rim: 0.3,
   },
   atardecer: {
     id: 'atardecer',
@@ -45,6 +53,9 @@ export const THEMES: Record<Theme['id'], Theme> = {
     cloudColor: 0xffc3b0,
     cloudOpacity: 0.85,
     stars: false,
+    disc: { inner: 'rgba(255,214,150,1)', outer: 'rgba(255,150,90,0.4)', pos: [40, 14, -230], size: 90 },
+    floodlights: true,
+    rim: 0.45,
   },
   noche: {
     id: 'noche',
@@ -59,6 +70,9 @@ export const THEMES: Record<Theme['id'], Theme> = {
     cloudColor: 0x34436e,
     cloudOpacity: 0.35,
     stars: true,
+    disc: { inner: 'rgba(240,244,255,1)', outer: 'rgba(170,190,255,0.25)', pos: [-55, 58, -230], size: 26 },
+    floodlights: true,
+    rim: 0.5,
   },
 };
 

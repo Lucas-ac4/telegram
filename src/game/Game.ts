@@ -48,6 +48,7 @@ export class Game {
   private stateTime = 0;
   private shake = 0;
   private nextCheer = 100;
+  private speedStep = 0;
 
   // Potenciadores de la partida.
   private magnetTime = 0;
@@ -155,6 +156,8 @@ export class Game {
     this.sun.intensity = theme.sunIntensity;
     this.sun.position.set(...theme.sunPosition);
     this.stadium.applyTheme(theme);
+    sharedUniforms.uRimColor.value.setHex(theme.sunColor);
+    sharedUniforms.uRimStrength.value = theme.rim;
   }
 
   private enterMenu(view: View): void {
@@ -200,6 +203,7 @@ export class Game {
     this.distance = 0;
     this.coinCount = 0;
     this.nextCheer = 100;
+    this.speedStep = 0;
     this.stateTime = 0;
     this.paused = false;
     this.revivesUsed = 0;
@@ -297,7 +301,16 @@ export class Game {
     let worldSpeed = 0;
     const turbo = this.state === 'playing' && this.distance < this.turboUntil;
     if (this.state === 'playing') {
-      this.speed = Math.min(CONFIG.speed.max, this.speed + CONFIG.speed.increasePerSecond * dt);
+      // Velocidad según los metros: sube de a poco y pega un salto cada 700 m.
+      const S = CONFIG.speed;
+      const step = Math.floor(this.distance / S.stepEveryMeters);
+      const target = Math.min(S.max, S.start + this.distance * S.increasePerMeter + step * S.stepBonus);
+      this.speed += THREE.MathUtils.clamp(target - this.speed, -6 * dt, 4 * dt);
+      if (step > this.speedStep) {
+        this.speedStep = step;
+        this.ui.toast('⚡ ¡MÁS RÁPIDO!');
+        this.sfx.cheer();
+      }
       worldSpeed = this.speed * (turbo ? ECONOMY.turboSpeedMultiplier : 1);
       this.distance += worldSpeed * dt;
       if (this.magnetTime > 0) this.magnetTime -= dt;
@@ -312,19 +325,15 @@ export class Game {
         this.player.grace = ECONOMY.graceSeconds;
       }
     } else if (this.state === 'menu') {
-      // Vestuario: el personaje gira para que se vea la camiseta de los dos lados.
+      // Siempre de frente a cámara haciendo jueguito (también en el vestuario).
       const g = this.player.group;
-      if (this.view === 'locker') g.rotation.y += dt * 0.8;
-      else {
-        // Vuelve a mirar a cámara por el camino más corto.
-        const diff = THREE.MathUtils.euclideanModulo(Math.PI - g.rotation.y + Math.PI, Math.PI * 2) - Math.PI;
-        g.rotation.y += diff * Math.min(1, dt * 5);
-      }
+      const diff = THREE.MathUtils.euclideanModulo(Math.PI - g.rotation.y + Math.PI, Math.PI * 2) - Math.PI;
+      g.rotation.y += diff * Math.min(1, dt * 5);
     }
 
     this.stadium.update(dt, worldSpeed);
     this.obstacles.update(dt, worldSpeed);
-    this.spawner.update(dt, worldSpeed);
+    this.spawner.update(dt, worldSpeed, this.distance);
     this.player.update(dt, this.speed, this.state !== 'menu');
     const magnet = turbo || this.magnetTime > 0 ? ECONOMY.magnetRadius : 0;
     const collected = this.coins.update(dt, worldSpeed, this.state === 'playing' ? this.player : null, magnet);

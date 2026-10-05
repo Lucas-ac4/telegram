@@ -5,11 +5,15 @@ Three.js + TypeScript + Vite.
 
 📄 Análisis completo (tecnología, arquitectura, economía, riesgos, fases): [`docs/ANALISIS.md`](docs/ANALISIS.md)
 
-## Estado: v0.3 — Home, Tienda y Vestuario ✅
+## Estado: v0.4 — Gráficos mejorados ✅
+
+v0.4: personaje y defensores rediseñados (cuerpo torneado, ojos con iris y brillo, luz de borde), barra roja sin texto, trapos y banderas en la tribuna, bancos de suplentes, sol/luna, reflectores encendidos, silbato de árbitro realista, arranque con más espacio y salto de velocidad cada 700 m, desafío diario x4 y precios x5.
+
+### v0.3 — Home, Tienda y Vestuario
 
 **Juego**
 - 3D estilo Subway Surfers: 3 carriles, deslizar ← → ↑ ↓ (gestos encadenables sin levantar el dedo, salto "guardado" si deslizás antes de aterrizar).
-- Más rápido: arranca a 16 m/s y acelera hasta 36 m/s.
+- Arranca a 16 m/s, sube de a poco con los metros y pega un salto de velocidad cada 700 m (hasta 38 m/s).
 - Obstáculos: valla con conos, barra acolchada con banner, barrera de defensores.
 - Ambiente según la hora en Argentina: **día suave**, **atardecer** y **noche** con estrellas (`?tema=dia|atardecer|noche` para probar).
 - Calidad adaptativa: si el celu no llega a ~50 fps, baja la resolución solo.

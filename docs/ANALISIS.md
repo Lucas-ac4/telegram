@@ -213,14 +213,14 @@ Monedas = moneda blanda del juego (sin valor real). Fuentes y sumideros:
 | Fuente | Aprox. |
 |---|---|
 | Partida de 1.000 m | 60–120 monedas |
-| Desafío diario (1k / 3k / 6k m) | +60 / +150 / 🛡️ |
+| Desafío diario (4k / 12k / 24k m) | +60 / +150 / 🛡️ |
 
 | Sumidero (tienda) | Precio | Por qué lo compra el jugador |
 |---|---|---|
-| 🛡️ Escudo | 150 | Perdona un error → partidas más largas |
-| ❤️ Vida extra | 400 | Salva un récord en el momento de más tensión |
-| 🧲 Imán | 200 | Más monedas en menos tiempo |
-| 💰 Monedas x2 | 300 | Se "paga solo" en partidas largas |
-| 🚀 Arranque turbo | 350 | Se saltea la parte fácil y llega antes a la velocidad alta |
+| 🛡️ Escudo | 750 | Perdona un error → partidas más largas |
+| ❤️ Vida extra | 2.000 | Salva un récord en el momento de más tensión |
+| 🧲 Imán | 1.000 | Más monedas en menos tiempo |
+| 💰 Monedas x2 | 1.500 | Se "paga solo" en partidas largas |
+| 🚀 Arranque turbo | 1.750 | Se saltea la parte fácil y llega antes a la velocidad alta |
 
 Todos los precios y premios están en `src/config/economy.ts`. Fase 3: el revivir y el x2 también se podrán obtener **viendo un anuncio** (opt-in), en los mismos botones.

@@ -17,6 +17,8 @@ export interface Hint {
 export class Spawner {
   /** z de la última fila generada (se mueve con el mundo). */
   private lastRowZ = 0;
+  /** Metros recorridos por el jugador (para saber en qué tramo cae cada fila). */
+  private distance = 0;
   private tutorial: { row: Row; text: string }[] = [];
   readonly hints: Hint[] = [];
 
@@ -39,7 +41,8 @@ export class Spawner {
       : [];
   }
 
-  update(dt: number, speed: number): void {
+  update(dt: number, speed: number, distance = 0): void {
+    this.distance = distance;
     const dz = speed * dt;
     this.lastRowZ += dz;
     for (const h of this.hints) h.z += dz;
@@ -47,26 +50,27 @@ export class Spawner {
 
     const view = -CONFIG.spawn.viewDistance;
     while (this.lastRowZ > view) {
-      const gap = this.nextGap(speed);
+      const gap = this.nextGap(speed, this.distance - this.lastRowZ);
       const z = this.lastRowZ - gap;
-      this.spawnRow(z, speed, gap);
+      this.spawnRow(z, this.distance - z, gap);
       this.lastRowZ = z;
     }
   }
 
-  private nextGap(speed: number): number {
+  private nextGap(speed: number, meters: number): number {
     const S = CONFIG.spawn;
     // Se calcula con la velocidad inicial como piso: en el menú (velocidad 0) no hay gap 0.
     const v = Math.max(speed, CONFIG.speed.start);
-    if (this.tutorial.length) return v * 1.7; // tutorial: más espacio entre filas
-    const d = difficulty(v);
+    if (this.tutorial.length) return v * 1.8; // tutorial: más espacio entre filas
+    if (meters < S.warmupMeters) return v * THREE.MathUtils.randFloat(...S.warmupGapSeconds);
+    const d = difficulty(meters);
     const minGap = THREE.MathUtils.lerp(S.minGapSeconds, S.minGapSecondsAtMaxSpeed, d);
     return v * THREE.MathUtils.randFloat(minGap, S.maxGapSeconds);
   }
 
-  private spawnRow(z: number, speed: number, gap: number): void {
+  private spawnRow(z: number, meters: number, gap: number): void {
     const tut = this.tutorial.shift();
-    const row = tut ? tut.row : this.pickRow(difficulty(speed));
+    const row = tut ? tut.row : this.pickRow(difficulty(meters), meters < CONFIG.spawn.warmupMeters);
     if (tut) this.hints.push({ z, text: tut.text });
 
     row.forEach((kind, i) => {
@@ -76,13 +80,14 @@ export class Spawner {
     if (tut ? tut.row[2] === null : Math.random() < CONFIG.coins.chancePerRow) this.spawnCoins(row, z, gap);
   }
 
-  private pickRow(d: number): Row {
+  private pickRow(d: number, warmup: boolean): Row {
     const kinds: ObstacleKind[] = ['hurdle', 'bar', 'wall'];
     const rand = <T>(arr: T[]) => arr[Math.floor(Math.random() * arr.length)];
     const lanes = [0, 1, 2].sort(() => Math.random() - 0.5);
     const row: Row = [null, null, null];
 
-    const r = Math.random();
+    // Arranque: casi siempre un solo obstáculo.
+    const r = warmup ? Math.random() * 0.6 : Math.random();
     if (r < 0.45 - d * 0.25) {
       // Un obstáculo.
       row[lanes[0]] = rand(kinds);
@@ -126,7 +131,8 @@ export class Spawner {
   }
 }
 
-function difficulty(speed: number): number {
-  const S = CONFIG.speed;
-  return THREE.MathUtils.clamp((speed - S.start) / (S.max - S.start), 0, 1);
+/** Dificultad 0..1 según los metros (empieza a contar al terminar el arranque). */
+function difficulty(meters: number): number {
+  const S = CONFIG.spawn;
+  return THREE.MathUtils.clamp((meters - S.warmupMeters) / S.metersToMaxDifficulty, 0, 1);
 }

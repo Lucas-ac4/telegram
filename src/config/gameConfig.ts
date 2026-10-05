@@ -33,9 +33,12 @@ export const CONFIG = {
 
   speed: {
     start: 16,
-    max: 36,
-    /** Aceleración por segundo de partida. */
-    increasePerSecond: 0.3,
+    max: 38,
+    /** Aumento suave por cada metro recorrido. */
+    increasePerMeter: 0.004,
+    /** Cada X metros hay un salto de velocidad notorio ("¡MÁS RÁPIDO!"). */
+    stepEveryMeters: 700,
+    stepBonus: 1.8,
   },
 
   spawn: {
@@ -48,6 +51,11 @@ export const CONFIG = {
     maxGapSeconds: 1.25,
     /** A velocidad máxima, el gap mínimo baja hasta este valor. */
     minGapSecondsAtMaxSpeed: 0.55,
+    /** Arranque tranquilo: hasta estos metros hay más espacio libre y filas simples. */
+    warmupMeters: 700,
+    warmupGapSeconds: [1.5, 2.3] as [number, number],
+    /** Metros hasta llegar a la dificultad máxima (después del arranque). */
+    metersToMaxDifficulty: 3500,
   },
 
   coins: {

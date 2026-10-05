@@ -9,8 +9,8 @@ export const HAIR_COLORS = [
 ] as const;
 
 export const HAIR_STYLES = [
-  { id: 'corto', name: 'Corto', icon: '✂️' },
-  { id: 'rapado', name: 'Rapado', icon: '🪒' },
+  { id: 'corto', name: 'Normal', icon: '👦' },
+  { id: 'rapado', name: 'Rapado', icon: '✂️' },
   { id: 'melena', name: 'Melena', icon: '🦁' },
   { id: 'cresta', name: 'Cresta', icon: '🦔' },
   { id: 'rulos', name: 'Rulos', icon: '🌀' },

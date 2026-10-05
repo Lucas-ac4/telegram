@@ -112,8 +112,61 @@ export class Sfx {
     this.tone(180, 0.4, 'sawtooth', 0.25, 50);
     this.noise(0.35, 0.5, 900);
   }
+  /**
+   * Silbato de árbitro: tono agudo con "trino" (la bolita del silbato vibrando),
+   * armónico suave y soplido de aire. Dos pitazos: corto + largo.
+   */
   whistle(): void {
-    this.tone(2600, 0.12, 'sine', 0.12, 2500);
-    this.tone(2600, 0.35, 'sine', 0.12, 2450, 0.16);
+    if (!this.ctx || !this.master) return;
+    const ctx = this.ctx;
+    const blast = (start: number, dur: number, vol: number) => {
+      const t = ctx.currentTime + start;
+      const out = ctx.createGain();
+      out.gain.setValueAtTime(0.0001, t);
+      out.gain.exponentialRampToValueAtTime(vol, t + 0.025);
+      out.gain.setValueAtTime(vol, t + dur - 0.07);
+      out.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      const bp = ctx.createBiquadFilter();
+      bp.type = 'bandpass';
+      bp.frequency.value = 2900;
+      bp.Q.value = 1.2;
+      out.connect(bp).connect(this.master!);
+
+      // Trino: un LFO rápido modula la frecuencia.
+      const lfo = ctx.createOscillator();
+      lfo.frequency.value = 32;
+      const lfoGain = ctx.createGain();
+      lfoGain.gain.value = 170;
+      lfo.connect(lfoGain);
+
+      for (const [mult, v] of [[1, 1], [2, 0.18]] as const) {
+        const osc = ctx.createOscillator();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(2750 * mult, t);
+        osc.frequency.linearRampToValueAtTime(2820 * mult, t + 0.05);
+        lfoGain.connect(osc.frequency);
+        const g = ctx.createGain();
+        g.gain.value = v;
+        osc.connect(g).connect(out);
+        osc.start(t);
+        osc.stop(t + dur + 0.02);
+      }
+      lfo.start(t);
+      lfo.stop(t + dur + 0.02);
+
+      // Soplido de aire.
+      const len = Math.ceil(ctx.sampleRate * dur);
+      const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+      const d = buf.getChannelData(0);
+      for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+      const noise = ctx.createBufferSource();
+      noise.buffer = buf;
+      const ng = ctx.createGain();
+      ng.gain.value = 0.12;
+      noise.connect(ng).connect(out);
+      noise.start(t);
+    };
+    blast(0, 0.16, 0.22);
+    blast(0.24, 0.55, 0.22);
   }
 }

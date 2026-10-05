@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { capsule, cylinder, sphere, box } from '../engine/geometry';
-import { toon, withOutline, toonVertexColors } from '../engine/materials';
+import { basic, toon, toonRim, withOutline, toonVertexColors } from '../engine/materials';
+import { EYE, bootGeometries, shortsGeometry, torsoGeometry } from '../engine/person';
 import { jerseyTexture } from '../engine/textures';
 import { HAIR_COLORS, KITS, type HairStyleId, type Kit, type Look } from '../config/cosmetics';
 
@@ -25,83 +26,116 @@ export class Character {
   private stars: THREE.Group;
   private time = 0;
   private target = new Map<THREE.Object3D, [number, number, number]>();
-  private jersey = toon(0xffffff, { map: jerseyTexture(KITS[2]) });
-  private sleeve = toon(0x6cc3f5);
-  private shorts = toon(0x14213d);
-  private sock = toon(0xffffff);
-  private hair = toon(0x5a3418);
+  private jersey = toonRim(0xffffff, { map: jerseyTexture(KITS[2]) });
+  private sleeve = toonRim(0x6cc3f5);
+  private collar = toonRim(0x6cc3f5);
+  private shorts = toonRim(0x14213d);
+  private sock = toonRim(0xffffff);
+  private sockBand = toonRim(0x14213d);
+  private hair = toonRim(0x5a3418);
   private hairStyles = new Map<HairStyleId, THREE.Group>();
 
   constructor() {
     const { jersey, sleeve, shorts, sock, hair } = this;
-    const skin = toon(SKIN);
-    const boot = toon(0xff3d7f);
+    const skin = toonRim(SKIN);
+    const skinShade = toonRim(0xe8a477);
+    const boot = toonRim(0xff3d7f);
+    const sole = toonRim(0xffffff);
+    const boots = bootGeometries();
 
     this.root.add(this.body);
     this.body.add(this.hips, this.torso);
 
-    // Cadera + short.
+    // Cadera + short con vuelo.
     this.hips.position.y = 0.8;
-    this.hips.add(part(cylinder(0.27, 0.3, 0.28), shorts, [0, -0.02, 0]));
+    this.hips.add(part(shortsGeometry(), shorts, [0, 0, 0]));
 
     for (const side of [-1, 1]) {
       const hip = new THREE.Group();
-      hip.position.set(side * 0.14, -0.1, 0);
-      hip.add(part(capsule(0.105, 0.16), skin, [0, -0.15, 0]));
+      hip.position.set(side * 0.14, -0.12, 0);
+      hip.add(part(capsule(0.1, 0.15), skin, [0, -0.14, 0]));
       const knee = new THREE.Group();
-      knee.position.y = -0.3;
-      knee.add(part(capsule(0.1, 0.18), sock, [0, -0.15, 0]));
-      knee.add(part(box(0.18, 0.13, 0.32, 0.06, 2), boot, [0, -0.33, -0.06]));
+      knee.position.y = -0.28;
+      knee.add(part(capsule(0.098, 0.2), sock, [0, -0.15, 0]));
+      knee.add(part(cylinder(0.106, 0.106, 0.05, 12), this.sockBand, [0, -0.03, 0], true));
+      knee.add(part(boots.upper, boot, [0, -0.33, -0.05]));
+      knee.add(part(boots.sole, sole, [0, -0.33, -0.05], true));
       hip.add(knee);
       this.hips.add(hip);
       this.legs.push({ hip, knee });
     }
 
-    // Torso con camiseta (número 10 en la espalda, que es lo que ve la cámara).
-    this.torso.position.y = 0.86;
-    const chest = part(cylinder(0.3, 0.26, 0.5, 20), jersey, [0, 0.25, 0]);
+    // Torso torneado con camiseta (el 10 en la espalda, que es lo que ve la cámara).
+    this.torso.position.y = 0.84;
+    const chest = part(torsoGeometry(), jersey, [0, 0, 0]);
     chest.rotation.y = Math.PI;
     this.torso.add(chest);
-    const shoulders = part(sphere(0.3, 20, 10), sleeve, [0, 0.48, 0]);
-    shoulders.scale.set(1, 0.45, 0.9);
-    this.torso.add(shoulders);
+    const collar = part(new THREE.TorusGeometry(0.115, 0.032, 8, 20), this.collar, [0, 0.555, 0], true);
+    collar.rotation.x = Math.PI / 2;
+    this.torso.add(collar);
+    this.torso.add(part(cylinder(0.085, 0.095, 0.12, 12), skin, [0, 0.6, 0]));
 
     for (const side of [-1, 1]) {
       const shoulder = new THREE.Group();
-      shoulder.position.set(side * 0.36, 0.44, 0);
-      shoulder.add(part(capsule(0.095, 0.12), sleeve, [0, -0.1, 0]));
+      shoulder.position.set(side * 0.33, 0.44, 0);
+      shoulder.add(part(capsule(0.1, 0.1), sleeve, [0, -0.07, 0]));
       const elbow = new THREE.Group();
-      elbow.position.y = -0.24;
-      elbow.add(part(capsule(0.08, 0.12), skin, [0, -0.08, 0]));
-      elbow.add(part(sphere(0.095), skin, [0, -0.22, 0]));
+      elbow.position.y = -0.22;
+      elbow.add(part(capsule(0.075, 0.14), skin, [0, -0.08, 0]));
+      const hand = part(sphere(0.088, 12, 10), skin, [0, -0.23, 0]);
+      hand.scale.set(0.9, 1.1, 0.8);
+      elbow.add(hand);
       shoulder.add(elbow);
       this.torso.add(shoulder);
       this.arms.push({ shoulder, elbow });
     }
 
-    // Cabeza grande (estilo chibi).
-    this.head.position.y = 0.56;
+    // Cabeza (estilo cartoon, un poco menos "cabezón" que antes).
+    this.head.position.y = 0.6;
     this.torso.add(this.head);
-    this.head.add(part(sphere(0.36, 20, 14), skin, [0, 0.3, 0]));
+    const skull = part(sphere(0.34, 24, 18), skin, [0, 0.3, 0]);
+    skull.scale.set(1, 1, 0.96);
+    this.head.add(skull);
     for (const [id, group] of buildHairStyles(hair)) {
+      // Los peinados se diseñaron para una cabeza un poco más grande.
+      group.scale.setScalar(0.945);
       this.hairStyles.set(id, group);
       this.head.add(group);
     }
+    const white = toonRim(0xffffff);
+    const iris = toonRim(0x6b4423);
+    const dark = toonRim(0x1a1030);
+    const shine = basic({ color: 0xffffff });
+    const cheek = toonRim(0xf4a08c);
     for (const side of [-1, 1]) {
-      this.head.add(part(sphere(0.075), skin, [side * 0.36, 0.28, 0]));
-      const eye = part(sphere(0.085, 14, 10), toon(0xffffff), [side * 0.13, 0.33, -0.3], true);
-      eye.scale.set(0.85, 1.1, 0.6);
-      this.head.add(eye);
-      const pupil = new THREE.Mesh(sphere(0.05, 10, 8), toon(0x1a1030));
-      pupil.position.set(side * 0.13, 0.32, -0.355);
-      this.head.add(pupil);
-      const brow = part(box(0.12, 0.03, 0.03, 0.01), hair, [side * 0.13, 0.45, -0.33]);
-      brow.rotation.z = side * -0.15;
+      const ear = part(sphere(0.07, 10, 8), skin, [side * 0.335, 0.28, 0.01]);
+      ear.scale.set(0.6, 1, 0.9);
+      this.head.add(ear);
+      this.head.add(part(EYE.sclera(), white, [side * 0.125, 0.33, -0.285], true));
+      const ir = new THREE.Mesh(EYE.iris(), iris);
+      ir.position.set(side * 0.12, 0.325, -0.315);
+      ir.scale.set(1, 1.1, 0.5);
+      this.head.add(ir);
+      const pu = new THREE.Mesh(EYE.pupil(), dark);
+      pu.position.set(side * 0.12, 0.325, -0.336);
+      this.head.add(pu);
+      const sh = new THREE.Mesh(EYE.shine(), shine);
+      sh.position.set(side * 0.12 + 0.02, 0.35, -0.345);
+      this.head.add(sh);
+      const brow = part(box(0.11, 0.028, 0.03, 0.012), hair, [side * 0.125, 0.45, -0.31], true);
+      brow.rotation.z = side * -0.12;
       this.head.add(brow);
+      const ck = new THREE.Mesh(sphere(0.05, 10, 8), cheek);
+      ck.position.set(side * 0.2, 0.22, -0.265);
+      ck.scale.set(1, 0.6, 0.4);
+      this.head.add(ck);
     }
-    const smile = new THREE.Mesh(new THREE.TorusGeometry(0.07, 0.016, 6, 14, Math.PI), toon(0x7a2a2a));
-    smile.position.set(0, 0.2, -0.33);
-    smile.rotation.set(0.2, 0, Math.PI);
+    const nose = new THREE.Mesh(sphere(0.042, 10, 8), skinShade);
+    nose.position.set(0, 0.255, -0.335);
+    this.head.add(nose);
+    const smile = new THREE.Mesh(new THREE.TorusGeometry(0.065, 0.016, 6, 14, Math.PI), toonRim(0x8a2f2f));
+    smile.position.set(0, 0.17, -0.31);
+    smile.rotation.set(0.3, 0, Math.PI);
     this.head.add(smile);
 
     // Estrellitas de "mareado" al chocar.
@@ -131,8 +165,10 @@ export class Character {
     }
     this.jersey.map = tex;
     this.sleeve.color.set(kit.sleeve);
+    this.collar.color.set(kit.pattern === 'solid' ? kit.number : kit.accent);
     this.shorts.color.set(kit.shorts);
     this.sock.color.set(kit.socks);
+    this.sockBand.color.set(kit.pattern === 'solid' ? kit.number : kit.accent);
   }
 
   /** Parpadeo (invulnerable después de un choque salvado). */
@@ -293,7 +329,7 @@ export function createBall(radius = 0.22): THREE.Mesh {
     for (let j = 0; j < 3; j++) colors.set(c, (tri + j) * 3);
   }
   geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-  return withOutline(new THREE.Mesh(geo, toonVertexColors()), true);
+  return withOutline(new THREE.Mesh(geo, toonVertexColors({}, true)), true);
 }
 
 /** Los 5 peinados. Todos comparten el material de pelo (cambiar el color es instantáneo). */

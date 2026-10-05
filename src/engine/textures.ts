@@ -29,7 +29,7 @@ export function pitchTexture(laneWidth: number): THREE.CanvasTexture {
   const pxPerM = W / 14;
   const bands = 6;
   for (let i = 0; i < bands; i++) {
-    g.fillStyle = i % 2 ? '#47a24d' : '#3f9445';
+    g.fillStyle = i % 2 ? '#4aa650' : '#3f9446';
     g.fillRect(0, (i * H) / bands, W, H / bands);
   }
   // Ruido sutil para que no se vea plano.
@@ -129,41 +129,6 @@ export function ledTexture(): THREE.CanvasTexture {
   return t;
 }
 
-/** Banner de la barra alta. */
-export function bannerTexture(): THREE.CanvasTexture {
-  const [c, g] = canvas(512, 160);
-  const grad = g.createLinearGradient(0, 0, 0, 160);
-  grad.addColorStop(0, '#ef5a7e');
-  grad.addColorStop(1, '#b8204f');
-  g.fillStyle = grad;
-  g.fillRect(0, 0, 512, 160);
-  // Borde a rayas tipo cinta de seguridad.
-  for (let x = -40; x < 552; x += 40) {
-    g.fillStyle = '#ffd23f';
-    g.beginPath();
-    g.moveTo(x, 0);
-    g.lineTo(x + 20, 0);
-    g.lineTo(x + 6, 16);
-    g.lineTo(x - 14, 16);
-    g.fill();
-    g.beginPath();
-    g.moveTo(x, 144);
-    g.lineTo(x + 20, 144);
-    g.lineTo(x + 6, 160);
-    g.lineTo(x - 14, 160);
-    g.fill();
-  }
-  g.fillStyle = '#ffffff';
-  g.font = 'bold 66px "Lilita One", "Arial Black", sans-serif';
-  g.textAlign = 'center';
-  g.textBaseline = 'middle';
-  g.lineWidth = 10;
-  g.strokeStyle = '#5c0f2b';
-  g.strokeText('¡BARRIDA! ↓', 256, 84);
-  g.fillText('¡BARRIDA! ↓', 256, 84);
-  return toTexture(c);
-}
-
 /** Sombra circular difusa (sombra "blob": barata y queda bien en cartoon). */
 export function blobTexture(): THREE.CanvasTexture {
   const [c, g] = canvas(128, 128);
@@ -202,5 +167,88 @@ export function cloudTexture(): THREE.CanvasTexture {
   g.globalCompositeOperation = 'source-atop';
   g.fillStyle = 'rgba(160,200,235,0.35)';
   g.fillRect(0, 96, 256, 32);
+  return toTexture(c);
+}
+
+/** "Trapos" de la hinchada: 4 diseños en una tira (cada uno 256x128). */
+export const BANNER_DESIGNS = 4;
+export function bannersTexture(): THREE.CanvasTexture {
+  const [c, g] = canvas(1024, 128);
+  const designs: { draw: (x: number) => void; text: string; fg: string; stroke: string }[] = [
+    {
+      draw: (x) => {
+        for (let i = 0; i < 8; i++) {
+          g.fillStyle = i % 2 ? '#ffffff' : '#6cc3f5';
+          g.fillRect(x + i * 32, 0, 32, 128);
+        }
+      },
+      text: 'LA 10',
+      fg: '#ffd23f',
+      stroke: '#1d1a4f',
+    },
+    {
+      draw: (x) => {
+        g.fillStyle = '#d7263d';
+        g.fillRect(x, 0, 256, 128);
+        g.fillStyle = '#ffffff';
+        g.fillRect(x, 44, 256, 40);
+      },
+      text: 'VAMOS',
+      fg: '#d7263d',
+      stroke: '#ffffff',
+    },
+    {
+      draw: (x) => {
+        g.fillStyle = '#0b2f86';
+        g.fillRect(x, 0, 256, 128);
+        g.fillStyle = '#ffcc00';
+        g.fillRect(x, 46, 256, 36);
+      },
+      text: 'GOLAZO',
+      fg: '#0b2f86',
+      stroke: '#ffcc00',
+    },
+    {
+      draw: (x) => {
+        for (let i = 0; i < 8; i++)
+          for (let j = 0; j < 4; j++) {
+            g.fillStyle = (i + j) % 2 ? '#111111' : '#ffffff';
+            g.fillRect(x + i * 32, j * 32, 32, 32);
+          }
+      },
+      text: '⚽',
+      fg: '#ffffff',
+      stroke: '#111111',
+    },
+  ];
+  designs.forEach((d, i) => {
+    const x = i * 256;
+    d.draw(x);
+    g.font = 'bold 58px "Lilita One", "Arial Black", sans-serif';
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
+    g.lineWidth = 10;
+    g.strokeStyle = d.stroke;
+    g.strokeText(d.text, x + 128, 68);
+    g.fillStyle = d.fg;
+    g.fillText(d.text, x + 128, 68);
+    // Bordes cosidos.
+    g.strokeStyle = 'rgba(0,0,0,0.25)';
+    g.lineWidth = 4;
+    g.strokeRect(x + 4, 4, 248, 120);
+  });
+  return toTexture(c);
+}
+
+/** Brillo radial (sol, luna, reflectores). */
+export function glowTexture(inner: string, outer: string): THREE.CanvasTexture {
+  const [c, g] = canvas(128, 128);
+  const grad = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+  grad.addColorStop(0, inner);
+  grad.addColorStop(0.35, inner);
+  grad.addColorStop(0.42, outer);
+  grad.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = grad;
+  g.fillRect(0, 0, 128, 128);
   return toTexture(c);
 }

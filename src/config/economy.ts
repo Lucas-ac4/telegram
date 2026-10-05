@@ -18,11 +18,11 @@ export interface ShopItem {
 }
 
 export const SHOP_ITEMS: ShopItem[] = [
-  { id: 'shield', icon: '🛡️', name: 'Escudo', description: 'Te salva de un choque.', price: 150, preRun: true },
-  { id: 'life', icon: '❤️', name: 'Vida extra', description: 'Seguí corriendo después de perder.', price: 400, preRun: false },
-  { id: 'magnet', icon: '🧲', name: 'Imán', description: 'Atrae las monedas durante 30 s.', price: 200, preRun: true },
-  { id: 'doubler', icon: '💰', name: 'Monedas x2', description: 'Todas las monedas valen doble en la partida.', price: 300, preRun: true },
-  { id: 'turbo', icon: '🚀', name: 'Arranque turbo', description: 'Arrancás volando 400 m sin chocar.', price: 350, preRun: true },
+  { id: 'shield', icon: '🛡️', name: 'Escudo', description: 'Te salva de un choque.', price: 750, preRun: true },
+  { id: 'life', icon: '❤️', name: 'Vida extra', description: 'Seguí corriendo después de perder.', price: 2000, preRun: false },
+  { id: 'magnet', icon: '🧲', name: 'Imán', description: 'Atrae las monedas durante 30 s.', price: 1000, preRun: true },
+  { id: 'doubler', icon: '💰', name: 'Monedas x2', description: 'Todas las monedas valen doble en la partida.', price: 1500, preRun: true },
+  { id: 'turbo', icon: '🚀', name: 'Arranque turbo', description: 'Arrancás volando 400 m sin chocar.', price: 1750, preRun: true },
 ];
 
 export const ECONOMY = {
@@ -39,8 +39,8 @@ export const ECONOMY = {
 export const DAILY = {
   timeZone: 'America/Argentina/Buenos_Aires',
   tiers: [
-    { meters: 1000, coins: 60, item: null as ItemId | null, label: '+60' },
-    { meters: 3000, coins: 150, item: null as ItemId | null, label: '+150' },
-    { meters: 6000, coins: 0, item: 'shield' as ItemId | null, label: '🛡️' },
+    { meters: 4000, coins: 60, item: null as ItemId | null, label: '+60' },
+    { meters: 12000, coins: 150, item: null as ItemId | null, label: '+150' },
+    { meters: 24000, coins: 0, item: 'shield' as ItemId | null, label: '🛡️' },
   ],
 };

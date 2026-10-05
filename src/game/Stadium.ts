@@ -3,7 +3,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { CONFIG } from '../config/gameConfig';
 import { ModelBuilder, box, cylinder } from '../engine/geometry';
 import { basic, curved, toon, toonVertexColors } from '../engine/materials';
-import { cloudTexture, ledTexture, pitchTexture } from '../engine/textures';
+import { BANNER_DESIGNS, bannersTexture, cloudTexture, glowTexture, ledTexture, pitchTexture } from '../engine/textures';
 import type { Theme } from '../config/themes';
 
 const L = CONFIG.world.segmentLength;
@@ -20,6 +20,9 @@ export class Stadium {
   private led: THREE.CanvasTexture;
   private cloudMat!: THREE.MeshBasicMaterial;
   private stars!: THREE.Points;
+  private disc!: THREE.Mesh;
+  private discMat!: THREE.MeshBasicMaterial;
+  private glowMat: THREE.MeshBasicMaterial;
 
   constructor(scene: THREE.Scene) {
     const pitchMat = toon(0xffffff, { map: pitchTexture(CONFIG.lanes.width) });
@@ -47,6 +50,26 @@ export class Stadium {
     const lightsGeo = buildLightPanels();
     const lightsMat = basic({ color: 0xfffbe0 });
 
+    // Trapos colgados y banderas que flamean.
+    const bannerTex = bannersTexture();
+    const bannersGeo = buildBanners();
+    const bannersMat = toon(0xffffff, { map: bannerTex, side: THREE.DoubleSide });
+    const flagsGeo = buildFlags();
+    const flagsMat = curved(new THREE.MeshToonMaterial({ map: bannerTex, side: THREE.DoubleSide }), {
+      key: 'flag',
+      header: 'attribute float flagT;',
+      afterBegin: 'transformed.x += sin(uTime * 7.0 + position.z * 2.5 + position.y) * 0.22 * flagT;',
+    });
+
+    // Brillo de los reflectores (sólo de noche / atardecer).
+    this.glowMat = basic({
+      map: glowTexture('rgba(255,250,225,1)', 'rgba(255,240,200,0.5)'),
+      transparent: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+    });
+    const glowGeo = new THREE.PlaneGeometry(5.5, 5.5);
+
     const { body, head } = buildPerson();
     const crowdBodyMat = crowdMaterial();
     const crowdHeadMat = crowdMaterial();
@@ -63,6 +86,14 @@ export class Stadium {
       }
       seg.add(new THREE.Mesh(standsGeo, standsMat));
       seg.add(new THREE.Mesh(lightsGeo, lightsMat));
+      seg.add(new THREE.Mesh(bannersGeo, bannersMat));
+      seg.add(new THREE.Mesh(flagsGeo, flagsMat));
+      for (const side of [-1, 1]) {
+        const glow = new THREE.Mesh(glowGeo, this.glowMat);
+        glow.position.set(side * 17.3, 15.6, -1.4);
+        glow.renderOrder = 2;
+        seg.add(glow);
+      }
 
       const bodies = new THREE.InstancedMesh(body, crowdBodyMat, count);
       const heads = new THREE.InstancedMesh(head, crowdHeadMat, count);
@@ -108,12 +139,24 @@ export class Stadium {
     );
     this.stars.visible = false;
     scene.add(this.stars);
+
+    // Sol / luna.
+    this.discMat = new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, fog: false });
+    this.disc = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), this.discMat);
+    this.disc.renderOrder = -2;
+    scene.add(this.disc);
   }
 
   applyTheme(theme: Theme): void {
     this.cloudMat.color.setHex(theme.cloudColor);
     this.cloudMat.opacity = theme.cloudOpacity;
     this.stars.visible = theme.stars;
+    this.discMat.map?.dispose();
+    this.discMat.map = glowTexture(theme.disc.inner, theme.disc.outer);
+    this.discMat.needsUpdate = true;
+    this.disc.position.set(...theme.disc.pos);
+    this.disc.scale.setScalar(theme.disc.size);
+    this.glowMat.visible = theme.floodlights;
   }
 
   reset(): void {
@@ -209,6 +252,16 @@ function buildStands(): THREE.BufferGeometry {
     // Techo de la tribuna (le da forma de estadio).
     b.add(boxZ(STEPS * 1.1 + 1.6, 0.22, L), 0xdfe4ec, [side * (10.2 + (STEPS * 1.1) / 2), 7.9, -L / 2], [0, 0, side * 0.1]);
     b.add(boxZ(0.12, 0.5, L), 0x26335f, [side * 9.55, 7.45, -L / 2]);
+    // Banco de suplentes (techo curvo + asientos).
+    const bx = side * 8.45;
+    b.add(new THREE.BoxGeometry(0.12, 1.3, 3.4), 0x26335f, [side * 8.95, 0.65, -12]);
+    b.add(new THREE.CylinderGeometry(0.9, 0.9, 3.4, 12, 1, true, 0, Math.PI), 0xcfe3f2, [bx + side * 0.1, 0.95, -12], [Math.PI / 2, side > 0 ? -Math.PI / 2 : Math.PI / 2, 0]);
+    for (let k = 0; k < 4; k++) b.add(box(0.4, 0.42, 0.62, 0.08), 0xd7263d, [bx + side * 0.2, 0.21, -13.2 + k * 0.8]);
+    // Banderines a lo largo de la línea.
+    for (const z of [-2, -14]) {
+      b.add(cylinder(0.025, 0.025, 1.3, 6), 0xf4f1f8, [side * 6.9, 0.65, z]);
+      b.add(new THREE.ConeGeometry(0.22, 0.42, 3), z === -2 ? 0xffd23f : 0xd7263d, [side * 6.9, 1.12, z - 0.22], [Math.PI / 2, 0, 0]);
+    }
     // Torre de luz.
     b.add(cylinder(0.18, 0.25, 12, 8), 0x9aa5b1, [side * 17.5, 9.5, -2]);
     b.add(box(3.2, 1.8, 0.5, 0.1), 0x4b5563, [side * 17.5, 15.6, -2], [0, -side * 0.5, 0]);
@@ -237,4 +290,55 @@ function buildLightPanels(): THREE.BufferGeometry {
 /** Caja alargada en Z con subdivisiones (necesarias para que el mundo curvo no la deforme). */
 function boxZ(w: number, h: number, d: number): THREE.BufferGeometry {
   return new THREE.BoxGeometry(w, h, d, 1, 1, Math.ceil(d / 1.5));
+}
+
+/** Trapos colgados en la pared trasera de cada tribuna (1 geometría por tramo). */
+function buildBanners(): THREE.BufferGeometry {
+  const parts: THREE.BufferGeometry[] = [];
+  let k = 0;
+  for (const side of [-1, 1]) {
+    const x = side * (10.05 + STEPS * 1.1 - 0.02);
+    for (const z of [-3.5, -11.5, -19.5]) {
+      const g = new THREE.PlaneGeometry(4.2, 1.5, 6, 1);
+      remapCell(g, k++ % BANNER_DESIGNS);
+      g.rotateY(side * -Math.PI / 2);
+      g.translate(x, 5.25, z);
+      parts.push(g);
+    }
+  }
+  return mergeGeometries(parts, false)!;
+}
+
+/** Banderas en mástiles dentro de la hinchada; `flagT` = distancia al mástil (para el flameo). */
+function buildFlags(): THREE.BufferGeometry {
+  const parts: THREE.BufferGeometry[] = [];
+  let k = 1;
+  for (const side of [-1, 1]) {
+    for (const [step, z] of [[2, -6], [4, -17]] as const) {
+      const x = side * (10.05 + step * 1.1);
+      const y = 1.0 + step * 0.7 + 1.9;
+      const cloth = new THREE.PlaneGeometry(1.6, 0.9, 8, 1);
+      remapCell(cloth, k++ % BANNER_DESIGNS);
+      // Distancia al mástil (0 en el mástil, 1 en la punta).
+      const pos = cloth.attributes.position;
+      const t = new Float32Array(pos.count);
+      for (let i = 0; i < pos.count; i++) t[i] = (pos.getX(i) + 0.8) / 1.6;
+      cloth.setAttribute('flagT', new THREE.BufferAttribute(t, 1));
+      cloth.rotateY(Math.PI / 2);
+      cloth.translate(x, y, z - 0.8);
+      parts.push(cloth);
+      const pole = new THREE.CylinderGeometry(0.03, 0.03, 2.6, 6);
+      pole.translate(x, y - 0.85, z);
+      const n = pole.attributes.position.count;
+      pole.setAttribute('flagT', new THREE.BufferAttribute(new Float32Array(n), 1));
+      parts.push(pole.toNonIndexed());
+    }
+  }
+  return mergeGeometries(parts.map((p) => (p.index ? p.toNonIndexed() : p)), false)!;
+}
+
+/** Usa una sola celda de la tira de trapos como textura. */
+function remapCell(g: THREE.BufferGeometry, cell: number): void {
+  const uv = g.attributes.uv;
+  for (let i = 0; i < uv.count; i++) uv.setX(i, (cell + uv.getX(i)) / BANNER_DESIGNS);
 }
