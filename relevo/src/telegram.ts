@@ -25,6 +25,12 @@ interface TelegramWebApp {
   };
 }
 
+/** En la app de Android no hay Telegram: la vibración va por la API del navegador. */
+const IS_APP = import.meta.env.VITE_PLATFORM === 'android';
+const vibrate = (ms: number | number[]) => {
+  if (IS_APP) navigator.vibrate?.(ms);
+};
+
 function webApp(): TelegramWebApp | undefined {
   const app = (window as unknown as { Telegram?: { WebApp?: TelegramWebApp } }).Telegram?.WebApp;
   return app && app.initData ? app : undefined;
@@ -36,7 +42,7 @@ export const Telegram = {
   },
 
   get platform(): string {
-    return webApp()?.platform ?? 'web';
+    return webApp()?.platform ?? (IS_APP ? 'android_app' : 'web');
   },
 
   /** Nombre para mostrar (no verificado: sólo visual). */
@@ -65,15 +71,19 @@ export const Telegram = {
 
   tap(): void {
     webApp()?.HapticFeedback?.impactOccurred('light');
+    vibrate(8);
   },
   perfect(): void {
     webApp()?.HapticFeedback?.impactOccurred('rigid');
+    vibrate(18);
   },
   fail(): void {
     webApp()?.HapticFeedback?.notificationOccurred('error');
+    vibrate([40, 40, 60]);
   },
   success(): void {
     webApp()?.HapticFeedback?.notificationOccurred('success');
+    vibrate([15, 30, 15]);
   },
 
   /** Compartir dentro de Telegram (selector de chats). Fuera: menú nativo o portapapeles. */

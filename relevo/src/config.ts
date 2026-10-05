@@ -39,14 +39,14 @@ export const CONFIG = {
     speedJitter: { startAt: 18, amount: 0.12 },
     /** Cada mundo nuevo: hojas un poco más rápidas y mecha un poco más corta. */
     zone: { speedPerZone: 0.04, fusePerZone: 0.04, minFuse: 1.5 },
-    /** Mundo 2: hojas frágiles. Si la chispa cae en una, la mecha del relevo siguiente es más corta. */
-    fragile: { base: 0.12, perRow: 0.005, max: 0.32, fuseMul: 0.6, minFuse: 1.2 },
-    /** Mundo 3: el aro se mueve de lado a lado (siempre a la vista). */
-    moving: { chance: 0.4, ampMin: 22, ampExtra: 18, periodMin: 2.8, periodExtra: 0.8 },
-    /** Mundo 4: dos corrientes cruzadas que pasan por el mismo aro, intercaladas. */
-    double: { chance: 0.35, gap: 30 },
-    /** Potenciadores sobre hojas válidas. */
-    power: { startAt: 12, chance: 0.08 },
+    /** Hojas frágiles: si la chispa cae en una, la mecha del relevo siguiente es más corta. */
+    fragile: { base: 0.12, perRow: 0.005, fuseMul: 0.6, minFuse: 1.2 },
+    /** Aro móvil (la chance la decide cada mundo en zones.ts). */
+    moving: { ampMin: 22, ampExtra: 18, periodMin: 2.8, periodExtra: 0.8 },
+    /** Corrientes cruzadas: pasan por el mismo aro, intercaladas. */
+    double: { gap: 30 },
+    /** Poderes sobre hojas válidas: más seguido en cada mundo, hasta `max`. */
+    power: { startAt: 12, chance: 0.08, perZone: 0.012, max: 0.28 },
   },
 
   timing: {
@@ -88,6 +88,7 @@ export const CONFIG = {
     /** Multiplicadores mientras están activos. */
     calmSpeed: 0.78,
     fuseBoost: 1.6,
+    bigRing: 1.4,
     /** Escudo de arranque: con anuncio o con monedas. */
     startShieldPrice: 80,
   },

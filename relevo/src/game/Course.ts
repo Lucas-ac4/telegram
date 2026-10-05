@@ -1,7 +1,7 @@
 import { CONFIG } from '../config';
 import { clamp } from '../util/math';
 import { pickPower, type PowerId } from './powers';
-import { zoneIndex } from './zones';
+import { ZONES, zoneIndex } from './zones';
 
 /**
  * Generación de cada relevo y reglas de pase.
@@ -74,6 +74,8 @@ export interface RowOpts {
   ringMul?: number;
   goldMul?: number;
   powerMul?: number;
+  /** Trampolines más seguido (habilidad de Brote). */
+  springMul?: number;
 }
 
 export type Judgement =
@@ -86,21 +88,33 @@ const D = CONFIG.difficulty;
 const decay = (n: number, ramp: number) => Math.exp(-n / ramp);
 export const isValid = (t: LeafType) => t !== 'dry';
 
+/** Cuánto suma cada mundo: fuerte en los primeros cinco y suave después, para que siga siendo jugable. */
+function zoneFactor(z: number, perZone: number): number {
+  return Math.min(z, 5) * perZone + Math.max(0, z - 5) * perZone * 0.3;
+}
+
 /** Parámetros de dificultad para el relevo número `n` (sin aleatoriedad). */
 export function difficulty(n: number) {
   const z = zoneIndex(n);
-  const speed = (D.speed.start + (D.speed.max - D.speed.start) * (1 - decay(n, D.speed.ramp))) * (1 + D.zone.speedPerZone * z);
-  const ringR = D.ringRadius.min + (D.ringRadius.start - D.ringRadius.min) * decay(n, D.ringRadius.ramp);
+  const rules = ZONES[z].rules;
+  const speed =
+    (D.speed.start + (D.speed.max - D.speed.start) * (1 - decay(n, D.speed.ramp))) *
+    (1 + zoneFactor(z, D.zone.speedPerZone)) *
+    rules.speedMul;
+  const ringR = (D.ringRadius.min + (D.ringRadius.start - D.ringRadius.min) * decay(n, D.ringRadius.ramp)) * rules.ringMul;
   let fuse = n < D.fuse.startAt ? Infinity : D.fuse.base + D.fuse.extra * decay(n - D.fuse.startAt, D.fuse.ramp);
-  if (isFinite(fuse) && z > 0) fuse = Math.max(D.zone.minFuse, fuse * (1 - D.zone.fusePerZone * z));
+  if (isFinite(fuse) && z > 0) fuse = Math.max(D.zone.minFuse, fuse * (1 - zoneFactor(z, D.zone.fusePerZone)));
+  if (isFinite(fuse)) fuse = Math.max(1.35, fuse * rules.fuseMul);
   const interval = D.leafInterval.min + D.leafInterval.extra * decay(n, D.leafInterval.ramp);
   const fa = D.firstArrival;
   const firstArrival = n === 0 ? fa.firstRow : n < D.fuse.startAt ? fa.tutorial : fa.min + fa.extra * decay(n, fa.ramp);
-  const amp = n < D.wave.startAt ? 0 : Math.min(D.wave.max, (n - D.wave.startAt + 1) * D.wave.perRow);
-  const pDry = n < D.dry.startAt ? 0 : Math.min(D.dry.max, D.dry.base + (n - D.dry.startAt) * D.dry.perRow);
-  const pGold = n < D.gold.startAt ? 0 : D.gold.chance;
-  const pFragile = z < 1 ? 0 : Math.min(D.fragile.max, D.fragile.base + (n - 25) * D.fragile.perRow);
-  return { z, speed, ringR, fuse, interval, firstArrival, amp, pDry, pGold, pFragile };
+  const amp = n < D.wave.startAt ? 0 : Math.min(40, Math.min(D.wave.max, (n - D.wave.startAt + 1) * D.wave.perRow) * rules.waveMul);
+  const pDry = n < D.dry.startAt ? 0 : Math.min(0.5, Math.min(D.dry.max, D.dry.base + (n - D.dry.startAt) * D.dry.perRow) * rules.dryMul);
+  const pGold = n < D.gold.startAt ? 0 : D.gold.chance * rules.goldMul;
+  // En Cascadas las frágiles aparecen de a poco; después, lo que diga cada mundo.
+  const pFragile = z === 1 ? Math.min(rules.fragile, D.fragile.base + (n - 25) * D.fragile.perRow) : rules.fragile;
+  const pPower = n < D.power.startAt ? 0 : Math.min(D.power.max, D.power.chance + D.power.perZone * z) * rules.powerMul;
+  return { z, speed, ringR, fuse, interval, firstArrival, amp, pDry, pGold, pFragile, pPower };
 }
 
 function hintFor(n: number): HintKey | null {
@@ -130,13 +144,13 @@ export function createRow(n: number, fromX: number, y: number, rand: () => numbe
   if (n >= D.speedJitter.startAt) speed *= 1 + (rand() * 2 - 1) * D.speedJitter.amount;
 
   // Mecánicas de mundo (la primera vez aparecen sí o sí, para presentarlas).
-  const allFeatures = z >= 4;
+  const rules = ZONES[z].rules;
   let move: Row['move'] = null;
-  if (z >= 2 && (n === 50 || rand() < D.moving.chance * (allFeatures ? 1.1 : 1))) {
-    const period = D.moving.periodMin + rand() * D.moving.periodExtra;
+  if (n === 50 || rand() < rules.moving) {
+    const period = (D.moving.periodMin + rand() * D.moving.periodExtra) / rules.moveSpeed;
     move = { amp: D.moving.ampMin + rand() * D.moving.ampExtra, w: (Math.PI * 2) / period, ph: rand() * Math.PI * 2 };
   }
-  const double = !move && z >= 3 && (n === 75 || rand() < D.double.chance);
+  const double = !move && (n === 75 || rand() < rules.double);
   const amp = move || double ? 0 : p.amp;
 
   let spacing = Math.max(2 * p.ringR + D.leafInterval.minGap, speed * p.interval);
@@ -187,11 +201,12 @@ export function createRow(n: number, fromX: number, y: number, rand: () => numbe
   const candidates = inTime.length ? inTime : [0];
   if (!candidates.some((i) => isValid(types[i]))) types[candidates[Math.floor(rand() * candidates.length)]] = 'normal';
 
-  // Potenciador: sobre una hoja válida y alcanzable (nunca dorada, para no mezclar premios).
+  // Poder o beneficio: sobre una hoja válida y alcanzable (nunca dorada, para no mezclar premios).
+  // Aparecen más seguido en los mundos altos: la dificultad sube, pero también la ayuda.
   const powers = new Map<number, PowerId>();
-  if (n >= D.power.startAt && rand() < D.power.chance * (opts.powerMul ?? 1)) {
+  if (rand() < p.pPower * (opts.powerMul ?? 1)) {
     const options = candidates.filter((i) => types[i] === 'normal' || types[i] === 'fragile');
-    if (options.length) powers.set(options[Math.floor(rand() * options.length)], pickPower(rand()));
+    if (options.length) powers.set(options[Math.floor(rand() * options.length)], pickPower(rand(), z, rules.favor, opts.springMul ?? 1));
   }
 
   const currents: Current[] = [{ dir, firstLead, types, powers, pDry: p.pDry, next: 0 }];

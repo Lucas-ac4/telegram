@@ -79,6 +79,47 @@ export class Backdrop {
       p: rand() * Math.PI * 2,
     }));
 
+    // Vía Láctea: banda diagonal de polvo de estrellas
+    if (pal.galaxy) {
+      ctx.save();
+      ctx.translate(cx, h * 0.35);
+      ctx.rotate(-0.5);
+      const band = ctx.createLinearGradient(0, -90 * u, 0, 90 * u);
+      band.addColorStop(0, 'rgba(160,150,255,0)');
+      band.addColorStop(0.5, 'rgba(210,200,255,0.22)');
+      band.addColorStop(1, 'rgba(160,150,255,0)');
+      ctx.fillStyle = band;
+      ctx.fillRect(-w, -90 * u, w * 2, 180 * u);
+      for (let i = 0; i < 500; i++) {
+        const x = (rand() - 0.5) * w * 2;
+        const y = (rand() + rand() + rand() - 1.5) * 60 * u;
+        ctx.fillStyle = `rgba(235,230,255,${0.2 + rand() * 0.5})`;
+        ctx.fillRect(x, y, 1.2 * u, 1.2 * u);
+      }
+      ctx.restore();
+    }
+
+    // Sol radiante (Corazón de la luz)
+    if (pal.sun) {
+      const sx = cx;
+      const sy = h * 0.2;
+      glowDot(ctx, sx, sy, 230 * u, 'rgba(255,220,140,0.35)');
+      glowDot(ctx, sx, sy, 90 * u, 'rgba(255,245,210,0.8)');
+      ctx.save();
+      ctx.translate(sx, sy);
+      ctx.fillStyle = 'rgba(255,235,170,0.08)';
+      for (let i = 0; i < 16; i++) {
+        ctx.rotate((Math.PI * 2) / 16);
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(-14 * u, -h);
+        ctx.lineTo(14 * u, -h);
+        ctx.closePath();
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+
     // Planetas
     if (pal.planets) {
       const px = cx - 110 * u;
@@ -160,6 +201,63 @@ export class Backdrop {
           ctx.fill();
         }
       }
+    }
+
+    // Resplandor del horizonte (lava, ciudad, ruinas al atardecer)
+    if (pal.glow) {
+      const gl = ctx.createLinearGradient(0, h * 0.45, 0, h * 0.75);
+      gl.addColorStop(0, 'rgba(0,0,0,0)');
+      gl.addColorStop(1, pal.glow);
+      ctx.fillStyle = gl;
+      ctx.fillRect(0, h * 0.45, w, h * 0.3);
+    }
+
+    // Colinas o dunas redondeadas
+    if (pal.hills) {
+      for (let layer = 0; layer < 2; layer++) {
+        ctx.fillStyle = pal.hills;
+        ctx.globalAlpha = layer === 0 ? 0.7 : 1;
+        ctx.beginPath();
+        ctx.moveTo(0, h);
+        const base = h * (0.62 + layer * 0.08);
+        for (let x = 0; x <= w; x += 8 * u) {
+          ctx.lineTo(x, base - Math.sin(x / (90 * u) + layer * 2 + rand() * 0.02) * 26 * u - Math.sin(x / (37 * u)) * 8 * u);
+        }
+        ctx.lineTo(w, h);
+        ctx.closePath();
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    // Ciudad: siluetas de edificios con ventanas cálidas
+    if (pal.city) {
+      let x = -10 * u;
+      while (x < w) {
+        const bw = (22 + rand() * 30) * u;
+        const bh = (60 + rand() * 140) * u;
+        const top = h * 0.72 - bh;
+        ctx.fillStyle = '#0c0814';
+        ctx.fillRect(x, top, bw - 3 * u, h);
+        if (rand() < 0.3) {
+          ctx.beginPath();
+          ctx.moveTo(x, top);
+          ctx.lineTo(x + (bw - 3 * u) / 2, top - 18 * u);
+          ctx.lineTo(x + bw - 3 * u, top);
+          ctx.fill();
+        }
+        for (let wy = top + 8 * u; wy < h * 0.72; wy += 12 * u) {
+          for (let wx = x + 5 * u; wx < x + bw - 8 * u; wx += 9 * u) {
+            if (rand() < 0.35) {
+              ctx.fillStyle = `rgba(255,${180 + Math.floor(rand() * 50)},110,${0.5 + rand() * 0.4})`;
+              ctx.fillRect(wx, wy, 3.5 * u, 5 * u);
+            }
+          }
+        }
+        x += bw;
+      }
+      ctx.fillStyle = '#07040c';
+      ctx.fillRect(0, h * 0.72, w, h * 0.28);
     }
 
     // Acueducto lejano: un puente de arcos con ventanitas encendidas.

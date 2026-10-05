@@ -23,7 +23,7 @@ import { UI, HINTS, type DeathReason, type LobbyData, type PowerState } from '..
 import { damp, hashString, rng, todayKey } from '../util/math';
 import { createRow, judge, leafPose, occupant, ringXAt, updateRow, type Leaf, type LeafType, type Row, type RowOpts } from './Course';
 import { Particles } from './Particles';
-import { POWERS, type PowerId } from './powers';
+import { isBoost, POWERS, type PowerId } from './powers';
 import { SKIN_ORDER, SKINS, SPARK_LIFT, type Perk, type SkinId } from './sprites';
 import { View } from './View';
 import { ZONES, zoneIndex } from './zones';
@@ -64,6 +64,9 @@ export interface Spark {
   landT: number;
   happyT: number;
   blinkAt: number;
+  /** Duración del vuelo actual (los saltos de trampolín/cohete son más largos). */
+  dur: number;
+  boost: 'spring' | 'rocket' | null;
 }
 
 interface Landing {
@@ -133,6 +136,12 @@ export class Game {
   private phoenixLeft = 0;
   private powersCaught = 0;
   private fragiles = 0;
+  private bigRingLeft = 0;
+  private bonusCoins = 0;
+  /** Salto de trampolín o cohete en curso. */
+  private boosting: 'spring' | 'rocket' | null = null;
+  /** Habilidad de Dragón: cohete apenas arranca la partida. */
+  private startBoostPending = false;
   /** Habilidad activa (null en el reto: ahí todos juegan igual). */
   private perk: Perk | null = null;
 
@@ -191,7 +200,14 @@ export class Game {
       landT: 1,
       happyT: 0,
       blinkAt: 2,
+      dur: CONFIG.timing.flight,
+      boost: null,
     };
+  }
+
+  /** Habilidad de Cristal: las hojas frágiles no acortan la mecha. */
+  get fragileSafe(): boolean {
+    return this.perk?.kind === 'fragile';
   }
 
   /** Cada relevo tiene su propia semilla: en el reto del día, el relevo N es igual para todos. */
@@ -205,13 +221,14 @@ export class Game {
     const P = CONFIG.powers;
     let fuseMul = perk?.kind === 'fuse' ? perk.value : 1;
     if (this.fuseBoostLeft > 0) fuseMul *= P.fuseBoost;
-    if (this.carrier.type === 'fragile') fuseMul *= CONFIG.difficulty.fragile.fuseMul;
+    if (this.carrier.type === 'fragile' && !this.fragileSafe) fuseMul *= CONFIG.difficulty.fragile.fuseMul;
     return {
       fuseMul,
       speedMul: this.calmLeft > 0 ? P.calmSpeed : 1,
-      ringMul: perk?.kind === 'ring' ? perk.value : 1,
+      ringMul: (perk?.kind === 'ring' ? perk.value : 1) * (this.bigRingLeft > 0 ? P.bigRing : 1),
       goldMul: perk?.kind === 'gold' ? perk.value : 1,
       powerMul: perk?.kind === 'power' ? perk.value : 1,
+      springMul: perk?.kind === 'spring' ? perk.value : 1,
       ...extra,
     };
   }
@@ -242,6 +259,9 @@ export class Game {
   private toMenu(): void {
     this.phase = 'menu';
     this.perk = null;
+    this.sfx.musicWorld(0);
+    this.sfx.musicIntensity(0);
+    this.sfx.musicDuck(false);
     this.resetWorld(1, Math.min(150, this.view.rowGap()));
     this.ui.showMenu(this.menuData());
   }
@@ -257,8 +277,20 @@ export class Game {
     this.magnetLeft = 0;
     this.calmLeft = 0;
     this.fuseBoostLeft = 0;
+    this.bigRingLeft = 0;
+    this.bonusCoins = 0;
+    this.boosting = null;
+    this.startBoostPending = this.perk?.kind === 'rocketStart';
     const seed = mode === 'reto' ? hashString(`reto:${todayKey()}`) : (Math.random() * 2 ** 32) >>> 0;
     this.resetWorld(seed, this.view.rowGap());
+    // Sólo para pruebas automáticas (?autoplay&from=N): arrancar en cualquier mundo.
+    const from = this.autoplay ? Number(new URLSearchParams(location.search).get('from')) || 0 : 0;
+    if (from > 0) {
+      this.chain = from;
+      this.zone = zoneIndex(from);
+      this.view.setZone(this.zone, true);
+      this.row = createRow(from, this.carrier.x, -this.view.rowGap(), this.rowRand(from), this.rowOpts());
+    }
     this.paused = false;
     this.score = 0;
     this.perfects = 0;
@@ -287,8 +319,12 @@ export class Game {
       Save.update((d) => (d.boost.shield = false));
     }
 
+    while (lantern(this.lanternIdx).at <= this.chain) this.lanternIdx++;
+    this.sfx.musicWorld(this.zone);
+    this.sfx.musicIntensity(1);
+    this.sfx.musicDuck(false);
     this.ui.showHud(save.bestChain, save.coins, mode === 'reto');
-    this.ui.setLantern(lantern(0), 0, 0);
+    this.ui.setLantern(lantern(this.lanternIdx), this.lanternIdx > 0 ? lantern(this.lanternIdx - 1).at : 0, this.chain);
     this.ui.setPowers(this.powerState());
     this.onRowStart();
 
@@ -321,7 +357,7 @@ export class Game {
   }
 
   private powerState(): PowerState {
-    return { shield: this.shields, magnet: this.magnetLeft, calm: this.calmLeft, fuse: this.fuseBoostLeft };
+    return { shield: this.shields, magnet: this.magnetLeft, calm: this.calmLeft, fuse: this.fuseBoostLeft, bigring: this.bigRingLeft };
   }
 
   // ------------------------------------------------------------ input
@@ -405,7 +441,7 @@ export class Game {
     return c;
   }
 
-  private launch(toX: number, toY: number, leaf: Carrier | null): void {
+  private launch(toX: number, toY: number, leaf: Carrier | null, dur: number = CONFIG.timing.flight, boost: Spark['boost'] = null): void {
     const s = this.spark;
     s.state = 'flying';
     s.t = 0;
@@ -414,13 +450,15 @@ export class Game {
     s.toLeaf = leaf;
     s.toX = toX;
     s.toY = toY;
+    s.dur = dur;
+    s.boost = boost;
   }
 
   private pass(leaf: Leaf, t: number, precision: number, perfect: boolean): void {
     const sc = CONFIG.score;
     const mult = 1 + Math.floor(this.chain / sc.chainStep);
     const gold = leaf.type === 'gold';
-    this.score += Math.round((sc.base + sc.precisionBonus * precision) * mult * (gold ? sc.goldMultiplier : 1));
+    this.score += Math.round((sc.base + sc.precisionBonus * precision) * mult * (gold ? sc.goldMultiplier : 1) * this.scoreMul());
     this.chain++;
     if (perfect) {
       this.perfects++;
@@ -482,7 +520,7 @@ export class Game {
       textY -= 24;
       this.ui.bumpCoins(CONFIG.economy.coinsPerGold);
     }
-    if (info.power) {
+    if (info.power && !isBoost(info.power)) {
       this.gainPower(info.power);
       this.particles.text(POWERS[info.power].name, x, textY, POWERS[info.power].color, 20, 1.2);
     }
@@ -495,6 +533,29 @@ export class Game {
     if (this.chain % CONFIG.score.chainStep === 0) {
       this.particles.text(`Cadena ×${1 + this.chain / CONFIG.score.chainStep}`, 200, this.carrier.y - 80, '#9ff3ff', 22, 1.2);
     }
+    this.afterChainUp();
+
+    // Trampolín o cohete: la chispa sale disparada hacia arriba sin tocar.
+    if (info.power && isBoost(info.power)) {
+      this.powersCaught++;
+      Analytics.track('power_caught', { power: info.power, chain: this.chain });
+      this.startBoost(info.power, POWERS[info.power].amount);
+      return;
+    }
+
+    this.nextRow();
+    this.onRowStart();
+  }
+
+  private scoreMul(): number {
+    return this.perk?.kind === 'score' ? this.perk.value : 1;
+  }
+
+  /** Récord, faroles y mundos: se revisa cada vez que sube la cadena. */
+  private afterChainUp(): void {
+    // La música se intensifica con la cadena.
+    if (this.chain === 25) this.sfx.musicIntensity(2);
+    if (this.chain === 75) this.sfx.musicIntensity(3);
     const best = Save.data.bestChain;
     if (!this.beatRecord && best > 0 && this.chain > best) {
       this.beatRecord = true;
@@ -504,24 +565,84 @@ export class Game {
     }
     this.checkLantern();
     this.checkZone();
+  }
 
-    this.row = this.makeRow();
+  /** Crea el relevo siguiente y descuenta los poderes que duran "N relevos". */
+  private nextRow(extra: RowOpts = {}): void {
+    this.row = this.makeRow(extra);
     if (this.calmLeft > 0) this.calmLeft--;
     if (this.fuseBoostLeft > 0) this.fuseBoostLeft--;
+    if (this.bigRingLeft > 0) this.bigRingLeft--;
     this.ui.setPowers(this.powerState());
     this.fuseLeft = this.row.fuse;
-    this.grace = this.runTime + CONFIG.timing.landGrace;
+    this.grace = this.runTime + (extra.firstArrival ? CONFIG.revive.grace : CONFIG.timing.landGrace);
     this.nextTick = 0;
+  }
+
+  /**
+   * Trampolín (+5) o cohete (+12): suma esos relevos con su puntaje, faroles y mundos,
+   * y lanza la chispa en un vuelo largo hasta una hoja segura más arriba.
+   */
+  private startBoost(kind: 'spring' | 'rocket', relays: number): void {
+    const def = POWERS[kind];
+    this.boosting = kind;
+    this.ui.powerToast(def.name, def.short, def.color);
+    this.particles.text(`¡${def.name}! +${relays}`, this.carrier.x, this.carrier.y - 60, def.color, 26, 1.3);
+    this.particles.burst(this.carrier.x, this.carrier.y - SPARK_LIFT, def.color, 30, 260, 9);
+    this.sfx.boost(kind === 'rocket');
+    Telegram.perfect();
+    const sc = CONFIG.score;
+    for (let i = 0; i < relays; i++) {
+      const mult = 1 + Math.floor(this.chain / sc.chainStep);
+      this.score += Math.round(sc.base * mult * this.scoreMul());
+      this.chain++;
+      this.afterChainUp();
+    }
+    this.ui.setChain(this.chain, true);
+    this.row = null;
+    this.ghosts.push({ ...this.carrier, vx: 0, vy: 40, alpha: 1, fade: 1 });
+    const target: Carrier = {
+      x: 110 + Math.random() * 180,
+      y: this.carrier.y - this.view.rowGap() * relays,
+      angle: 0,
+      type: 'normal',
+      vx: 0,
+    };
+    this.incoming = target;
+    this.launch(target.x, target.y, target, kind === 'rocket' ? 1.5 : 0.95, kind);
+  }
+
+  private finishBoost(): void {
+    this.carrier = this.incoming!;
+    this.incoming = null;
+    this.boosting = null;
+    const s = this.spark;
+    s.state = 'idle';
+    s.t = 0;
+    s.landT = 0;
+    s.happyT = 0.8;
+    s.boost = null;
+    const light = SKINS[this.skin].light;
+    this.particles.burst(this.carrier.x, this.carrier.y - SPARK_LIFT, light, 24, 180);
+    this.particles.wave(this.carrier.x, this.carrier.y, 40, 16, light, 0.6);
+    this.sfx.pass(this.chain);
+    this.nextRow({ firstArrival: 1.2 });
     this.onRowStart();
   }
 
   private gainPower(id: PowerId): void {
     const scale = this.perk?.kind === 'power' ? 1.5 : 1;
-    const relays = Math.round(POWERS[id].relays * scale);
+    const amount = Math.round(POWERS[id].amount * scale);
     if (id === 'shield') this.shields++;
-    else if (id === 'magnet') this.magnetLeft += relays;
-    else if (id === 'calm') this.calmLeft += relays;
-    else this.fuseBoostLeft += relays;
+    else if (id === 'magnet') this.magnetLeft += amount;
+    else if (id === 'calm') this.calmLeft += amount;
+    else if (id === 'fuse') this.fuseBoostLeft += amount;
+    else if (id === 'bigring') this.bigRingLeft += amount;
+    else if (id === 'coins') {
+      this.bonusCoins += amount;
+      this.ui.bumpCoins(amount);
+      this.particles.burst(this.carrier.x, this.carrier.y - 40, '#ffe14a', 30, 220, 7);
+    }
     this.powersCaught++;
     this.ui.powerToast(POWERS[id].name, POWERS[id].short, POWERS[id].color);
     Analytics.track('power_caught', { power: id, chain: this.chain });
@@ -554,6 +675,7 @@ export class Game {
     this.zone = z;
     const zone = ZONES[z];
     this.view.setZone(z);
+    this.sfx.musicWorld(z);
     this.ui.zoneBanner(z + 1, zone.name, zone.intro);
     this.sfx.record();
     this.particles.burst(200, this.carrier.y - 160, zone.firefly, 40, 260, 10);
@@ -589,6 +711,7 @@ export class Game {
     this.phase = 'dying';
     this.dyingT = 0;
     this.death = { reason, delta };
+    this.sfx.musicDuck(true);
     this.ui.showHint(null);
     if (reason === 'fuse') this.extinguish();
   }
@@ -618,16 +741,15 @@ export class Game {
     s.toLeaf = null;
     s.landT = 0;
     s.happyT = 1;
+    s.boost = null;
     this.pendingLanding = null;
 
     this.phase = 'playing';
     this.death = null;
+    this.sfx.musicDuck(false);
     // Si estaba sobre una hoja frágil, se cambia por una sana para no castigar dos veces.
     if (this.carrier.type === 'fragile') this.carrier.type = 'normal';
-    this.row = this.makeRow({ firstArrival });
-    this.fuseLeft = this.row.fuse;
-    this.grace = this.runTime + CONFIG.revive.grace;
-    this.nextTick = 0;
+    this.nextRow({ firstArrival });
 
     this.particles.burst(this.carrier.x, this.carrier.y - SPARK_LIFT, color, 34, 220, 9);
     this.particles.wave(this.carrier.x, this.carrier.y, 40, 16, color, 0.8);
@@ -720,13 +842,16 @@ export class Game {
 
   private endRun(): void {
     this.phase = 'over';
+    this.sfx.musicIntensity(0);
+    this.sfx.musicDuck(false);
     const eco = CONFIG.economy;
     const raw =
       eco.coinsPerRun +
       Math.floor(this.chain / eco.relaysPerCoin) +
       this.golds * eco.coinsPerGold +
       this.lanternCoins +
-      this.magnetCoins;
+      this.magnetCoins +
+      this.bonusCoins;
     const coins = Math.round(raw * (this.perk?.kind === 'coins' ? 1 + this.perk.value : 1));
     this.lastRunCoins = coins;
     this.doubled = false;
@@ -1150,7 +1275,6 @@ export class Game {
 
   private update(dt: number): void {
     this.time += dt;
-    this.sfx.tickAmbient(this.time);
     if (this.paused) return;
 
     // En la derrota todo pasa en cámara lenta: se ve exactamente qué pasó.
@@ -1171,6 +1295,10 @@ export class Game {
         this.die('fuse');
       }
       if (this.autoplay) this.autoTap();
+      if (this.startBoostPending && this.runTime > 0.6) {
+        this.startBoostPending = false;
+        this.startBoost('rocket', this.perk?.value ?? 12);
+      }
     }
 
     this.updateSpark(dt);
@@ -1179,7 +1307,7 @@ export class Game {
 
     // Cámara: sigue a la hoja que tiene (o va a tener) la chispa.
     const target = this.incoming ?? this.carrier;
-    this.camY = damp(this.camY, target.y - this.anchor(), 5.5, dt);
+    this.camY = damp(this.camY, target.y - this.anchor(), this.boosting ? 8 : 5.5, dt);
 
     if (this.phase === 'dying') {
       this.dyingT += dt;
@@ -1231,19 +1359,29 @@ export class Game {
     }
 
     if (s.state === 'flying') {
-      const T = CONFIG.timing.flight;
-      const k = Math.min(1, s.t / T);
+      const k = Math.min(1, s.t / s.dur);
       const tx = s.toLeaf ? s.toLeaf.x : s.toX;
       const ty = (s.toLeaf ? s.toLeaf.y : s.toY) - SPARK_LIFT;
-      // Arco: punto de control por encima del medio.
-      const cx = (s.fromX + tx) / 2;
-      const cy = Math.min(s.fromY, ty) - 45;
-      const u = 1 - k;
-      s.x = u * u * s.fromX + 2 * u * k * cx + k * k * tx;
-      s.y = u * u * s.fromY + 2 * u * k * cy + k * k * ty;
-      if (Math.random() < 0.8) this.particles.ember(s.x, s.y, SKINS[this.skin].light);
+      if (s.boost) {
+        // Salto largo: sube rápido y frena al llegar, con un leve vaivén.
+        const e = 1 - Math.pow(1 - k, 3);
+        s.x = s.fromX + (tx - s.fromX) * e + Math.sin(k * Math.PI * 3) * 18 * (1 - k);
+        s.y = s.fromY + (ty - s.fromY) * e;
+        const color = s.boost === 'rocket' ? '#ff6a8a' : '#8ff76a';
+        for (let i = 0; i < 3; i++) this.particles.ember(s.x + (Math.random() - 0.5) * 10, s.y + 12, i === 0 ? color : SKINS[this.skin].light);
+        if (s.boost === 'rocket' && Math.random() < 0.6) this.particles.smoke(s.x, s.y + 18, 1);
+      } else {
+        // Arco: punto de control por encima del medio.
+        const cx = (s.fromX + tx) / 2;
+        const cy = Math.min(s.fromY, ty) - 45;
+        const u = 1 - k;
+        s.x = u * u * s.fromX + 2 * u * k * cx + k * k * tx;
+        s.y = u * u * s.fromY + 2 * u * k * cy + k * k * ty;
+        if (Math.random() < 0.8) this.particles.ember(s.x, s.y, SKINS[this.skin].light);
+      }
       if (k >= 1) {
-        if (this.phase === 'playing') this.land();
+        if (this.phase === 'playing' && this.boosting) this.finishBoost();
+        else if (this.phase === 'playing') this.land();
         else if (s.toLeaf) {
           // Aterrizó en una hoja seca.
           s.x = tx;

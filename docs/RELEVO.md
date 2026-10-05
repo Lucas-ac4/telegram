@@ -57,26 +57,51 @@ Métricas en el panel `?stats=1`: revivir ofrecido / aceptado, duplicar aceptado
 
 ## Progresión durante la partida (estilo Sky Jump)
 
-A medida que la cadena crece, el juego sube de mundo: cambia el escenario, todo va un poco más rápido, la mecha se acorta y aparece una mecánica nueva. Al entrar a cada mundo aparece un cartel con lo nuevo.
+A medida que la cadena crece, el juego sube de mundo: cambia el escenario y la música, todo va más rápido, la mecha se acorta y aparecen mecánicas nuevas. **Pero también aparecen más poderes y beneficios** (trampolines, cohetes, monedas): de 9% de los relevos en Cascadas a casi 30% al final. Al entrar a cada mundo aparece un cartel con lo nuevo.
 
-| Mundo | Desde | Escenario | Mecánica nueva |
+| # | Mundo | Desde | Qué trae |
 |---|---|---|---|
-| 1. Jardín nocturno | 0 | Luna, arcos y cascadas | Mecha, hojas secas, doradas, ondas |
-| 2. Cascadas | 25 | Turquesa, muchas cascadas | **Hojas frágiles**: si caés en una, la mecha del relevo siguiente es más corta (la hoja se hunde y tiembla) |
-| 3. Mar de nubes | 50 | Atardecer lila, nubes | **Aro móvil**: va y viene sobre un riel visible |
-| 4. Aurora | 75 | Cortinas de aurora y picos nevados | **Corrientes cruzadas**: hojas desde los dos lados, intercaladas |
-| 5. Cosmos | 100 | Planetas y nebulosas | Todo junto y más rápido |
+| 1 | Jardín nocturno | 0 | Mecha, hojas secas, doradas, ondas |
+| 2 | Cascadas | 25 | Hojas frágiles · aparecen trampolines |
+| 3 | Mar de nubes | 50 | El aro se mueve (riel visible) |
+| 4 | Aurora | 75 | Corrientes cruzadas |
+| 5 | Cosmos | 100 | Más rápido · aparecen cohetes |
+| 6 | Bosque de cerezos | 120 | Viento: ondas grandes · lluvia de monedas (pétalos) |
+| 7 | Volcán dormido | 140 | Más hojas secas · escudos más seguido (brasas) |
+| 8 | Lago helado | 160 | El frío acorta la mecha · mecha larga más seguido (nieve) |
+| 9 | Arrecife de luz | 180 | Más corrientes cruzadas · calma (burbujas) |
+| 10 | Tormenta eléctrica | 200 | Aro móvil más rápido (lluvia y relámpagos) |
+| 11 | Desierto de estrellas | 220 | Muchas frágiles · aparece el aro gigante |
+| 12 | Jardín de hongos | 240 | Más rápido, pero muchos más poderes |
+| 13 | Ruinas del sol | 260 | Más secas y más doradas |
+| 14 | Islas flotantes | 280 | Aro móvil y frágiles juntos · trampolines |
+| 15 | Nebulosa rosa | 300 | Cruces rápidos · cohetes |
+| 16 | Cueva de cristal | 320 | Niebla: sólo brillan las semillas de luz |
+| 17 | Océano de auroras | 340 | Olas grandes, aro móvil y cruces |
+| 18 | Ciudad de faroles | 360 | Mecha más corta · imanes más seguido |
+| 19 | Vía Láctea | 380 | Aro más chico · cohetes |
+| 20 | Corazón de la luz | 400 | El desafío final: todo al máximo (y más poderes) |
 
-**Potenciadores** (desde cadena 12, flotan sobre algunas hojas válidas; si le pasás la chispa a esa hoja, son tuyos):
+**Poderes y beneficios** (flotan sobre algunas hojas válidas; si le pasás la chispa a esa hoja, son tuyos):
 
-| Potenciador | Efecto |
-|---|---|
-| Escudo | Te salva de un error, cualquiera sea |
-| Imán | +1 moneda por relevo durante 10 relevos |
-| Calma | Hojas más lentas durante 6 relevos |
-| Mecha larga | +60% de mecha durante 8 relevos |
+| Poder | Desde | Efecto |
+|---|---|---|
+| Escudo | Mundo 1 | Te salva de un error |
+| Imán | Mundo 1 | +1 moneda por relevo (10 relevos) |
+| Calma | Mundo 1 | Hojas más lentas (6 relevos) |
+| Mecha larga | Mundo 1 | +60% de mecha (8 relevos) |
+| **Trampolín** | Mundo 2 | Te lanza **5 relevos** hacia arriba sin tocar |
+| **Cohete** | Mundo 5 | **12 relevos** de un saque |
+| Lluvia de monedas | Mundo 6 | +15 monedas |
+| Aro gigante | Mundo 11 | Aro 40% más grande (6 relevos) |
 
-Garantía de justicia: se simularon 84.600 relevos con todas las mecánicas y combinaciones (hoja frágil, calma, mecha larga, personajes). En todos hubo una hoja alcanzable antes de que se apague la mecha y nunca hubo dos hojas dentro del aro a la vez.
+Cada mundo tiene un beneficio "estrella" que aparece 3 veces más.
+
+Garantía de justicia: se simularon 43.100 relevos en los 20 mundos con frágiles, calma, aro gigante y mecha larga. En todos hubo una hoja alcanzable antes de que se apague la mecha y nunca hubo dos hojas dentro del aro a la vez. La velocidad tiene tope en los mundos altos para que siga siendo jugable (ventana de pase mínima ≈ 0,16 s).
+
+## Música
+
+Música generada en vivo (WebAudio, 0 KB de archivos): acordes, bajo, arpegio con eco y percusión suave. **Cada mundo tiene su tonalidad, escala, tempo y timbre** (de 84 a 116 BPM). En el menú suena tranquila; al jugar entra la percusión y se intensifica en cadena 25 y 75. Al perder baja y se apaga el brillo. Está en `relevo/src/audio/Music.ts`.
 
 ## Personajes con habilidad
 
@@ -90,7 +115,12 @@ Más caros que antes, y cada uno ayuda distinto. **En el reto diario las habilid
 | Luna | Épica | 700 | Mecha 12% más larga |
 | Brasa | Épica | 1.000 | Potenciadores más seguido y más largos |
 | Cometa | Legendaria | 1.800 | Aro 8% más grande |
+| Brote | Rara | 400 | Trampolines 3 veces más seguido |
+| Rayo | Épica | 1.300 | +25% puntos |
+| Cristal | Épica | 1.500 | Las hojas frágiles no te apuran |
 | Fénix | Legendaria | 3.000 | Renace gratis 1 vez por partida |
+| Dragón | Legendaria | 4.000 | Arranca con un cohete: +12 relevos |
+| Sol | Legendaria | 5.000 | +50% monedas |
 | Aurora | Exclusiva | — | Regalo diario, día 7 · Faroles +50% |
 | Estrella | Exclusiva | — | Logro cadena 50 · Empieza con escudo |
 
@@ -113,7 +143,7 @@ Hay puntos rojos en cada pestaña cuando hay algo para cobrar.
 
 ## Tecnología
 
-Canvas 2D + TypeScript + Vite, **sin librerías**: el juego completo pesa ~42 KB comprimido y no carga imágenes ni audios (todo se dibuja y se sintetiza por código). La propuesta sugería Phaser; para una sola pantalla con un toque no hacía falta y así carga instantáneo dentro de Telegram. Si más adelante hay muchas escenas, se puede migrar.
+Canvas 2D + TypeScript + Vite, **sin librerías**: el juego completo pesa ~50 KB comprimido y no carga imágenes ni audios (todo se dibuja y se sintetiza por código). La propuesta sugería Phaser; para una sola pantalla con un toque no hacía falta y así carga instantáneo dentro de Telegram. Si más adelante hay muchas escenas, se puede migrar.
 
 ```text
 relevo/
@@ -158,6 +188,23 @@ Un jugador perfecto llega a 30 relevos en ~40 s (la propuesta pide partidas de 3
 Eventos de anuncios: `ad_offer_shown`, `ad_accepted`, `ad_completed`, `ad_failed`, `ad_declined` (con `ad_placement`: revive / double / daily / boost), `zone_reached`, `power_caught`, `shield_used`, `phoenix_used`, `level_up`, `revive_used`, `lantern_lit`, `daily_reward_claimed`, `daily_challenge_started`, `achievement_claimed`.
 
 Eventos: `install_or_first_open`, `session_started`, `telegram_launch_source`, `tutorial_started`, `first_run_started`, `run_started`, `pass_attempted`, `pass_success`, `pass_perfect`, `run_ended` (death_reason, score, chain, combo, duration), `personal_best`, `mission_completed`, `currency_earned`, `currency_spent`, `cosmetic_unlocked`, `share_clicked`.
+
+## App de Android (APK)
+
+El APK se compila solo en GitHub Actions (`.github/workflows/android.yml`) con **Capacitor**: los servidores de GitHub ya traen el SDK de Android. En cada push que toca el juego:
+
+1. Compila la versión web para la app (`npm run build:app`, sin el SDK de Telegram).
+2. Arma el proyecto Android (`android/`) y genera `relevo-de-luz.apk`.
+3. Lo publica en **Releases** del repo (`apk-vN`), listo para bajar desde el celular.
+
+Detalles:
+
+- **Pantalla:** vertical, fondo oscuro, ícono y splash propios.
+- **Vibración:** sí, con la API del navegador.
+- **Actualizaciones:** firma fija de prueba (`android/app/relevo-debug.keystore`), así cada versión se instala encima de la anterior sin perder el progreso. Para la Play Store hace falta una clave propia y privada.
+- **Anuncios:** en la app aparece el anuncio de prueba. El SDK de Monetag es para Telegram; para Android hay que integrar AdMob.
+
+Compilar en tu compu (con Android Studio instalado): `npm run android:sync` y abrir la carpeta `android/`.
 
 ## Publicar en Telegram
 

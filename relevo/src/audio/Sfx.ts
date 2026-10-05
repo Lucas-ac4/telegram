@@ -1,3 +1,5 @@
+import { Music } from './Music';
+
 /**
  * Sonido sintetizado con WebAudio (0 KB de archivos → carga instantánea).
  * Cada pase suena; los perfectos encadenados suben de nota (escala pentatónica),
@@ -8,8 +10,8 @@ const PENTA = [523.25, 587.33, 659.25, 783.99, 880, 1046.5, 1174.66, 1318.51, 15
 export class Sfx {
   private ctx: AudioContext | null = null;
   private master: GainNode | null = null;
-  private ambient: GainNode | null = null;
-  private nextCricket = 0;
+  private music: Music | null = null;
+  private musicState = { world: 0, intensity: 0, duck: false };
   muted = false;
 
   /** Llamar en el primer gesto del usuario (regla de los navegadores). */
@@ -24,7 +26,11 @@ export class Sfx {
     this.master = this.ctx.createGain();
     this.master.gain.value = this.muted ? 0 : 0.8;
     this.master.connect(this.ctx.destination);
-    this.startAmbient();
+    this.music = new Music(this.ctx, this.master);
+    this.music.setWorld(this.musicState.world);
+    this.music.setIntensity(this.musicState.intensity);
+    this.music.duck(this.musicState.duck);
+    this.music.start();
   }
 
   setMuted(m: boolean): void {
@@ -37,40 +43,20 @@ export class Sfx {
     void this.ctx?.suspend();
   }
 
-  /** Colchón nocturno suave: dos senoidales graves con respiración lenta. */
-  private startAmbient(): void {
-    const ctx = this.ctx!;
-    this.ambient = ctx.createGain();
-    this.ambient.gain.value = 0.045;
-    this.ambient.connect(this.master!);
-    for (const [f, detune] of [
-      [110, 0],
-      [164.81, 4],
-      [220, -3],
-    ]) {
-      const o = ctx.createOscillator();
-      o.type = 'sine';
-      o.frequency.value = f;
-      o.detune.value = detune;
-      const g = ctx.createGain();
-      g.gain.value = 0.5;
-      const lfo = ctx.createOscillator();
-      lfo.frequency.value = 0.07 + Math.random() * 0.05;
-      const lfoGain = ctx.createGain();
-      lfoGain.gain.value = 0.35;
-      lfo.connect(lfoGain).connect(g.gain);
-      o.connect(g).connect(this.ambient);
-      o.start();
-      lfo.start();
-    }
+  // Música: se recuerda el estado aunque el audio todavía no haya arrancado.
+  musicWorld(z: number): void {
+    this.musicState.world = z;
+    this.music?.setWorld(z);
   }
 
-  /** Grillos de fondo; se llama desde el loop. */
-  tickAmbient(time: number): void {
-    if (!this.ctx || this.muted || time < this.nextCricket) return;
-    this.nextCricket = time + 2.5 + Math.random() * 4;
-    const base = 4200 + Math.random() * 600;
-    for (let i = 0; i < 3; i++) this.tone(base, 0.035, 'sine', 0.012, undefined, i * 0.07);
+  musicIntensity(level: number): void {
+    this.musicState.intensity = level;
+    this.music?.setIntensity(level);
+  }
+
+  musicDuck(on: boolean): void {
+    this.musicState.duck = on;
+    this.music?.duck(on);
   }
 
   private tone(freq: number, dur: number, type: OscillatorType, vol: number, slideTo?: number, delay = 0): void {
@@ -146,6 +132,19 @@ export class Sfx {
 
   record(): void {
     [0, 2, 4, 7].forEach((n, i) => this.tone(PENTA[n], 0.35, 'triangle', 0.12, undefined, 0.1 + i * 0.09));
+  }
+
+  /** Trampolín (boing) o cohete (despegue). */
+  boost(rocket: boolean): void {
+    if (rocket) {
+      this.noise(1.1, 0.3, 300, 4000);
+      this.tone(160, 1.1, 'sawtooth', 0.08, 900);
+      this.tone(320, 0.9, 'triangle', 0.08, 1400, 0.1);
+    } else {
+      this.tone(180, 0.35, 'sine', 0.22, 720);
+      this.tone(360, 0.3, 'triangle', 0.1, 1100, 0.06);
+      [0, 2, 4].forEach((n, i) => this.tone(PENTA[n + 3], 0.25, 'triangle', 0.08, undefined, 0.2 + i * 0.07));
+    }
   }
 
   click(): void {

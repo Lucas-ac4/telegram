@@ -119,6 +119,7 @@ export interface PowerState {
   magnet: number;
   calm: number;
   fuse: number;
+  bigring: number;
 }
 
 interface Handlers {
@@ -751,6 +752,7 @@ export class UI {
     if (p.magnet > 0) chips.push(`<span class="pw magnet">${ICON.magnet}${p.magnet}</span>`);
     if (p.calm > 0) chips.push(`<span class="pw calm">${ICON.clock}${p.calm}</span>`);
     if (p.fuse > 0) chips.push(`<span class="pw fuse">${ICON.fuse}${p.fuse}</span>`);
+    if (p.bigring > 0) chips.push(`<span class="pw bigring">${ICON.target}${p.bigring}</span>`);
     this.$('[data-powers]').innerHTML = chips.join('');
   }
 

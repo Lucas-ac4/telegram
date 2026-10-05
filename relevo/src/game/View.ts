@@ -49,6 +49,8 @@ export class View {
   private prevZone = 0;
   private zoneFade = 1;
   private lastTime = 0;
+  private flash = 0;
+  private flashIn = 3;
   private shakeAmt = 0;
   private fireflies: Firefly[] = [];
   private slowTime = 0;
@@ -157,6 +159,7 @@ export class View {
     // Luciérnagas en pantalla: más a medida que crece la cadena (calma → caos)
     ctx.setTransform(k, 0, 0, k, this.offX, 0);
     this.drawFireflies(g.time, 12 + Math.min(28, g.chain), ZONES[this.zone].firefly);
+    this.drawWeather(g.time, dt);
 
     ctx.restore();
     ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -314,6 +317,22 @@ export class View {
         const sway = Math.sin(g.time * 2 + l.i) * 0.06;
         ctx.globalAlpha = l.alpha;
         drawSprite(ctx, this.leafSprite(l.type), l.x, l.y + SEAT_OFFSET, LEAF_SCALE * (0.7 + 0.3 * l.alpha), l.angle + sway);
+        if (l.type === 'gold' && Math.random() < 0.15) g.particles.ember(l.x + (Math.random() - 0.5) * 40, l.y, '#ffd76a');
+      }
+      ctx.globalAlpha = 1;
+
+      // Niebla (Cueva de cristal): tapa las hojas, pero las semillas de luz brillan a través.
+      if (ZONES[this.zone].palette.fog) {
+        const fog = ctx.createLinearGradient(0, row.y - 70, 0, row.y + 70);
+        fog.addColorStop(0, 'rgba(20,50,70,0)');
+        fog.addColorStop(0.5, 'rgba(30,70,90,0.72)');
+        fog.addColorStop(1, 'rgba(20,50,70,0)');
+        ctx.fillStyle = fog;
+        ctx.fillRect(-20, row.y - 70, W + 40, 140);
+      }
+
+      for (const l of row.leaves) {
+        if (l.alpha <= 0) continue;
         // Semilla de luz: el punto que tiene que entrar al aro.
         if (l.type !== 'dry') {
           ctx.globalCompositeOperation = 'lighter';
@@ -321,10 +340,8 @@ export class View {
           drawGlow(ctx, l.type === 'gold' ? '#ffd76a' : '#8ff7ff', l.x, l.y, 9 * pulse, l.alpha);
           ctx.globalCompositeOperation = 'source-over';
         }
-        if (l.type === 'gold' && Math.random() < 0.15) g.particles.ember(l.x + (Math.random() - 0.5) * 40, l.y, '#ffd76a');
         if (l.power) this.drawPowerOrb(l.power, l.x, l.y - 30 + Math.sin(g.time * 4 + l.i) * 2.5, l.alpha);
       }
-      ctx.globalAlpha = 1;
     }
 
     for (const c of [g.carrier, g.incoming]) {
@@ -332,7 +349,7 @@ export class View {
       let bob = c === g.carrier ? Math.sin(g.time * 3) * 1.6 : 0;
       let dx = 0;
       // La hoja frágil se hunde y tiembla a medida que se consume la mecha.
-      if (c === g.carrier && c.type === 'fragile' && row && isFinite(row.fuse) && g.phase === 'playing') {
+      if (c === g.carrier && c.type === 'fragile' && !g.fragileSafe && row && isFinite(row.fuse) && g.phase === 'playing') {
         const frac = clamp(g.fuseLeft / row.fuse, 0, 1);
         bob += (1 - frac) * 7;
         if (frac < 0.4) dx = Math.sin(g.time * 50) * 1.5;
@@ -473,6 +490,8 @@ export class View {
         else if (kind === 'lotus') drawSprite(ctx, this.sprites.lotus, x, y, sc);
         else if (kind === 'cloud') drawSprite(ctx, this.sprites.cloud, x + side * -10, y, sc * 1.2);
         else if (kind === 'crystal') drawSprite(ctx, this.sprites.crystal, x, y, sc, side * 0.2);
+        else if (kind === 'mushroom') drawSprite(ctx, this.sprites.mushroom, x, y, sc);
+        else if (kind === 'paperLantern') drawSprite(ctx, this.sprites.paperLantern, x + side * -8, y + Math.sin(i) * 6, sc);
         else drawSprite(ctx, this.sprites.rock, x, y, sc, r() * 3);
       }
     }
@@ -494,6 +513,104 @@ export class View {
       }
     }
     ctx.globalCompositeOperation = 'source-over';
+  }
+
+  /** Clima del mundo actual, en coordenadas de pantalla (barato: sin objetos nuevos por frame). */
+  private drawWeather(time: number, dt: number): void {
+    const pal = ZONES[this.zone].palette;
+    const ctx = this.ctx;
+    const H = this.H;
+    const n = this.fireflies.length;
+    const kind = pal.weather;
+    if (kind === 'rain') {
+      ctx.strokeStyle = 'rgba(180,200,255,0.35)';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      for (let i = 0; i < n * 2; i++) {
+        const f = this.fireflies[i % n];
+        const x = (f.x + i * 37 + time * 60) % (W + 40) - 20;
+        const y = (((f.y * H + i * 53 + time * 520) % (H + 40)) + H + 40) % (H + 40) - 20;
+        ctx.moveTo(x, y);
+        ctx.lineTo(x - 4, y + 16);
+      }
+      ctx.stroke();
+    } else if (kind === 'snow' || kind === 'petals' || kind === 'bubbles') {
+      for (let i = 0; i < n; i++) {
+        const f = this.fireflies[i];
+        const fall = kind === 'bubbles' ? -18 - f.vy * 2 : 14 + f.vy * 2;
+        const x = f.x + Math.sin(time * f.sp + f.ph) * 30 + (kind === 'petals' ? time * 20 : 0);
+        const y = (((f.y * H + time * fall) % H) + H) % H;
+        const xx = ((x % (W + 20)) + W + 20) % (W + 20) - 10;
+        if (kind === 'snow') {
+          ctx.fillStyle = 'rgba(240,248,255,0.8)';
+          ctx.beginPath();
+          ctx.arc(xx, y, 1.6 + (i % 3) * 0.6, 0, Math.PI * 2);
+          ctx.fill();
+        } else if (kind === 'petals') {
+          ctx.fillStyle = 'rgba(255,180,210,0.75)';
+          ctx.save();
+          ctx.translate(xx, y);
+          ctx.rotate(time * f.sp * 2 + f.ph);
+          ctx.beginPath();
+          ctx.ellipse(0, 0, 3.6, 2, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        } else {
+          ctx.strokeStyle = 'rgba(170,240,255,0.45)';
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.arc(xx, y, 2 + (i % 4), 0, Math.PI * 2);
+          ctx.stroke();
+        }
+      }
+    } else if (kind === 'embers') {
+      ctx.globalCompositeOperation = 'lighter';
+      for (let i = 0; i < n; i++) {
+        const f = this.fireflies[i];
+        const x = f.x + Math.sin(time * f.sp * 1.5 + f.ph) * 18;
+        const y = (((f.y * H - time * (30 + f.vy * 4)) % H) + H) % H;
+        drawGlow(ctx, '#ff7a2a', x, y, 4 + (i % 3), 0.5 + 0.4 * Math.sin(time * 5 + f.ph));
+      }
+      ctx.globalCompositeOperation = 'source-over';
+    } else if (kind === 'sparkles') {
+      ctx.fillStyle = '#ffffff';
+      for (let i = 0; i < n; i++) {
+        const f = this.fireflies[i];
+        const a = Math.max(0, Math.sin(time * f.sp * 2 + f.ph * 4));
+        if (a < 0.2) continue;
+        const x = (f.x * 1.7 + i * 23) % W;
+        const y = (f.y * H * 1.3 + i * 31) % H;
+        const r = 3 * a;
+        ctx.globalAlpha = a * 0.8;
+        ctx.beginPath();
+        ctx.moveTo(x, y - r);
+        ctx.lineTo(x + r * 0.3, y);
+        ctx.lineTo(x, y + r);
+        ctx.lineTo(x - r * 0.3, y);
+        ctx.closePath();
+        ctx.moveTo(x - r, y);
+        ctx.lineTo(x, y + r * 0.3);
+        ctx.lineTo(x + r, y);
+        ctx.lineTo(x, y - r * 0.3);
+        ctx.closePath();
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    // Relámpagos: destello breve cada tanto
+    if (pal.lightning) {
+      this.flashIn -= dt;
+      if (this.flashIn <= 0) {
+        this.flash = 1;
+        this.flashIn = 4 + Math.random() * 6;
+      }
+    }
+    if (this.flash > 0) {
+      ctx.fillStyle = `rgba(220,230,255,${0.35 * this.flash})`;
+      ctx.fillRect(0, 0, W, H);
+      this.flash = Math.max(0, this.flash - dt * 3);
+    }
   }
 
   private drawFireflies(time: number, count: number, color: string): void {

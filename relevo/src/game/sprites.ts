@@ -13,10 +13,36 @@ export interface Sprite {
   h: number;
 }
 
-export type SkinId = 'ambar' | 'erizo' | 'rocio' | 'luna' | 'brasa' | 'cometa' | 'fenix' | 'aurora' | 'estrella';
+export type SkinId =
+  | 'ambar'
+  | 'erizo'
+  | 'brote'
+  | 'rocio'
+  | 'luna'
+  | 'brasa'
+  | 'rayo'
+  | 'cristal'
+  | 'cometa'
+  | 'fenix'
+  | 'dragon'
+  | 'sol'
+  | 'aurora'
+  | 'estrella';
 
 /** Habilidad de cada personaje. En el reto del día no se aplican: ahí todos juegan igual. */
-export type PerkKind = 'coins' | 'gold' | 'fuse' | 'power' | 'ring' | 'phoenix' | 'lantern' | 'shield';
+export type PerkKind =
+  | 'coins'
+  | 'gold'
+  | 'fuse'
+  | 'power'
+  | 'ring'
+  | 'phoenix'
+  | 'lantern'
+  | 'shield'
+  | 'spring'
+  | 'score'
+  | 'fragile'
+  | 'rocketStart';
 
 export interface Perk {
   kind: PerkKind;
@@ -126,6 +152,66 @@ export const SKINS: Record<SkinId, SkinStyle> = {
     eyeY: 3,
     eyeGap: 8.4,
   },
+  brote: {
+    name: 'Brote',
+    rarity: 'Rara',
+    price: 400,
+    perk: { kind: 'spring', value: 3, text: 'Trampolines 3 veces más seguido' },
+    glow: '#8fef6a',
+    light: '#c8ff9a',
+    eye: '#163a10',
+    eyeX: 0,
+    eyeY: 3,
+    eyeGap: 8.4,
+  },
+  rayo: {
+    name: 'Rayo',
+    rarity: 'Épica',
+    price: 1300,
+    perk: { kind: 'score', value: 1.25, text: '+25% puntos' },
+    glow: '#ffe14a',
+    light: '#fff3a0',
+    eye: '#3a2a00',
+    eyeX: 0,
+    eyeY: 4,
+    eyeGap: 8.4,
+  },
+  cristal: {
+    name: 'Cristal',
+    rarity: 'Épica',
+    price: 1500,
+    perk: { kind: 'fragile', value: 1, text: 'Las hojas frágiles no te apuran' },
+    glow: '#9ff0ff',
+    light: '#d9fbff',
+    eye: '#0a2a40',
+    eyeX: 0,
+    eyeY: 2,
+    eyeGap: 8,
+  },
+  dragon: {
+    name: 'Dragón',
+    rarity: 'Legendaria',
+    price: 4000,
+    perk: { kind: 'rocketStart', value: 12, text: 'Arranca con un cohete: +12 relevos' },
+    glow: '#ff5a8a',
+    light: '#ffa8c4',
+    eye: '#2a0418',
+    eyeX: 0,
+    eyeY: 3,
+    eyeGap: 8.4,
+  },
+  sol: {
+    name: 'Sol',
+    rarity: 'Legendaria',
+    price: 5000,
+    perk: { kind: 'coins', value: 0.5, text: '+50% monedas en cada partida' },
+    glow: '#ffc24a',
+    light: '#ffe08a',
+    eye: '#4a2400',
+    eyeX: 0,
+    eyeY: 2.5,
+    eyeGap: 8,
+  },
   aurora: {
     name: 'Aurora',
     rarity: 'Exclusiva',
@@ -154,7 +240,22 @@ export const SKINS: Record<SkinId, SkinStyle> = {
   },
 };
 
-export const SKIN_ORDER: SkinId[] = ['ambar', 'erizo', 'rocio', 'luna', 'brasa', 'cometa', 'fenix', 'aurora', 'estrella'];
+export const SKIN_ORDER: SkinId[] = [
+  'ambar',
+  'erizo',
+  'brote',
+  'rocio',
+  'luna',
+  'brasa',
+  'rayo',
+  'cristal',
+  'cometa',
+  'fenix',
+  'dragon',
+  'sol',
+  'aurora',
+  'estrella',
+];
 
 export function makeSprite(w: number, h: number, k: number, draw: (ctx: CanvasRenderingContext2D) => void): Sprite {
   const canvas = document.createElement('canvas');
@@ -418,6 +519,48 @@ function sparkBodyPath(ctx: CanvasRenderingContext2D, skin: SkinId): void {
     ctx.bezierCurveTo(-12, -2, -13, -6, -16.5, -6);
     ctx.bezierCurveTo(-15, -11, -12, -14, -9, -12);
     ctx.bezierCurveTo(-6, -10, -3, -12, 0, -19);
+  } else if (skin === 'brote') {
+    ctx.moveTo(0, -17);
+    ctx.bezierCurveTo(6, -9, 11.5, -4, 11.5, 3);
+    ctx.arc(0, 3, 11.5, 0, Math.PI, false);
+    ctx.bezierCurveTo(-11.5, -4, -6, -9, 0, -17);
+  } else if (skin === 'rayo') {
+    // Cuerpo redondo con cresta en zigzag
+    ctx.moveTo(-9, -4);
+    ctx.lineTo(-6, -16);
+    ctx.lineTo(-1.5, -8);
+    ctx.lineTo(3, -19);
+    ctx.lineTo(6, -7);
+    ctx.lineTo(10, -12);
+    ctx.lineTo(10.5, -2);
+    ctx.arc(0, 4, 11.5, -0.2, Math.PI + 0.25, false);
+  } else if (skin === 'cristal') {
+    // Gema facetada
+    ctx.moveTo(0, -17);
+    ctx.lineTo(12, -6);
+    ctx.lineTo(12, 7);
+    ctx.lineTo(0, 17);
+    ctx.lineTo(-12, 7);
+    ctx.lineTo(-12, -6);
+  } else if (skin === 'dragon') {
+    // Llama con cuernos
+    ctx.moveTo(-9, -19);
+    ctx.quadraticCurveTo(-6, -11, -3, -10);
+    ctx.quadraticCurveTo(0, -13, 3, -10);
+    ctx.quadraticCurveTo(6, -11, 9, -19);
+    ctx.bezierCurveTo(12, -10, 11.5, -4, 11.5, 3);
+    ctx.arc(0, 3, 11.5, 0, Math.PI, false);
+    ctx.bezierCurveTo(-11.5, -4, -12, -10, -9, -19);
+  } else if (skin === 'sol') {
+    const rays = 12;
+    for (let i = 0; i <= rays * 2; i++) {
+      const a = (i / (rays * 2)) * Math.PI * 2 - Math.PI / 2;
+      const r = i % 2 === 0 ? 16 : 12;
+      const x = Math.cos(a) * r;
+      const y = Math.sin(a) * r + 2;
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
   } else if (skin === 'aurora') {
     // Gota redondeada
     ctx.moveTo(0, -17);
@@ -449,6 +592,11 @@ const SPARK_GRADIENT: Record<SkinId, [string, string, string, string]> = {
   rocio: ['#ffffff', '#c9f2ff', '#5cc8ff', '#2a6fd0'],
   cometa: ['#ffffff', '#e0f0ff', '#9ab8ff', '#5a6ee0'],
   fenix: ['#fffbe0', '#ffd36b', '#ff6a2a', '#b8200a'],
+  brote: ['#f4ffe8', '#b8f58a', '#5fcf4a', '#2f8f3a'],
+  rayo: ['#ffffff', '#fff7a8', '#ffd93a', '#e0a800'],
+  cristal: ['#ffffff', '#d9fbff', '#7fe0ff', '#3a8fd0'],
+  dragon: ['#ffe8f0', '#ff8ab0', '#d03a6a', '#6a1a50'],
+  sol: ['#ffffff', '#fff2b0', '#ffb92a', '#ff7a10'],
 };
 
 function drawSparkBody(ctx: CanvasRenderingContext2D, skin: SkinId): void {
@@ -486,10 +634,38 @@ function drawSparkBody(ctx: CanvasRenderingContext2D, skin: SkinId): void {
   sparkBodyPath(g, skin);
   g.fillStyle = grad;
   g.fill();
-  if (skin === 'estrella') {
+  if (skin === 'estrella' || skin === 'sol') {
     g.strokeStyle = grad;
     g.lineJoin = 'round';
     g.lineWidth = 3.5;
+    g.stroke();
+  }
+  if (skin === 'brote') {
+    // Hojita en la punta
+    g.fillStyle = '#3fae3a';
+    g.beginPath();
+    g.ellipse(5, -17, 6, 2.6, -0.5, 0, Math.PI * 2);
+    g.fill();
+    g.strokeStyle = '#2a7a28';
+    g.lineWidth = 1;
+    g.beginPath();
+    g.moveTo(0, -16);
+    g.quadraticCurveTo(3, -18, 9, -19);
+    g.stroke();
+  }
+  if (skin === 'cristal') {
+    // Facetas
+    g.strokeStyle = 'rgba(255,255,255,0.55)';
+    g.lineWidth = 0.9;
+    g.beginPath();
+    g.moveTo(-12, -6);
+    g.lineTo(0, -1);
+    g.lineTo(12, -6);
+    g.moveTo(0, -17);
+    g.lineTo(0, -1);
+    g.moveTo(-12, 7);
+    g.lineTo(0, -1);
+    g.lineTo(12, 7);
     g.stroke();
   }
   if (skin === 'luna') {
@@ -774,6 +950,73 @@ function drawRock(ctx: CanvasRenderingContext2D): void {
   }
 }
 
+function drawMushroom(ctx: CanvasRenderingContext2D): void {
+  // Hongos bioluminiscentes
+  const caps: [number, number, number, string][] = [
+    [-10, 10, 14, '#b4ff8a'],
+    [10, 18, 10, '#8affd8'],
+  ];
+  for (const [x, y, r, c] of caps) {
+    ctx.fillStyle = '#1a2a1a';
+    ctx.fillRect(x - r * 0.18, y - r * 0.2, r * 0.36, r * 1.6);
+    ctx.save();
+    ctx.shadowColor = c;
+    ctx.shadowBlur = 16;
+    const g = ctx.createRadialGradient(x, y - r * 0.4, 1, x, y - r * 0.2, r);
+    g.addColorStop(0, '#ffffff');
+    g.addColorStop(0.4, c);
+    g.addColorStop(1, 'rgba(40,90,60,0.9)');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.ellipse(x, y - r * 0.2, r, r * 0.6, 0, Math.PI, 0);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+    ctx.fillStyle = 'rgba(255,255,255,0.6)';
+    for (const [dx, dy] of [
+      [-0.4, -0.45],
+      [0.3, -0.55],
+      [0.05, -0.3],
+    ]) {
+      ctx.beginPath();
+      ctx.arc(x + dx * r, y + dy * r, r * 0.09, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+}
+
+function drawPaperLantern(ctx: CanvasRenderingContext2D): void {
+  // Farol de papel colgando de un hilo
+  ctx.strokeStyle = '#2a1a10';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(0, -40);
+  ctx.lineTo(0, -16);
+  ctx.stroke();
+  ctx.save();
+  ctx.shadowColor = '#ff9a3c';
+  ctx.shadowBlur = 20;
+  const g = ctx.createLinearGradient(-12, 0, 12, 0);
+  g.addColorStop(0, '#c2410c');
+  g.addColorStop(0.5, '#ffb35c');
+  g.addColorStop(1, '#c2410c');
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.ellipse(0, 0, 12, 16, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+  ctx.strokeStyle = 'rgba(120,40,10,0.6)';
+  ctx.lineWidth = 0.8;
+  for (const dx of [-6, 0, 6]) {
+    ctx.beginPath();
+    ctx.ellipse(0, 0, Math.abs(dx) + 1, 16, 0, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  ctx.fillStyle = '#2a1a10';
+  ctx.fillRect(-5, -17, 10, 3);
+  ctx.fillRect(-5, 14, 10, 3);
+}
+
 // ---------------------------------------------------------------- set completo
 
 export interface SpriteSet {
@@ -785,6 +1028,8 @@ export interface SpriteSet {
   cloud: Sprite;
   crystal: Sprite;
   rock: Sprite;
+  mushroom: Sprite;
+  paperLantern: Sprite;
 }
 
 export function buildSprites(k: number): SpriteSet {
@@ -799,6 +1044,8 @@ export function buildSprites(k: number): SpriteSet {
     cloud: makeSprite(110, 60, k, drawCloud),
     crystal: makeSprite(50, 80, k, drawCrystal),
     rock: makeSprite(56, 44, k, drawRock),
+    mushroom: makeSprite(60, 60, k, drawMushroom),
+    paperLantern: makeSprite(50, 90, k, drawPaperLantern),
   };
 }
 
