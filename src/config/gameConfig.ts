@@ -9,10 +9,28 @@
  */
 export const CONFIG = {
   lanes: {
+    /** Cantidad de carriles (el juego se adapta solo a 3, 4, 5...). */
+    count: 4,
     /** Distancia entre carriles. */
-    width: 2.1,
-    /** Velocidad del cambio de carril (unidades/seg). Alto = respuesta instantánea al deslizar. */
-    switchSpeed: 24,
+    width: 2.0,
+    /** Velocidad del cambio de carril (unidades/seg). Más bajo = movimiento más suave. */
+    switchSpeed: 17,
+    /** Carril donde arranca el jugador (0 = el de más a la izquierda). */
+    startLane: 1,
+  },
+
+  /** Control táctil. */
+  input: {
+    /** Recorrido mínimo del dedo para un cambio de carril (% del ancho de pantalla, con tope en px). */
+    swipeWidthPct: 0.085,
+    swipeMinPx: 34,
+    swipeMaxPx: 70,
+    /** Repetir la misma dirección sin levantar el dedo exige este múltiplo de recorrido. */
+    repeatMultiplier: 3.2,
+    /** El gesto debe ser este múltiplo más horizontal que vertical (evita diagonales). */
+    axisDominance: 1.35,
+    /** Tiempo mínimo entre dos cambios de carril (ms). */
+    laneCooldownMs: 130,
   },
 
   player: {
@@ -56,8 +74,10 @@ export const CONFIG = {
     warmupGapSeconds: [1.0, 1.5] as [number, number],
     /** Metros hasta llegar a la dificultad máxima (después del arranque). */
     metersToMaxDifficulty: 3000,
-    /** Probabilidad de que aparezca un potenciador en una fila. */
-    powerupChance: 0.07,
+    /** Probabilidad de que aparezca un potenciador en una fila (cuando ya pasó el enfriamiento). */
+    powerupChance: 0.12,
+    /** Metros mínimos entre un potenciador y el siguiente (aparecen poco). */
+    powerupCooldownMeters: 450,
   },
 
   coins: {
@@ -75,12 +95,14 @@ export const CONFIG = {
   },
 
   camera: {
-    height: 4.1,
-    distance: 7.4,
+    height: 4.5,
+    distance: 8.2,
     lookAhead: 7,
     /** FOV horizontal mínimo para que entren los 3 carriles en pantallas finas. */
-    minHorizontalFov: 40,
+    minHorizontalFov: 44,
     baseVerticalFov: 62,
+    /** Qué tanto sube la cámara cuando corrés por arriba de un camión (fracción de la altura del piso). */
+    floorFollow: 0.85,
     /** El FOV se abre con la velocidad (sensación de vértigo). */
     speedFovBoost: 8,
   },
@@ -98,7 +120,12 @@ export const CONFIG = {
 export type ObstacleKind = 'hurdle' | 'bar' | 'wall' | 'runner' | 'bigball' | 'truck';
 
 /** Camión / micro: plataforma larga para correr por arriba (como los trenes de Subway). */
-export const TRUCK = { length: 9, top: 1.7, rampLength: 3.4, halfWidth: 0.95, movingSpeed: 9 } as const;
+export const TRUCK = { length: 9, top: 1.7, rampLength: 3.4, halfWidth: 0.9, movingSpeed: 9 } as const;
+
+/** X (en metros) del centro de un carril. Carril 0 = izquierda. */
+export function laneX(lane: number): number {
+  return (lane - (CONFIG.lanes.count - 1) / 2) * CONFIG.lanes.width;
+}
 /** Velocidad extra de los obstáculos que vienen hacia el jugador. */
 export const MOVER_SPEED = { runner: 6, bigball: 7 } as const;
 
@@ -111,6 +138,6 @@ export const OBSTACLE_BOXES: Record<ObstacleKind, { halfWidth: number; yMin: num
   bar: { halfWidth: 0.95, yMin: 1.15, yMax: 2.6, halfDepth: 0.2 },
   wall: { halfWidth: 0.9, yMin: 0, yMax: 2.2, halfDepth: 0.4 },
   runner: { halfWidth: 0.45, yMin: 0, yMax: 2.1, halfDepth: 0.35 },
-  bigball: { halfWidth: 0.7, yMin: 0, yMax: 1.1, halfDepth: 0.55 },
+  bigball: { halfWidth: 0.78, yMin: 0, yMax: 1.2, halfDepth: 0.6 },
   truck: { halfWidth: TRUCK.halfWidth, yMin: 0, yMax: TRUCK.top, halfDepth: 0 },
 };

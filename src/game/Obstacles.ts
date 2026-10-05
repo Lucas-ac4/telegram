@@ -1,11 +1,14 @@
 import * as THREE from 'three';
-import { CONFIG, MOVER_SPEED, OBSTACLE_BOXES, TRUCK, type ObstacleKind } from '../config/gameConfig';
+import { CONFIG, MOVER_SPEED, OBSTACLE_BOXES, TRUCK, laneX, type ObstacleKind } from '../config/gameConfig';
 import { ModelBuilder, box, capsule, cylinder, sphere } from '../engine/geometry';
-import { basic, toonVertexColors, withOutline } from '../engine/materials';
-import { EYE, bootGeometries, shortsGeometry, torsoGeometry } from '../engine/person';
-import { blobTexture } from '../engine/textures';
+import { basic, toon, toonVertexColors, withOutline } from '../engine/materials';
+import { EYE_LO, bootGeometries, hairCap, headGeometry, natural, pelvisGeometry, shortLegGeometry, torsoGeometry } from '../engine/person';
+import { blobTexture, truckDecalTexture } from '../engine/textures';
 import { createBall } from './Character';
 import type { Player } from './Player';
+
+/** Radio de la pelota gigante (se puede saltar por encima: salto máx. ~1.7 m). */
+const BIGBALL_R = 0.78;
 
 export interface Obstacle {
   kind: ObstacleKind;
@@ -53,6 +56,20 @@ export class Obstacles {
     const wallGeo = buildWall();
     const runnerGeo = buildRunner();
     const truckGeos = [buildTruck(0), buildTruck(1)];
+    const decalMats = [0, 1].map((v) => toon(0xffffff, { map: truckDecalTexture(v as 0 | 1) }));
+    const decalGeo = new THREE.PlaneGeometry(TRUCK.length - 1.7, 0.66);
+    /** Camión = carrocería (con contorno) + carteles laterales con textura. */
+    const makeTruck = (v: 0 | 1) => () => {
+      const g = new THREE.Group();
+      g.add(withOutline(new THREE.Mesh(truckGeos[v], mat), 0.03));
+      for (const side of [-1, 1]) {
+        const d = new THREE.Mesh(decalGeo, decalMats[v]);
+        d.rotation.y = side * Math.PI / 2;
+        d.position.set(side * 0.935, 1.0, -TRUCK.length / 2 - 0.15);
+        g.add(d);
+      }
+      return g;
+    };
     this.rampGeo = buildRamp();
 
     this.factories = {
@@ -61,14 +78,16 @@ export class Obstacles {
       wall: () => withOutline(new THREE.Mesh(wallGeo, mat)),
       runner: () => withOutline(new THREE.Mesh(runnerGeo, mat)),
       bigball: () => {
+        // Pelota gigante: el grupo exterior se queda en el piso y sólo la pelota gira.
         const g = new THREE.Group();
-        const ball = createBall(0.62);
-        ball.position.y = 0.62;
+        const ball = createBall(BIGBALL_R);
+        ball.name = 'ball';
+        ball.position.y = BIGBALL_R;
         g.add(ball);
         return g;
       },
-      truck0: () => withOutline(new THREE.Mesh(truckGeos[0], mat)),
-      truck1: () => withOutline(new THREE.Mesh(truckGeos[1], mat)),
+      truck0: makeTruck(0),
+      truck1: makeTruck(1),
     };
   }
 
@@ -106,7 +125,7 @@ export class Obstacles {
     item.model.rotation.set(0, 0, 0);
     item.model.position.set(0, 0, 0);
     item.group.visible = true;
-    item.group.position.set(lane * CONFIG.lanes.width, 0, z);
+    item.group.position.set(laneX(lane), 0, z);
   }
 
   /**
@@ -160,10 +179,12 @@ export class Obstacles {
           o.model.rotation.z = Math.sin(this.time * 11 + o.phase) * 0.08;
           o.model.rotation.x = 0.12;
           break;
-        case 'bigball':
-          o.model.rotation.x += ((speed + o.vz) * dt) / 0.62;
-          o.model.position.y = Math.abs(Math.sin(this.time * 6 + o.phase)) * 0.12;
+        case 'bigball': {
+          // Rueda (sin rebotar): gira según la velocidad con la que avanza hacia el jugador.
+          const ball = o.model.getObjectByName('ball');
+          if (ball) ball.rotation.x += ((speed + o.vz) * dt) / BIGBALL_R;
           break;
+        }
         case 'truck':
           if (o.vz > 0) o.model.position.y = Math.sin(this.time * 18 + o.phase) * 0.02;
           break;
@@ -291,109 +312,155 @@ function buildRunner(): THREE.BufferGeometry {
 }
 
 function addDefender(b: ModelBuilder, x: number, i: number, running: boolean): void {
-  const skins = [0xd9956b, 0xf2b98b, 0x8a5a3c];
-  const hairs = [0x1c1616, 0x8a4b1e, 0x2a1a10];
-  const red = 0xd7263d;
-  const torso = torsoGeometry();
-  const shorts = shortsGeometry();
-  const boots = bootGeometries();
-  {
-    const skin = skins[i];
-    const s = 0.92;
-    const at = (px: number, py: number, pz: number): [number, number, number] => [x + px * s, py * s, pz * s];
-    const sc: [number, number, number] = [s, s, s];
-    // Piernas, medias con franja y botines (mirando a +z). Corriendo: una adelante y otra atrás.
-    for (const side of [-1, 1]) {
-      const sw = running ? side * 0.22 : 0;
-      b.add(capsule(0.1, 0.15, 8), skin, at(side * 0.14, 0.54, sw * 0.5), [sw, 0, 0], sc);
-      b.add(capsule(0.098, 0.2, 8), red, at(side * 0.14, 0.25, sw * 1.2), [sw, 0, 0], sc);
-      b.add(cylinder(0.106, 0.106, 0.05, 10), 0xffffff, at(side * 0.14, 0.37, sw), [sw, 0, 0], sc);
-      b.add(boots.upper, 0x14213d, at(side * 0.14, 0.07, 0.05 + sw * 1.6), [0, 0, 0], sc);
-      b.add(boots.sole, 0xffffff, at(side * 0.14, 0.07, 0.05 + sw * 1.6), [0, 0, 0], sc);
-    }
-    b.add(shorts, 0xffffff, at(0, 0.8, 0), [0, 0, 0], sc);
-    b.add(torso, red, at(0, 0.84, 0), [0, 0, 0], sc);
-    // Franja blanca en la camiseta y número en el pecho.
-    b.add(cylinder(0.3, 0.3, 0.07, 18), 0xffffff, at(0, 1.18, 0), [0, 0, 0], sc);
-    b.add(new THREE.BoxGeometry(0.16, 0.14, 0.02), 0xffffff, at(0, 1.02, 0.285), [0, 0, 0], sc);
-    b.add(new THREE.TorusGeometry(0.115, 0.032, 6, 16), 0xffffff, at(0, 1.395, 0), [Math.PI / 2, 0, 0], sc);
-    b.add(cylinder(0.085, 0.095, 0.12, 10), skin, at(0, 1.44, 0), [0, 0, 0], sc);
-    for (const side of [-1, 1]) {
-      if (running) {
-        // Brazos en zancada (opuestos a las piernas).
-        const sw = -side * 0.6;
-        b.add(capsule(0.095, 0.16, 8), red, at(side * 0.35, 1.16, sw * 0.15), [sw, 0, side * 0.15], sc);
-        b.add(capsule(0.075, 0.18, 8), skin, at(side * 0.37, 0.92, sw * 0.4), [sw + 1.0, 0, 0], sc);
-        b.add(sphere(0.088, 10, 8), skin, at(side * 0.37, 0.82, sw * 0.55 + 0.12), [0, 0, 0], sc);
-      } else {
-        // Brazos cruzados adelante (pose de barrera).
-        b.add(capsule(0.095, 0.16, 8), red, at(side * 0.33, 1.18, 0.04), [0.3, 0, side * 0.35], sc);
-        b.add(capsule(0.075, 0.18, 8), skin, at(side * 0.16, 0.92, 0.2), [0.9, 0, side * 0.9], sc);
-        b.add(sphere(0.088, 10, 8), skin, at(side * 0.05, 0.84, 0.29), [0, 0, 0], sc);
-      }
-    }
-    // Cabeza con pelo, ojos con iris y cejas enojadas.
-    b.add(sphere(0.34, 18, 14), skin, at(0, 1.74, 0), [0, 0, 0], [s, s, s * 0.96]);
-    b.add(new THREE.SphereGeometry(0.36, 18, 9, 0, Math.PI * 2, 0, Math.PI * 0.5), hairs[i], at(0, 1.77, -0.03), [-0.4, 0, 0], sc);
-    for (const side of [-1, 1]) {
-      b.add(sphere(0.07, 8, 8), skin, at(side * 0.335, 1.72, 0), [0, 0, 0], [0.6 * s, s, 0.9 * s]);
-      b.add(EYE.sclera(), 0xffffff, at(side * 0.125, 1.77, 0.285), [0, 0, 0], sc);
-      b.add(EYE.iris(), 0x3d2a1a, at(side * 0.115, 1.76, 0.315), [0, 0, 0], [s, 1.1 * s, 0.5 * s]);
-      b.add(EYE.pupil(), 0x1a1030, at(side * 0.115, 1.76, 0.336), [0, 0, 0], sc);
-      b.add(new THREE.BoxGeometry(0.13, 0.035, 0.03), hairs[i], at(side * 0.12, 1.88, 0.31), [0, 0, side * 0.4], sc);
-    }
-    b.add(sphere(0.042, 8, 6), 0xc98a5e, at(0, 1.69, 0.335), [0, 0, 0], sc);
-    b.add(new THREE.BoxGeometry(0.12, 0.03, 0.03), 0x7a2a2a, at(0, 1.6, 0.32), [0, 0, 0], sc);
+  const skins = [0xd9956b, 0xf0b48a, 0x8a5a3c];
+  const hairs = [0x1c1616, 0x6b3a1a, 0x2a1a10];
+  const SK = skins[i % 3];
+  const HR = hairs[i % 3];
+  const RED = 0xd7263d;
+  const s = 0.94;
+  const sc: [number, number, number] = [s, s, s];
+  const at = (px: number, py: number, pz: number): [number, number, number] => [x + px * s, py * s, pz * s];
+  // Detalle bajo: los defensores pasan rápido y hay varios en pantalla.
+  const torso = torsoGeometry(12);
+  const pelvis = pelvisGeometry(12);
+  const shortLeg = shortLegGeometry(8);
+  const boots = bootGeometries(6);
+  // Los defensores miran hacia +z (hacia el jugador).
+  const face = Math.PI;
+
+  // Piernas: muslo + short + media con franja + botín. Corriendo: una adelante y otra atrás.
+  for (const side of [-1, 1]) {
+    const sw = running ? side * 0.3 : 0;
+    const hx = side * 0.125;
+    b.add(capsule(0.088, 0.16, 6), SK, at(hx, 0.5, sw * 0.4), [-sw, 0, 0], sc);
+    b.add(shortLeg, 0xffffff, at(hx, 0.58, sw * 0.4), [-sw, 0, 0], sc);
+    b.add(capsule(0.078, 0.2, 6), RED, at(hx, 0.24, sw * 1.1), [-sw * 0.6, 0, 0], sc);
+    b.add(cylinder(0.086, 0.086, 0.045, 8), 0xffffff, at(hx, 0.36, sw * 0.9), [-sw * 0.6, 0, 0], sc);
+    b.add(boots.upper, 0x14213d, at(hx, 0.07, 0.05 + sw * 1.4), [0, face, 0], sc);
+    b.add(boots.sole, 0xffffff, at(hx, 0.07, 0.05 + sw * 1.4), [0, face, 0], sc);
   }
+  b.add(pelvis, 0xffffff, at(0, 0.8, 0), [0, 0, 0], sc);
+  b.add(torso, RED, at(0, 0.84, 0), [0, face, 0], sc);
+  // Franja blanca, escudo en el pecho, cuello y nuca.
+  b.add(cylinder(0.3, 0.3, 0.06, 12), 0xffffff, at(0, 1.2, 0), [0, 0, 0], [s, s, s * 0.7]);
+  b.add(new THREE.BoxGeometry(0.15, 0.13, 0.02), 0xffffff, at(0, 1.1, 0.205), [0, 0, 0], sc);
+  b.add(new THREE.TorusGeometry(0.1, 0.026, 5, 12), 0xffffff, at(0, 1.405, 0), [Math.PI / 2, 0, 0], [s, s * 0.8, s]);
+  b.add(cylinder(0.072, 0.082, 0.14, 8), SK, at(0, 1.46, 0), [0, 0, 0], sc);
+
+  for (const side of [-1, 1]) {
+    const sx = side * 0.325;
+    if (running) {
+      // Brazos en zancada (opuestos a las piernas).
+      const sw = -side * 0.7;
+      b.add(capsule(0.092, 0.1, 6), RED, at(sx, 1.2, sw * 0.12), [sw, 0, side * 0.1], sc);
+      b.add(capsule(0.066, 0.17, 6), SK, at(sx, 0.98, sw * 0.4), [sw + 0.9, 0, 0], sc);
+      b.add(sphere(0.075, 8, 6), SK, at(sx, 0.86, sw * 0.62 + 0.1), [0, 0, 0], sc);
+    } else {
+      // Brazos cruzados adelante (pose de barrera).
+      b.add(capsule(0.092, 0.1, 6), RED, at(sx, 1.2, 0.02), [0.25, 0, side * 0.3], sc);
+      b.add(capsule(0.066, 0.17, 6), SK, at(side * 0.17, 0.96, 0.17), [0.95, 0, side * 0.95], sc);
+      b.add(sphere(0.075, 8, 6), SK, at(side * 0.06, 0.88, 0.26), [0, 0, 0], sc);
+    }
+  }
+
+  // Cabeza: cráneo + mandíbula, pelo corto con línea de nacimiento, ojos y cejas enojadas.
+  const hy = 1.77;
+  const hs: [number, number, number] = [0.93 * s, 1.05 * s, 0.97 * s];
+  // (la cabeza mira a +z: se gira media vuelta para que el mentón quede hacia adelante)
+  b.add(headGeometry(12, 9), SK, at(0, hy, 0), [0, face, 0], hs);
+  // Pelo: casquete rotado hacia el frente del defensor (+z).
+  b.add(hairCap(0.322, natural(0), 14, 7), HR, at(0, hy, 0), [0, face, 0], hs);
+  for (const side of [-1, 1]) {
+    b.add(sphere(0.062, 6, 6), SK, at(side * 0.285, hy - 0.02, 0), [0, 0, 0], [0.5 * s, s, 0.85 * s]);
+    b.add(EYE_LO.sclera(), 0xffffff, at(side * 0.1 * 0.93, hy + 0.035, 0.265), [0, 0, 0], sc);
+    b.add(EYE_LO.iris(), 0x3d2a1a, at(side * 0.096 * 0.93, hy + 0.035, 0.279), [0, 0, 0], sc);
+    // Cejas inclinadas hacia adentro: cara de enojo.
+    b.add(new THREE.BoxGeometry(0.1, 0.026, 0.03), HR, at(side * 0.1 * 0.93, hy + 0.115, 0.265), [0, 0, side * 0.38], sc);
+  }
+  b.add(sphere(0.034, 6, 5), 0xc98a5e, at(0, hy - 0.03, 0.29), [0, 0, 0], sc);
+  b.add(new THREE.BoxGeometry(0.1, 0.022, 0.03), 0x7a2a2a, at(0, hy - 0.095, 0.262), [0, 0, 0], sc);
 }
 
-/** Camión de TV / micro de la hinchada (origen en la trompa, se extiende hacia -z). */
+/** Camión de TV / micro de la hinchada. Origen en la trompa; se extiende hacia -z. Techo plano (se corre por arriba). */
 function buildTruck(variant: 0 | 1): THREE.BufferGeometry {
   const b = new ModelBuilder();
   const L = TRUCK.length;
-  const body = variant === 0 ? 0xf2f4f8 : 0xffcc1e;
-  const stripe = variant === 0 ? 0x2a6fdb : 0x0b2f86;
-  b.add(box(1.86, 1.42, L, 0.14), body, [0, 0.99, -L / 2]);
-  b.add(new THREE.BoxGeometry(1.88, 0.22, L - 0.4), stripe, [0, 0.72, -L / 2]);
-  // Ventanas laterales y parabrisas.
-  for (const side of [-1, 1]) b.add(new THREE.BoxGeometry(0.02, 0.38, L - 2.4), 0x1d2a4a, [side * 0.935, 1.27, -L / 2 - 0.6]);
-  b.add(new THREE.BoxGeometry(1.5, 0.5, 0.04), 0x1d2a4a, [0, 1.3, 0.01]);
-  // Paragolpes, faros y patente.
-  b.add(box(1.9, 0.22, 0.2, 0.06), 0x2b2f3a, [0, 0.36, 0.02]);
-  for (const side of [-1, 1]) b.add(cylinder(0.11, 0.11, 0.05, 12), 0xfff3a0, [side * 0.66, 0.66, 0.02], [Math.PI / 2, 0, 0]);
-  b.add(new THREE.BoxGeometry(0.42, 0.14, 0.03), 0xffffff, [0, 0.36, 0.13]);
-  // Ruedas.
-  for (const z of [-1.4, -L + 1.4]) {
-    for (const side of [-1, 1]) {
-      b.add(cylinder(0.33, 0.33, 0.26, 16), 0x1a1a22, [side * 0.86, 0.33, z], [0, 0, Math.PI / 2]);
-      b.add(cylinder(0.16, 0.16, 0.28, 10), 0xc9ced8, [side * 0.86, 0.33, z], [0, 0, Math.PI / 2]);
-    }
+  const W = 1.86;
+  const TOP = TRUCK.top;
+  const paint = variant === 0 ? 0xf2f4f8 : 0xffc61a;
+  const trim = variant === 0 ? 0x2a6fdb : 0x0b2f86;
+  const dark = 0x1c1e26;
+  const chrome = 0xb7bdc9;
+  const glass = 0x1a2745;
+  const zc = -L / 2;
+
+  // Chasis y carrocería.
+  b.add(box(1.7, 0.3, L - 0.3, 0.08), dark, [0, 0.4, zc]);
+  b.add(box(W, TOP - 0.5, L, 0.16, 2), paint, [0, (TOP + 0.5) / 2, zc]);
+  // Faldón inferior y friso superior de color.
+  b.add(box(W + 0.03, 0.2, L - 0.3, 0.05), trim, [0, 0.66, zc]);
+  b.add(box(W + 0.02, 0.07, L - 0.2, 0.03), trim, [0, TOP - 0.1, zc]);
+
+  // Techo: panel gris, franjas antideslizantes (se nota que se puede correr) y rieles de color.
+  b.add(box(W - 0.34, 0.018, L - 0.5, 0.01), 0xc9cfd9, [0, TOP - 0.004, zc]);
+  for (let z = -0.6; z > -L + 0.5; z -= 0.85) b.add(new THREE.BoxGeometry(W - 0.62, 0.012, 0.2), 0x8a93a3, [0, TOP + 0.008, z]);
+  for (const side of [-1, 1]) b.add(box(0.075, 0.05, L - 0.15, 0.02), trim, [side * (W / 2 - 0.07), TOP + 0.005, zc]);
+
+  // Frente: parabrisas, parrilla con barras, faros con aro, paragolpes y patente.
+  b.add(box(W - 0.34, 0.5, 0.05, 0.08), glass, [0, 1.28, 0.012]);
+  b.add(new THREE.BoxGeometry(0.09, 0.44, 0.012), 0x5d80bd, [-0.55, 1.28, 0.042], [0, 0, -0.35]);
+  b.add(box(1.02, 0.22, 0.05, 0.05), 0x14161c, [0, 0.8, 0.012]);
+  for (let k = 0; k < 4; k++) b.add(new THREE.BoxGeometry(0.9, 0.018, 0.012), chrome, [0, 0.72 + k * 0.05, 0.04]);
+  for (const side of [-1, 1]) {
+    b.add(cylinder(0.155, 0.155, 0.04, 16), 0x2c2f3a, [side * 0.7, 0.8, 0.01], [Math.PI / 2, 0, 0]);
+    b.add(cylinder(0.115, 0.115, 0.05, 16), 0xfff1a8, [side * 0.7, 0.8, 0.02], [Math.PI / 2, 0, 0]);
+    b.add(new THREE.BoxGeometry(0.14, 0.07, 0.03), 0xff8a1f, [side * 0.73, 0.58, 0.02]);
   }
-  // Techo: antena de TV o banderas de la hinchada.
-  if (variant === 0) {
-    b.add(cylinder(0.05, 0.05, 0.5, 6), 0x9aa5b1, [0.5, 1.95, -L + 2], [0, 0, 0]);
-    b.add(new THREE.SphereGeometry(0.42, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2), 0xe9edf2, [0.5, 2.15, -L + 2], [-0.6, 0, 0]);
-  } else {
-    for (const z of [-2.5, -6]) b.add(box(1.4, 0.12, 1.2, 0.04), 0x0b2f86, [0, 1.76, z]);
+  b.add(box(W + 0.06, 0.2, 0.2, 0.06), chrome, [0, 0.36, 0.04]);
+  b.add(new THREE.BoxGeometry(0.42, 0.13, 0.03), 0xffffff, [0, 0.36, 0.15]);
+  if (variant === 1) b.add(box(1.1, 0.14, 0.04, 0.03), 0x0c0c10, [0, 1.62, 0.02]); // cartel de destino del micro
+  b.add(new THREE.BoxGeometry(0.9, 0.05, 0.03), 0xffc61a, [0, 1.62, 0.04]);
+
+  // Ventanas laterales y espejos.
+  for (const side of [-1, 1]) {
+    const x = side * (W / 2 + 0.004);
+    if (variant === 1) {
+      for (let k = 0; k < 5; k++) b.add(box(0.02, 0.36, 1.1, 0.04), glass, [x, 1.33, -0.9 - k * 1.55]);
+    } else {
+      b.add(box(0.02, 0.4, 1.3, 0.05), glass, [x, 1.3, -0.95]);
+      b.add(new THREE.BoxGeometry(0.02, 0.5, 0.03), 0xc9ced8, [x, 1.0, -1.85]); // línea de la puerta
+    }
+    b.add(box(0.12, 0.3, 0.1, 0.03), dark, [side * (W / 2 + 0.13), 1.2, -0.12]);
+    b.add(new THREE.BoxGeometry(0.14, 0.03, 0.03), dark, [side * (W / 2 + 0.05), 1.3, -0.12]);
+  }
+
+  // Ruedas con guardabarros, llanta cromada y tuercas.
+  for (const z of [-1.6, -L + 1.5, -L + 2.55]) {
+    for (const side of [-1, 1]) {
+      b.add(cylinder(0.45, 0.45, 0.1, 18), 0x0e0f13, [side * (W / 2 - 0.005), 0.36, z], [0, 0, Math.PI / 2]);
+      b.add(cylinder(0.34, 0.34, 0.28, 18), 0x15161b, [side * (W / 2 - 0.02), 0.34, z], [0, 0, Math.PI / 2]);
+      b.add(cylinder(0.17, 0.17, 0.3, 12), chrome, [side * (W / 2 - 0.02), 0.34, z], [0, 0, Math.PI / 2]);
+    }
   }
   return b.build();
 }
 
-/** Rampa amarilla con franjas para subir al camión (va delante de la trompa, hacia +z). */
+/** Rampa de acero con bordes amarillos y franjas de advertencia (va delante de la trompa, hacia +z). */
 function buildRamp(): THREE.BufferGeometry {
   const RL = TRUCK.rampLength;
   const H = TRUCK.top;
   const shape = new THREE.Shape([new THREE.Vector2(0, 0), new THREE.Vector2(RL, 0), new THREE.Vector2(0, H)]);
-  const wedge = new THREE.ExtrudeGeometry(shape, { depth: 1.8, bevelEnabled: false });
-  wedge.rotateY(-Math.PI / 2);
-  wedge.translate(0.9, 0, 0);
-  const b = new ModelBuilder().add(wedge, 0xffc61a);
+  const body = new THREE.ExtrudeGeometry(shape, { depth: 1.7, bevelEnabled: false });
+  body.rotateY(-Math.PI / 2);
+  body.translate(0.85, 0, 0);
+  const rail = new THREE.ExtrudeGeometry(shape, { depth: 0.09, bevelEnabled: false });
+  rail.rotateY(-Math.PI / 2);
+  const b = new ModelBuilder().add(body, 0x5d6573);
+  for (const side of [-1, 1]) b.add(rail, 0xffc61a, [side * 0.9 + 0.045, 0.012, 0.0], [0, 0, 0], [1, 1.015, 1]);
   const ang = Math.atan2(H, RL);
-  const hyp = Math.hypot(RL, H);
-  for (let k = 1; k < 5; k++) {
-    const t = k / 5;
-    b.add(new THREE.BoxGeometry(1.82, 0.03, 0.18), 0x1d1d26, [0, H * (1 - t) + 0.02, RL * t], [ang, 0, 0]);
+  for (let k = 1; k < 7; k++) {
+    const t = k / 7;
+    b.add(new THREE.BoxGeometry(1.64, 0.025, 0.2), k % 2 ? 0xffc61a : 0x1d1d26, [0, H * (1 - t) + 0.016, RL * t], [ang, 0, 0]);
   }
-  void hyp;
   return b.build();
 }

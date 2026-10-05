@@ -1076,3 +1076,112 @@ body {
   height: 30px;
   vertical-align: middle;
 }
+
+/* ---------- Canje de monedas ---------- */
+.round-btn.money .ring {
+  background: conic-gradient(#ffd23f var(--pct, 0%), rgba(255, 255, 255, 0.18) 0);
+}
+
+.redeem {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  text-align: center;
+}
+
+.redeem-rate {
+  font-family: var(--font-display);
+  font-size: 22px;
+}
+
+.money-bar {
+  margin: 4px 0 !important;
+  height: 18px;
+  background: #cfd8e8;
+}
+
+.money-bar .fill {
+  background: linear-gradient(#ffe27a, var(--gold-dark));
+}
+
+.redeem-progress {
+  font-family: var(--font-display);
+  font-size: 18px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+}
+
+.redeem-pending {
+  font-weight: 900;
+  font-size: 13px;
+  background: #fff3c4;
+  border-radius: 10px;
+  padding: 6px;
+}
+
+.redeem-note {
+  font-size: 12px;
+  font-weight: 700;
+  opacity: 0.75;
+  line-height: 1.35;
+}
+
+/* ---------- Vestuario: fichas con íconos dibujados ---------- */
+.options {
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+}
+
+.opt {
+  position: relative;
+  aspect-ratio: 1;
+  padding: 4px;
+  border-radius: 16px;
+  background: linear-gradient(rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.06));
+  border: 3px solid rgba(255, 255, 255, 0.14) !important;
+  display: grid;
+  place-items: center;
+}
+
+.opt svg {
+  width: 100%;
+  height: 100%;
+  max-width: 50px;
+  max-height: 50px;
+  filter: drop-shadow(0 2px 0 rgba(0, 0, 0, 0.3));
+}
+
+.opt.on {
+  background: linear-gradient(rgba(255, 224, 120, 0.32), rgba(255, 210, 63, 0.14));
+  border-color: var(--gold) !important;
+  box-shadow: 0 0 0 2px var(--navy), 0 0 14px rgba(255, 210, 63, 0.55);
+  transform: translateY(-2px);
+}
+
+.opt .check {
+  position: absolute;
+  top: -7px;
+  right: -7px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--green);
+  border: 2px solid var(--navy);
+  font-family: var(--font-display);
+  font-size: 12px;
+  line-height: 16px;
+  text-align: center;
+}
+
+.tab {
+  display: grid;
+  place-items: center;
+  padding: 6px 4px;
+}
+
+.tab svg {
+  width: 34px;
+  height: 34px;
+}

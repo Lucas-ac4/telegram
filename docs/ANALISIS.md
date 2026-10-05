@@ -224,3 +224,17 @@ Monedas = moneda blanda del juego (sin valor real). Fuentes y sumideros:
 | 🚀 Arranque turbo | 1.750 | Se saltea la parte fácil y llega antes a la velocidad alta |
 
 Todos los precios y premios están en `src/config/economy.ts`. Fase 3: el revivir y el x2 también se podrán obtener **viendo un anuncio** (opt-in), en los mismos botones.
+
+## 9. Canje de monedas por dinero real (v0.6)
+
+Configuración en `src/config/economy.ts → REDEEM` (`coinsPerUsd: 200.000`, `usd: 1`).
+
+**Qué hace hoy:** el ícono 💵 del Home muestra el progreso hacia 200.000 monedas. Al llegar, "Solicitar canje" descuenta las monedas y registra una solicitud **en revisión**. **No paga nada.**
+
+**Por qué no paga todavía (y no debe hacerlo sin esto):**
+
+1. **Las monedas viven en el celular** (`localStorage`): cualquiera puede editarlas. Antes de pagar hace falta el servidor validando cada partida (Fase 4).
+2. **Antifraude**: múltiples cuentas, bots, farmeo, límites diarios/semanales, mínimo de retiro, revisión manual.
+3. **Política de la red de anuncios**: muchas prohíben pagar por ver anuncios. Revisar los términos de Monetag/Adsgram antes de mostrar esto a usuarios reales.
+4. **Matemática**: US$ 1 al jugador con un reparto de ~7 % exige ≈ US$ 14 de ingreso publicitario (≈ 7.000 anuncios con eCPM de US$ 2). Con 200.000 monedas por dólar hay que medir cuántas monedas gana un jugador activo por día y ajustar la tasa con datos reales.
+5. **Legal / impuestos / KYC** según el país del jugador.

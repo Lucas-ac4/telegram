@@ -21,38 +21,149 @@ function toTexture(c: HTMLCanvasElement, repeat = false): THREE.CanvasTexture {
   return t;
 }
 
-/** Césped con franjas de cortadora + líneas de carril. Cubre 14 m de ancho x 24 m de largo. */
-export function pitchTexture(laneWidth: number): THREE.CanvasTexture {
+/**
+ * Césped con franjas de cortadora, ruido, líneas de carril y (según la variante) marcas de cancha.
+ * Cubre `halfWidth*2` m de ancho x 24 m de largo. variant: 0 liso · 1 mitad de cancha · 2 área grande.
+ */
+export function pitchTexture(lanes: number, laneWidth: number, halfWidth: number, variant: 0 | 1 | 2): THREE.CanvasTexture {
   const W = 512;
-  const H = 768;
+  const H = 1024;
   const [c, g] = canvas(W, H);
-  const pxPerM = W / 14;
+  const pxPerM = W / (halfWidth * 2);
+  const mY = H / 24; // px por metro a lo largo
+  // Franjas de cortadora (4 m) con degradé suave y "veteado".
   const bands = 6;
   for (let i = 0; i < bands; i++) {
-    g.fillStyle = i % 2 ? '#4aa650' : '#3f9446';
-    g.fillRect(0, (i * H) / bands, W, H / bands);
+    const y0 = (i * H) / bands;
+    const grad = g.createLinearGradient(0, y0, 0, y0 + H / bands);
+    const light = i % 2 === 0;
+    grad.addColorStop(0, light ? '#4eaa54' : '#3f9547');
+    grad.addColorStop(1, light ? '#47a04d' : '#3a8c42');
+    g.fillStyle = grad;
+    g.fillRect(0, y0, W, H / bands);
   }
-  // Ruido sutil para que no se vea plano.
-  for (let i = 0; i < 2500; i++) {
-    g.fillStyle = Math.random() > 0.5 ? 'rgba(255,255,255,0.05)' : 'rgba(0,40,0,0.06)';
-    g.fillRect(Math.random() * W, Math.random() * H, 2, 6);
+  // Pasto: brizna corta + manchas suaves de color.
+  for (let i = 0; i < 5000; i++) {
+    g.fillStyle = Math.random() > 0.5 ? 'rgba(255,255,255,0.045)' : 'rgba(0,45,0,0.07)';
+    g.fillRect(Math.random() * W, Math.random() * H, 1.5, 5 + Math.random() * 5);
   }
-  // Carriles: franja central levemente más clara y líneas de cal.
+  for (let i = 0; i < 40; i++) {
+    g.fillStyle = Math.random() > 0.5 ? 'rgba(120,200,90,0.05)' : 'rgba(20,80,30,0.06)';
+    g.beginPath();
+    g.ellipse(Math.random() * W, Math.random() * H, 20 + Math.random() * 40, 10 + Math.random() * 25, Math.random() * 3, 0, Math.PI * 2);
+    g.fill();
+  }
+  // Los bordes se oscurecen un poco (da profundidad y encuadra los carriles).
+  const edge = g.createLinearGradient(0, 0, W, 0);
+  edge.addColorStop(0, 'rgba(0,30,10,0.28)');
+  edge.addColorStop(0.2, 'rgba(0,30,10,0)');
+  edge.addColorStop(0.8, 'rgba(0,30,10,0)');
+  edge.addColorStop(1, 'rgba(0,30,10,0.28)');
+  g.fillStyle = edge;
+  g.fillRect(0, 0, W, H);
+
+  // Marcas de cancha (variantes) en blanco, bien visibles pero sin competir con los obstáculos.
+  g.strokeStyle = 'rgba(255,255,255,0.8)';
+  g.fillStyle = 'rgba(255,255,255,0.8)';
+  g.lineWidth = 7;
   const cx = W / 2;
-  g.fillStyle = 'rgba(255,255,255,0.07)';
-  g.fillRect(cx - pxPerM * laneWidth * 1.5, 0, pxPerM * laneWidth * 3, H);
-  g.fillStyle = 'rgba(255,255,255,0.85)';
-  for (const k of [-1.5, -0.5, 0.5, 1.5]) {
-    const x = cx + k * laneWidth * pxPerM;
-    const w = Math.abs(k) === 1.5 ? 6 : 3;
-    if (Math.abs(k) === 1.5) {
-      g.fillRect(x - w / 2, 0, w, H);
+  if (variant === 1) {
+    g.beginPath();
+    g.moveTo(0, H * 0.5);
+    g.lineTo(W, H * 0.5);
+    g.stroke();
+    g.beginPath();
+    g.arc(cx, H * 0.5, 2.6 * pxPerM, 0, Math.PI * 2);
+    g.stroke();
+    g.beginPath();
+    g.arc(cx, H * 0.5, 9, 0, Math.PI * 2);
+    g.fill();
+  } else if (variant === 2) {
+    g.strokeRect(-20, H * 0.18, W + 40, 8 * mY); // línea del área grande
+    g.beginPath();
+    g.moveTo(0, H * 0.18 + 8 * mY);
+    g.lineTo(W, H * 0.18 + 8 * mY);
+    g.stroke();
+    g.beginPath();
+    g.arc(cx, H * 0.18 + 8 * mY, 2.6 * pxPerM, 0.05 * Math.PI, 0.95 * Math.PI);
+    g.stroke();
+    g.beginPath();
+    g.arc(cx, H * 0.18 + 5.4 * mY, 9, 0, Math.PI * 2);
+    g.fill();
+  }
+
+  // Carriles: bordes exteriores sólidos y divisiones punteadas.
+  g.fillStyle = 'rgba(255,255,255,0.9)';
+  for (let k = 0; k <= lanes; k++) {
+    const x = cx + (k - lanes / 2) * laneWidth * pxPerM;
+    if (k === 0 || k === lanes) {
+      g.fillRect(x - 3.5, 0, 7, H);
     } else {
-      // Líneas internas punteadas.
-      for (let y = 0; y < H; y += 64) g.fillRect(x - w / 2, y, w, 34);
+      for (let y = 0; y < H; y += 56) g.fillRect(x - 2, y, 4, 30);
+    }
+  }
+  const t = toTexture(c, true);
+  t.wrapS = THREE.ClampToEdgeWrapping;
+  return t;
+}
+
+/** Pista de atletismo (naranja) con líneas de carril. */
+export function trackTexture(): THREE.CanvasTexture {
+  const [c, g] = canvas(128, 512);
+  g.fillStyle = '#c75a36';
+  g.fillRect(0, 0, 128, 512);
+  for (let i = 0; i < 900; i++) {
+    g.fillStyle = Math.random() > 0.5 ? 'rgba(255,200,150,0.06)' : 'rgba(80,20,0,0.08)';
+    g.fillRect(Math.random() * 128, Math.random() * 512, 2, 2);
+  }
+  g.fillStyle = 'rgba(255,255,255,0.75)';
+  g.fillRect(30, 0, 4, 512);
+  g.fillRect(94, 0, 4, 512);
+  return toTexture(c, true);
+}
+
+/** Respaldos de asientos (se multiplica por el color de cada sector de la tribuna). */
+export function seatsTexture(): THREE.CanvasTexture {
+  const [c, g] = canvas(128, 128);
+  g.fillStyle = '#7d869c';
+  g.fillRect(0, 0, 128, 128);
+  for (let col = 0; col < 4; col++) {
+    for (let row = 0; row < 2; row++) {
+      const x = col * 32 + 3;
+      const y = row * 64 + 6;
+      g.fillStyle = '#ffffff';
+      g.beginPath();
+      g.roundRect(x, y, 26, 40, 7);
+      g.fill();
+      g.fillStyle = 'rgba(0,0,0,0.18)';
+      g.fillRect(x + 3, y + 28, 20, 8);
     }
   }
   return toTexture(c, true);
+}
+
+/** Pantalla gigante del estadio. */
+export function screenTexture(): THREE.CanvasTexture {
+  const [c, g] = canvas(512, 160);
+  const grad = g.createLinearGradient(0, 0, 0, 160);
+  grad.addColorStop(0, '#0b1a4a');
+  grad.addColorStop(1, '#162a73');
+  g.fillStyle = grad;
+  g.fillRect(0, 0, 512, 160);
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  g.font = 'bold 40px "Lilita One", "Arial Black", sans-serif';
+  g.fillStyle = '#ffd23f';
+  g.fillText('⚽ GOLAZO ⚽', 256, 34);
+  g.font = 'bold 66px "Lilita One", "Arial Black", sans-serif';
+  g.fillStyle = '#ffffff';
+  g.fillText('ARG  2 - 1  BRA', 256, 98);
+  g.font = 'bold 26px "Lilita One", "Arial Black", sans-serif';
+  g.fillStyle = '#7cf29c';
+  g.fillText("87'", 256, 140);
+  g.fillStyle = 'rgba(0,0,0,0.2)';
+  for (let y = 0; y < 160; y += 4) g.fillRect(0, y, 512, 1);
+  return toTexture(c);
 }
 
 /** Camiseta según el diseño del equipo, con el 10 en la espalda (u = 0.5 del cilindro). */
@@ -250,5 +361,62 @@ export function glowTexture(inner: string, outer: string): THREE.CanvasTexture {
   grad.addColorStop(1, 'rgba(255,255,255,0)');
   g.fillStyle = grad;
   g.fillRect(0, 0, 128, 128);
+  return toTexture(c);
+}
+
+/** Cartel lateral del camión. variant 0 = móvil de TV, 1 = micro de la hinchada. */
+export function truckDecalTexture(variant: 0 | 1): THREE.CanvasTexture {
+  const [c, g] = canvas(1024, 160);
+  if (variant === 0) {
+    g.fillStyle = '#f4f6fa';
+    g.fillRect(0, 0, 1024, 160);
+    const grad = g.createLinearGradient(0, 0, 1024, 0);
+    grad.addColorStop(0, '#1d4fb8');
+    grad.addColorStop(1, '#2a9df4');
+    g.fillStyle = grad;
+    g.fillRect(0, 108, 1024, 52);
+    g.fillStyle = '#ffffff';
+    for (let x = 40; x < 1024; x += 70) {
+      g.beginPath();
+      g.moveTo(x, 108);
+      g.lineTo(x + 30, 108);
+      g.lineTo(x + 10, 160);
+      g.lineTo(x - 20, 160);
+      g.fill();
+    }
+    g.font = 'italic bold 92px "Lilita One", "Arial Black", sans-serif';
+    g.textBaseline = 'middle';
+    g.textAlign = 'left';
+    g.lineWidth = 12;
+    g.strokeStyle = '#1d1a4f';
+    g.strokeText('GOLAZO TV', 46, 62);
+    g.fillStyle = '#ffd23f';
+    g.fillText('GOLAZO TV', 46, 62);
+    g.fillStyle = '#e63946';
+    g.beginPath();
+    g.arc(640, 62, 24, 0, Math.PI * 2);
+    g.fill();
+    g.font = 'bold 62px "Lilita One", "Arial Black", sans-serif';
+    g.fillStyle = '#1d1a4f';
+    g.fillText('EN VIVO', 680, 66);
+  } else {
+    g.fillStyle = '#ffc61a';
+    g.fillRect(0, 0, 1024, 160);
+    g.fillStyle = '#0b2f86';
+    g.fillRect(0, 118, 1024, 42);
+    g.fillStyle = '#ffffff';
+    for (let x = 0; x < 1024; x += 64) g.fillRect(x, 130, 32, 18);
+    g.font = 'bold 92px "Lilita One", "Arial Black", sans-serif';
+    g.textBaseline = 'middle';
+    g.textAlign = 'center';
+    g.lineWidth = 12;
+    g.strokeStyle = '#ffffff';
+    g.strokeText('LA HINCHADA', 512, 58);
+    g.fillStyle = '#0b2f86';
+    g.fillText('LA HINCHADA', 512, 58);
+    g.font = '60px sans-serif';
+    g.fillText('⚽', 110, 60);
+    g.fillText('⚽', 914, 60);
+  }
   return toTexture(c);
 }

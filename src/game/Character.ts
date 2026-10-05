@@ -1,18 +1,21 @@
 import * as THREE from 'three';
-import { capsule, cylinder, sphere, box } from '../engine/geometry';
+import { capsule, cylinder, sphere } from '../engine/geometry';
 import { basic, toon, toonRim, withOutline, toonVertexColors } from '../engine/materials';
-import { EYE, bootGeometries, shortsGeometry, torsoGeometry } from '../engine/person';
+import { EYE, bootGeometries, hairCap, headGeometry, mohawkGeometry, natural, pelvisGeometry, shortLegGeometry, torsoGeometry } from '../engine/person';
 import { jerseyTexture } from '../engine/textures';
 import { HAIR_COLORS, KITS, type HairStyleId, type Kit, type Look } from '../config/cosmetics';
 
-export type Pose = 'idle' | 'run' | 'jump' | 'slide' | 'dead' | 'fly';
+export type Pose = 'idle' | 'run' | 'jump' | 'slide' | 'dead';
 
-const SKIN = 0xf2b98b;
+const SKIN = 0xf0b48a;
+const SKIN_SHADE = 0xdc9a70;
+/** Grosor del contorno del personaje (más fino que el de los obstáculos: look más refinado). */
+const LINE = 0.016;
 const jerseyCache = new Map<string, THREE.Texture>();
 
 /**
- * Futbolista estilo "chibi" (cabeza grande, look cartoon) armado con primitivas
- * y animado por código (sin archivos de animación = carga instantánea).
+ * Futbolista estilo cartoon "pro" (proporciones de atleta, cabeza chica, cara adulta)
+ * armado con primitivas y animado por código (sin archivos de animación = carga instantánea).
  * Mira hacia -Z (hacia adelante en la pista).
  */
 export class Character {
@@ -30,36 +33,45 @@ export class Character {
   private sleeve = toonRim(0x6cc3f5);
   private collar = toonRim(0x6cc3f5);
   private shorts = toonRim(0x14213d);
+  private shortsTrim = toonRim(0xffffff);
   private sock = toonRim(0xffffff);
   private sockBand = toonRim(0x14213d);
   private hair = toonRim(0x5a3418);
+  /** Pelo muy corto (rapado / laterales de la cresta): mezcla de pelo y piel. */
+  private stubble = toonRim(0x4a3322);
   private hairStyles = new Map<HairStyleId, THREE.Group>();
 
   constructor() {
     const { jersey, sleeve, shorts, sock, hair } = this;
     const skin = toonRim(SKIN);
-    const skinShade = toonRim(0xe8a477);
+    const skinShade = toonRim(SKIN_SHADE);
     const boot = toonRim(0xff3d7f);
-    const sole = toonRim(0xffffff);
+    const bootDark = toonRim(0x1d1a2e);
+    const sole = toonRim(0xf4f4f6);
     const boots = bootGeometries();
 
     this.root.add(this.body);
     this.body.add(this.hips, this.torso);
 
-    // Cadera + short con vuelo.
+    // Cadera: pelvis del short con cintura elástica.
     this.hips.position.y = 0.8;
-    this.hips.add(part(shortsGeometry(), shorts, [0, 0, 0]));
+    this.hips.add(part(pelvisGeometry(), shorts, [0, 0, 0]));
+    this.hips.add(part(cylinder(0.27, 0.27, 0.035, 20), this.shortsTrim, [0, 0.085, 0], true, 0.4));
 
     for (const side of [-1, 1]) {
       const hip = new THREE.Group();
-      hip.position.set(side * 0.14, -0.12, 0);
-      hip.add(part(capsule(0.1, 0.15), skin, [0, -0.14, 0]));
+      hip.position.set(side * 0.125, -0.1, 0);
+      // Muslo (piel) + pierna del short encima: el short termina antes de la rodilla.
+      hip.add(part(capsule(0.088, 0.16), skin, [0, -0.15, 0]));
+      hip.add(part(shortLegGeometry(), shorts, [0, -0.07, 0]));
       const knee = new THREE.Group();
       knee.position.y = -0.28;
-      knee.add(part(capsule(0.098, 0.2), sock, [0, -0.15, 0]));
-      knee.add(part(cylinder(0.106, 0.106, 0.05, 12), this.sockBand, [0, -0.03, 0], true));
+      knee.add(part(capsule(0.078, 0.2), sock, [0, -0.15, 0]));
+      knee.add(part(cylinder(0.086, 0.086, 0.045, 12), this.sockBand, [0, -0.045, 0], true, 0.4));
       knee.add(part(boots.upper, boot, [0, -0.33, -0.05]));
-      knee.add(part(boots.sole, sole, [0, -0.33, -0.05], true));
+      knee.add(part(boots.sole, sole, [0, -0.33, -0.05], true, 0.4));
+      // Detalle del botín: franja oscura (cordones).
+      knee.add(part(new THREE.BoxGeometry(0.07, 0.02, 0.12), bootDark, [0, -0.285, -0.04], true, 0.4));
       hip.add(knee);
       this.hips.add(hip);
       this.legs.push({ hip, knee });
@@ -70,82 +82,90 @@ export class Character {
     const chest = part(torsoGeometry(), jersey, [0, 0, 0]);
     chest.rotation.y = Math.PI;
     this.torso.add(chest);
-    const collar = part(new THREE.TorusGeometry(0.115, 0.032, 8, 20), this.collar, [0, 0.555, 0], true);
+    const collar = part(new THREE.TorusGeometry(0.1, 0.026, 8, 22), this.collar, [0, 0.565, 0], true, 0.4);
     collar.rotation.x = Math.PI / 2;
+    collar.scale.set(1, 0.8, 1);
     this.torso.add(collar);
-    this.torso.add(part(cylinder(0.085, 0.095, 0.12, 12), skin, [0, 0.6, 0]));
+    this.torso.add(part(cylinder(0.072, 0.082, 0.14, 12), skin, [0, 0.62, 0.0], true, 0.6));
 
     for (const side of [-1, 1]) {
       const shoulder = new THREE.Group();
-      shoulder.position.set(side * 0.33, 0.44, 0);
-      shoulder.add(part(capsule(0.1, 0.1), sleeve, [0, -0.07, 0]));
+      shoulder.position.set(side * 0.325, 0.46, 0);
+      // Manga corta de la camiseta + antebrazo + mano con muñequera.
+      shoulder.add(part(capsule(0.092, 0.1), sleeve, [0, -0.07, 0]));
       const elbow = new THREE.Group();
-      elbow.position.y = -0.22;
-      elbow.add(part(capsule(0.075, 0.14), skin, [0, -0.08, 0]));
-      const hand = part(sphere(0.088, 12, 10), skin, [0, -0.23, 0]);
-      hand.scale.set(0.9, 1.1, 0.8);
+      elbow.position.y = -0.21;
+      elbow.add(part(capsule(0.066, 0.17), skin, [0, -0.09, 0]));
+      elbow.add(part(cylinder(0.07, 0.07, 0.045, 10), this.shortsTrim, [0, -0.2, 0], true, 0.4));
+      const hand = part(sphere(0.075, 12, 10), skin, [0, -0.275, 0], true, 0.6);
+      hand.scale.set(0.85, 1.15, 0.8);
       elbow.add(hand);
       shoulder.add(elbow);
       this.torso.add(shoulder);
       this.arms.push({ shoulder, elbow });
     }
 
-    // Cabeza (estilo cartoon, un poco menos "cabezón" que antes).
-    this.head.position.y = 0.6;
+    // Cabeza: cráneo + mandíbula (cara más adulta, no "bebé").
+    this.head.position.y = 0.47;
     this.torso.add(this.head);
-    // Cabeza más chica y alargada que antes (menos infantil) + mandíbula.
-    this.head.scale.setScalar(0.88);
-    const skull = part(sphere(0.34, 24, 18), skin, [0, 0.31, 0]);
-    skull.scale.set(0.95, 1.08, 0.95);
-    this.head.add(skull);
-    const jaw = part(sphere(0.25, 16, 12), skin, [0, 0.15, -0.07]);
-    jaw.scale.set(1, 0.75, 1);
-    this.head.add(jaw);
-    for (const [id, group] of buildHairStyles(hair)) {
-      // Los peinados se diseñaron para una cabeza un poco más grande.
-      group.scale.setScalar(0.945);
+    const headShape = new THREE.Group();
+    headShape.scale.set(0.93, 1.05, 0.97);
+    headShape.position.y = 0.31;
+    this.head.add(headShape);
+    headShape.add(part(headGeometry(), skin, [0, 0, 0], LINE));
+    // El pelo vive dentro del mismo grupo escalado: el espesor es parejo.
+    this.stubble.color.set(0x4a3322);
+    for (const [id, group] of buildHairStyles(hair, this.stubble)) {
       this.hairStyles.set(id, group);
-      this.head.add(group);
+      headShape.add(group);
     }
+
     const white = toonRim(0xffffff);
-    const iris = toonRim(0x6b4423);
-    const dark = toonRim(0x1a1030);
+    const iris = toonRim(0x5a3a22);
+    const dark = toonRim(0x14101e);
     const shine = basic({ color: 0xffffff });
-    const cheek = toonRim(0xf4a08c);
+    const lid = toonRim(0x2a1a1a);
     for (const side of [-1, 1]) {
-      const ear = part(sphere(0.07, 10, 8), skin, [side * 0.335, 0.28, 0.01]);
-      ear.scale.set(0.6, 1, 0.9);
-      this.head.add(ear);
-      const sc = part(EYE.sclera(), white, [side * 0.12, 0.34, -0.29], true);
-      sc.scale.set(0.78, 0.62, 1);
-      this.head.add(sc);
+      const ear = part(sphere(0.062, 10, 8), skinShade, [side * 0.285, -0.015, 0.02], false, 0.4);
+      ear.scale.set(0.5, 1, 0.85);
+      headShape.add(ear);
+
+      const eyeX = side * 0.1;
+      const eyeY = 0.035;
+      const sc = new THREE.Mesh(EYE.sclera(), white);
+      sc.position.set(eyeX, eyeY, -0.273);
+      headShape.add(sc);
       const ir = new THREE.Mesh(EYE.iris(), iris);
-      ir.position.set(side * 0.115, 0.335, -0.315);
-      ir.scale.set(0.72, 0.72, 0.4);
-      this.head.add(ir);
+      ir.position.set(eyeX - side * 0.004, eyeY, -0.287);
+      headShape.add(ir);
       const pu = new THREE.Mesh(EYE.pupil(), dark);
-      pu.position.set(side * 0.115, 0.335, -0.332);
-      pu.scale.setScalar(0.75);
-      this.head.add(pu);
+      pu.position.set(eyeX - side * 0.004, eyeY, -0.296);
+      headShape.add(pu);
       const sh = new THREE.Mesh(EYE.shine(), shine);
-      sh.position.set(side * 0.115 + 0.012, 0.345, -0.338);
-      sh.scale.setScalar(0.7);
-      this.head.add(sh);
-      // Cejas más gruesas y rectas (mirada decidida).
-      const brow = part(box(0.13, 0.038, 0.035, 0.014), hair, [side * 0.12, 0.41, -0.315], true);
-      brow.rotation.z = side * 0.08;
-      this.head.add(brow);
-      void cheek;
+      sh.position.set(eyeX + 0.014, eyeY + 0.016, -0.3);
+      headShape.add(sh);
+      // Párpado superior: define la mirada.
+      const lidArc = new THREE.Mesh(new THREE.TorusGeometry(0.056, 0.0085, 5, 12, Math.PI * 0.85), lid);
+      lidArc.position.set(eyeX, eyeY + 0.003, -0.277);
+      lidArc.rotation.set(0, 0, Math.PI * 0.075);
+      lidArc.scale.set(1.05, 0.8, 0.5);
+      headShape.add(lidArc);
+      // Cejas finas, rectas y levemente inclinadas (mirada decidida).
+      const brow = new THREE.Mesh(new THREE.CapsuleGeometry(0.011, 0.085, 2, 6), hair);
+      brow.rotation.z = Math.PI / 2 + side * 0.1;
+      brow.position.set(eyeX + side * 0.006, eyeY + 0.083, -0.268);
+      headShape.add(brow);
     }
-    // Nariz más marcada y boca chica de media sonrisa.
-    const nose = new THREE.Mesh(sphere(0.045, 10, 8), skinShade);
-    nose.position.set(0, 0.255, -0.33);
-    nose.scale.set(0.8, 1.2, 1);
-    this.head.add(nose);
-    const smile = new THREE.Mesh(new THREE.TorusGeometry(0.05, 0.013, 6, 12, Math.PI * 0.8), toonRim(0x8a3a33));
-    smile.position.set(0.01, 0.17, -0.3);
-    smile.rotation.set(0.35, 0, Math.PI * 1.1);
-    this.head.add(smile);
+    // Nariz definida y boca con media sonrisa.
+    const nose = new THREE.Mesh(sphere(0.034, 10, 8), skinShade);
+    nose.position.set(0, -0.03, -0.297);
+    nose.scale.set(0.95, 1.2, 1.05);
+    headShape.add(nose);
+    const smile = new THREE.Mesh(new THREE.TorusGeometry(0.052, 0.0105, 6, 14, Math.PI * 0.78), toonRim(0x8a3a33));
+    smile.position.set(0.006, -0.088, -0.272);
+    smile.rotation.set(0.28, 0, Math.PI * 1.11);
+    smile.scale.set(1, 0.8, 1);
+    headShape.add(smile);
 
     // Estrellitas de "mareado" al chocar.
     this.stars = new THREE.Group();
@@ -165,6 +185,8 @@ export class Character {
   setLook(look: Look): void {
     const color = HAIR_COLORS.find((c) => c.id === look.hairColor) ?? HAIR_COLORS[1];
     this.hair.color.set(color.hex);
+    // Pelo cortísimo: el color del pelo mezclado con la piel.
+    this.stubble.color.set(color.hex).lerp(new THREE.Color(SKIN), 0.28);
     for (const [id, g] of this.hairStyles) g.visible = id === look.hairStyle;
     const kit: Kit = KITS.find((k) => k.id === look.kit) ?? KITS[2];
     let tex = jerseyCache.get(kit.id);
@@ -176,6 +198,7 @@ export class Character {
     this.sleeve.color.set(kit.sleeve);
     this.collar.color.set(kit.pattern === 'solid' ? kit.number : kit.accent);
     this.shorts.color.set(kit.shorts);
+    this.shortsTrim.color.set(kit.pattern === 'solid' ? kit.number : kit.accent);
     this.sock.color.set(kit.socks);
     this.sockBand.color.set(kit.pattern === 'solid' ? kit.number : kit.accent);
   }
@@ -229,22 +252,6 @@ export class Character {
         set(AL.elbow, 0.3);
         set(AR.elbow, 0.3);
         headRotX = -0.15;
-        break;
-      }
-      case 'fly': {
-        // Estilo superhéroe: cuerpo inclinado, un brazo adelante.
-        bodyRotX = -0.5;
-        torsoRotX = -0.2;
-        set(R.hip, -0.3);
-        set(R.knee, -0.6);
-        set(L.hip, 0.1);
-        set(L.knee, -0.3);
-        set(AR.shoulder, 2.9, 0, 0.15);
-        set(AR.elbow, 0.1);
-        set(AL.shoulder, -0.5, 0, -0.6);
-        set(AL.elbow, 0.5);
-        headRotX = -0.4;
-        bodyY = Math.sin(t * 4) * 0.05;
         break;
       }
       case 'slide': {
@@ -321,15 +328,18 @@ export class Character {
   }
 }
 
+/** Malla con contorno. `line`: grosor (true = fino, número = metros). `fine`: escala del contorno (0..1). */
 function part(
   geometry: THREE.BufferGeometry,
   material: THREE.Material,
   position: [number, number, number],
-  thin = false,
+  line: boolean | number = false,
+  fine = 1,
 ): THREE.Mesh {
   const mesh = new THREE.Mesh(geometry, material);
   mesh.position.set(...position);
-  return withOutline(mesh, thin);
+  const base = typeof line === 'number' ? line : LINE;
+  return fine > 0 ? withOutline(mesh, base * fine) : mesh;
 }
 
 /** Pelota con pentágonos negros (icosaedro subdividido). */
@@ -357,61 +367,60 @@ export function createBall(radius = 0.22): THREE.Mesh {
   return withOutline(new THREE.Mesh(geo, toonVertexColors({}, true)), true);
 }
 
-/** Los 5 peinados. Todos comparten el material de pelo (cambiar el color es instantáneo). */
-function buildHairStyles(hair: THREE.Material): [HairStyleId, THREE.Group][] {
-  const capGeo = (r: number, cover: number) => new THREE.SphereGeometry(r, 20, 10, 0, Math.PI * 2, 0, Math.PI * cover);
-  const cap = (r: number, cover: number, tilt: number) => {
-    const m = part(capGeo(r, cover), hair, [0, 0.32, 0.02]);
-    m.rotation.x = tilt;
+/**
+ * Los 5 peinados. Se definen en el espacio del cráneo (centro en 0,0,0; frente = -z).
+ * Todos comparten el material de pelo: cambiar el color es instantáneo.
+ */
+function buildHairStyles(hair: THREE.Material, stubble: THREE.Material): [HairStyleId, THREE.Group][] {
+  const R = 0.322;
+  const strand = (geo: THREE.BufferGeometry, pos: [number, number, number], rot: [number, number, number], sc: [number, number, number] = [1, 1, 1]) => {
+    const m = part(geo, hair, pos, LINE, 0.8);
+    m.rotation.set(...rot);
+    m.scale.set(...sc);
     return m;
   };
 
+  // Normal: pelo corto con raya al costado y flequillo peinado.
   const corto = new THREE.Group();
-  corto.add(cap(0.385, 0.55, 0.45));
-  for (let i = 0; i < 5; i++) {
-    const tuft = part(new THREE.ConeGeometry(0.09, 0.22, 6), hair, [-0.16 + i * 0.08, 0.66, -0.14 + Math.abs(i - 2) * 0.03]);
-    tuft.rotation.set(-0.7, 0, (i - 2) * 0.25);
-    corto.add(tuft);
-  }
+  corto.add(part(hairCap(R, natural(0.0)), hair, [0, 0, 0], LINE, 0.8));
+  // Flequillo peinado hacia un costado (tapa el borde del casquete: se ve pelo, no gorra).
+  corto.add(strand(new THREE.SphereGeometry(0.16, 16, 12), [0.06, 0.165, -0.225], [-0.45, 0, -0.35], [1.5, 0.42, 0.8]));
+  corto.add(strand(new THREE.SphereGeometry(0.1, 12, 10), [-0.12, 0.185, -0.205], [-0.3, 0, 0.55], [1.25, 0.42, 0.8]));
+  corto.add(strand(new THREE.SphereGeometry(0.11, 12, 10), [0.2, 0.1, -0.14], [-0.2, 0.3, -0.7], [1.3, 0.4, 0.8]));
 
+  // Rapado: pelo cortísimo.
   const rapado = new THREE.Group();
-  rapado.add(cap(0.368, 0.52, 0.35));
+  rapado.add(part(hairCap(0.309, natural(0.075)), stubble, [0, 0, 0], false, 0));
 
+  // Melena: pelo largo con volumen atrás y mechones sobre los hombros.
   const melena = new THREE.Group();
-  melena.add(cap(0.39, 0.56, 0.4));
-  const back = part(new THREE.CapsuleGeometry(0.3, 0.32, 3, 12), hair, [0, 0.12, 0.16]);
-  back.scale.set(1.2, 1, 0.65);
-  melena.add(back);
+  melena.add(part(hairCap(R + 0.004, natural(-0.02)), hair, [0, 0, 0], LINE, 0.8));
+  melena.add(strand(new THREE.SphereGeometry(0.3, 18, 14), [0, -0.16, 0.16], [0.1, 0, 0], [1.02, 1.55, 0.6]));
   for (const side of [-1, 1]) {
-    const lock = part(new THREE.CapsuleGeometry(0.09, 0.3, 2, 8), hair, [side * 0.33, 0.12, -0.02]);
-    lock.rotation.z = side * 0.1;
-    melena.add(lock);
+    melena.add(strand(new THREE.CapsuleGeometry(0.075, 0.28, 3, 10), [side * 0.265, -0.15, -0.015], [0, 0, side * 0.08]));
   }
+  melena.add(strand(new THREE.SphereGeometry(0.16, 16, 12), [0.06, 0.2, -0.2], [-0.35, 0, -0.25], [1.3, 0.5, 0.95]));
 
+  // Cresta (mohicano): laterales rapados + aleta central con puntas.
   const cresta = new THREE.Group();
-  cresta.add(cap(0.366, 0.42, 0.2));
-  for (let i = 0; i < 7; i++) {
-    const a = -1.0 + i * 0.33;
-    const spike = part(new THREE.ConeGeometry(0.09, 0.42, 6), hair, [0, 0.32 + Math.cos(a) * 0.42, Math.sin(a) * 0.42]);
-    spike.rotation.x = a;
-    cresta.add(spike);
-  }
+  cresta.add(part(hairCap(0.309, natural(0.1)), stubble, [0, 0, 0], false, 0));
+  cresta.add(part(mohawkGeometry(), hair, [0, 0, 0], LINE, 0.8));
 
+  // Rulos: casquete + mechones rizados repartidos por arriba.
   const rulos = new THREE.Group();
-  rulos.add(cap(0.375, 0.5, 0.35));
-  const curl = new THREE.SphereGeometry(0.12, 10, 8);
-  for (let ring = 0; ring < 3; ring++) {
-    const n = [1, 6, 10][ring];
-    const polar = [0, 0.55, 1.05][ring];
-    for (let k = 0; k < n; k++) {
-      const az = (k / n) * Math.PI * 2 + ring;
-      const r = 0.38;
-      const x = Math.sin(polar) * Math.cos(az) * r;
-      const z = Math.sin(polar) * Math.sin(az) * r + 0.03;
-      const y = 0.32 + Math.cos(polar) * r;
-      if (z < -0.22 && y < 0.62) continue; // deja la cara libre
-      rulos.add(part(curl, hair, [x, y, z]));
-    }
+  rulos.add(part(hairCap(R - 0.01, natural(0.0)), hair, [0, 0, 0], LINE, 0.8));
+  const curl = new THREE.SphereGeometry(0.085, 10, 8);
+  const golden = Math.PI * (3 - Math.sqrt(5));
+  const hl = natural(0.03);
+  for (let i = 0; i < 46; i++) {
+    const y = 1 - (i / 45) * 1.05; // 1 (arriba) → bajando
+    const r = Math.sqrt(Math.max(0, 1 - y * y));
+    const az = i * golden;
+    const x = Math.cos(az) * r * 0.335;
+    const z = Math.sin(az) * r * 0.335;
+    const yy = y * 0.335;
+    if (yy < hl(Math.atan2(x, -z)) + 0.02) continue;
+    rulos.add(part(curl, hair, [x, yy, z], LINE, 0.6));
   }
 
   return [

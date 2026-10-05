@@ -1,4 +1,4 @@
-import { DAILY, SHOP_ITEMS, type ItemId } from '../config/economy';
+import { DAILY, REDEEM, SHOP_ITEMS, type ItemId } from '../config/economy';
 import { DEFAULT_LOOK, type Look } from '../config/cosmetics';
 
 /**
@@ -23,6 +23,8 @@ export interface Profile {
   daily: { date: string; meters: number; claimed: number[] };
   muted: boolean;
   lang?: 'es' | 'en';
+  /** Solicitudes de canje (estado: en revisión hasta que exista validación de servidor). */
+  redeem: { id: number; coins: number; usd: number; date: string; status: 'pending' }[];
 }
 
 const emptyInventory = (): Record<ItemId, number> => ({ shield: 0, life: 0, magnet: 0, doubler: 0, turbo: 0 });
@@ -37,6 +39,7 @@ function defaults(): Profile {
     look: { ...DEFAULT_LOOK },
     daily: { date: todayAR(), meters: 0, claimed: [] },
     muted: false,
+    redeem: [],
   };
 }
 
@@ -114,6 +117,15 @@ export const Save = {
     persist();
   },
 
+  /** Registra una solicitud de canje y reserva las monedas. No paga nada por sí sola. */
+  requestRedeem(): boolean {
+    if (profile.coins < REDEEM.coinsPerUsd) return false;
+    profile.coins -= REDEEM.coinsPerUsd;
+    profile.redeem.push({ id: Date.now(), coins: REDEEM.coinsPerUsd, usd: REDEEM.usd, date: todayAR(), status: 'pending' });
+    persist();
+    return true;
+  },
+
   setLang(lang: 'es' | 'en'): void {
     profile.lang = lang;
     persist();
@@ -141,11 +153,14 @@ export const Save = {
     persist();
   },
 
-  /** Al empezar la partida se consumen los potenciadores elegidos. */
+  /**
+   * Al empezar la partida se consumen los potenciadores elegidos (1 de cada uno).
+   * La selección se limpia siempre: para volver a usarlos hay que activarlos de nuevo.
+   */
   consumeArmed(): ItemId[] {
     const used = profile.armed.filter((id) => profile.inventory[id] > 0);
     used.forEach((id) => (profile.inventory[id] -= 1));
-    profile.armed = profile.armed.filter((id) => profile.inventory[id] > 0);
+    profile.armed = [];
     persist();
     return used;
   },

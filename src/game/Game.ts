@@ -52,6 +52,7 @@ export class Game {
   private stateTime = 0;
   private shake = 0;
   private nextCheer = 100;
+  private camFloor = 0;
   private speedStep = 0;
 
   // Potenciadores de la partida.
@@ -117,6 +118,14 @@ export class Game {
         this.ui.refresh(Save.profile);
       },
       onRevive: () => this.revive(),
+      onRedeem: () => {
+        this.sfx.unlock();
+        if (Save.requestRedeem()) {
+          this.sfx.cheer();
+          this.ui.toast(t('redeem.sent'));
+        }
+        this.ui.refresh(Save.profile);
+      },
       onClaim: (tier) => {
         this.sfx.unlock();
         if (Save.claimDaily(tier)) {
@@ -219,6 +228,7 @@ export class Game {
     this.coinCount = 0;
     this.nextCheer = 100;
     this.speedStep = 0;
+    this.camFloor = 0;
     this.stateTime = 0;
     this.paused = false;
     this.revivesUsed = 0;
@@ -270,7 +280,17 @@ export class Game {
     this.ui.showPause(p);
   }
 
+  /** Apaga los potenciadores temporales (al morir / terminar la partida). */
+  private clearBoosts(): void {
+    this.magnetTime = 0;
+    this.x2Time = 0;
+    this.doubler = false;
+    this.player.superJump = 0;
+    this.player.shielded = false;
+  }
+
   private die(): void {
+    this.clearBoosts();
     this.player.dead = true;
     this.state = 'dead';
     this.stateTime = 0;
@@ -331,7 +351,6 @@ export class Game {
       this.distance += worldSpeed * dt;
       if (this.magnetTime > 0) this.magnetTime -= dt;
       if (this.x2Time > 0) this.x2Time -= dt;
-      if (this.player.flying) this.effects.trail(this.player.x, this.player.y - 0.1);
       if (turbo) {
         this.effects.streak();
         this.effects.streak();
@@ -354,7 +373,7 @@ export class Game {
     this.spawner.update(dt, worldSpeed, this.distance);
     const ground = this.state === 'playing' ? this.obstacles.groundAt(this.player) : 0;
     this.player.update(dt, this.speed, this.state !== 'menu', ground);
-    const magnet = turbo || this.magnetTime > 0 || this.player.flying ? ECONOMY.magnetRadius : 0;
+    const magnet = turbo || this.magnetTime > 0 ? ECONOMY.magnetRadius : 0;
     const collected = this.coins.update(dt, worldSpeed, this.state === 'playing' ? this.player : null, magnet);
     for (const kind of this.pickups.update(dt, worldSpeed, this.state === 'playing' ? this.player : null)) this.activate(kind);
     this.effects.update(dt, worldSpeed);
@@ -380,7 +399,6 @@ export class Game {
         doubler: this.doubler,
         turbo: turbo ? this.turboUntil - this.distance : 0,
         jump: this.player.superJump,
-        fly: this.player.flyTime,
         x2: this.x2Time,
       });
 
@@ -429,10 +447,6 @@ export class Game {
       case 'jump':
         this.player.superJump = PICKUP_SECONDS.jump;
         break;
-      case 'fly':
-        this.player.flyTime = PICKUP_SECONDS.fly;
-        this.spawner.spawnAirTrail(this.speed, PICKUP_SECONDS.fly);
-        break;
       case 'x2':
         this.x2Time = PICKUP_SECONDS.x2;
         break;
@@ -474,9 +488,12 @@ export class Game {
         look.set(0, 0.95, 0);
       }
     } else {
-      pos.set(p.x * 0.6, C.height + p.y * 0.35, C.distance);
-      look.set(p.x * 0.5, 0.9 + p.y * 0.3, -C.lookAhead);
-      if (this.state !== 'playing') pos.set(p.x * 0.6, C.height - 0.4, C.distance - 1.2);
+      // La cámara sube suavemente cuando corrés por arriba de un camión (el techo no tapa la vista).
+      this.camFloor += (p.floor - this.camFloor) * Math.min(1, dt * 6);
+      const up = this.camFloor * C.floorFollow;
+      pos.set(p.x * 0.55, C.height + up + p.y * 0.3, C.distance);
+      look.set(p.x * 0.5, 0.9 + up * 0.9 + p.y * 0.3, -C.lookAhead);
+      if (this.state !== 'playing') pos.set(p.x * 0.55, C.height - 0.4 + up, C.distance - 1.2);
     }
     // Al salir del menú la cámara viaja más lento (transición suave).
     const rate = this.state === 'playing' && this.stateTime < 1.2 ? 3.5 : this.state === 'menu' ? 5 : 9;

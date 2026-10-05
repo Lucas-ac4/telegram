@@ -1,9 +1,10 @@
 import css from './style.css?inline';
-import { DAILY, SHOP_ITEMS, type ItemId } from '../config/economy';
-import { HAIR_COLORS, HAIR_STYLES, KITS, type Kit, type Look } from '../config/cosmetics';
+import { DAILY, REDEEM, SHOP_ITEMS, type ItemId } from '../config/economy';
+import { HAIR_COLORS, HAIR_STYLES, KITS, type Look } from '../config/cosmetics';
 import { secondsToResetAR, type Profile } from '../save/save';
 import { fmt, getLang, t, type Lang } from '../i18n';
 import { hairIcon } from './hairIcons';
+import { hairColorIcon, kitIcon } from './icons';
 
 export type View = 'home' | 'shop' | 'locker';
 
@@ -23,7 +24,6 @@ export interface BoostStatus {
   doubler: boolean;
   turbo: number;
   jump: number;
-  fly: number;
   x2: number;
 }
 
@@ -37,6 +37,7 @@ export interface UIHandlers {
   onLook(look: Partial<Look>): void;
   onRevive(): void;
   onClaim(tier: number): void;
+  onRedeem(): void;
 }
 
 type LockerTab = 'color' | 'style' | 'kit';
@@ -85,6 +86,9 @@ export class UI {
         <div class="side-buttons">
           <button class="round-btn" data-action="daily" aria-label="${t('daily.title')}">
             <span class="ring" data-ring></span><span class="emoji">🎯</span><span class="badge" data-badge hidden>!</span>
+          </button>
+          <button class="round-btn money" data-action="redeem-open" aria-label="${t('redeem.title')}">
+            <span class="ring" data-ring-money></span><span class="emoji">💵</span><span class="badge" data-badge-money hidden>!</span>
           </button>
         </div>
         <div class="spacer"></div>
@@ -154,6 +158,14 @@ export class UI {
         </div>
       </div>
 
+      <div class="modal" data-modal="redeem" hidden>
+        <div class="modal-card light">
+          <h3>💵 ${t('redeem.title')}</h3>
+          <div class="redeem" data-redeem></div>
+          <button class="btn btn-ghost" data-action="close">${t('close')}</button>
+        </div>
+      </div>
+
       <div class="modal" data-modal="settings" hidden>
         <div class="modal-card light">
           <h3>${t('settings.title')}</h3>
@@ -197,6 +209,11 @@ export class UI {
       case 'arm': return this.h.onToggleArmed(d.id as ItemId);
       case 'revive': return this.h.onRevive();
       case 'claim': return this.h.onClaim(Number(d.tier));
+      case 'redeem-open':
+        this.renderRedeem();
+        this.$('[data-modal="redeem"]').hidden = false;
+        return;
+      case 'redeem': return this.h.onRedeem();
       case 'daily':
         this.renderDaily();
         this.$('[data-modal="daily"]').hidden = false;
@@ -238,6 +255,7 @@ export class UI {
     if (this.view === 'shop') this.renderShop();
     if (this.view === 'locker') this.renderLocker();
     if (!this.$('[data-modal="daily"]').hidden) this.renderDaily();
+    if (!this.$('[data-modal="redeem"]').hidden) this.renderRedeem();
   }
 
   private renderHome(): void {
@@ -247,6 +265,9 @@ export class UI {
     this.$('[data-ring]').style.setProperty('--pct', `${pct}%`);
     const claimable = DAILY.tiers.some((tier, i) => p.daily.meters >= tier.meters && !p.daily.claimed.includes(i));
     this.$('[data-badge]').hidden = !claimable;
+    const moneyPct = Math.min(100, (p.coins / REDEEM.coinsPerUsd) * 100);
+    this.$('[data-ring-money]').style.setProperty('--pct', `${moneyPct}%`);
+    this.$('[data-badge-money]').hidden = p.coins < REDEEM.coinsPerUsd;
 
     const owned = SHOP_ITEMS.filter((i) => i.preRun && p.inventory[i.id] > 0);
     this.$('[data-boosts]').innerHTML = owned.length
@@ -289,6 +310,20 @@ export class UI {
       }`;
   }
 
+  private renderRedeem(): void {
+    const p = this.profile;
+    const need = REDEEM.coinsPerUsd;
+    const ok = p.coins >= need;
+    const pct = Math.min(100, (p.coins / need) * 100);
+    this.$('[data-redeem]').innerHTML = `
+      <div class="redeem-rate">${t('redeem.rate', { coins: fmt(need), usd: REDEEM.usd })}</div>
+      <div class="bar money-bar"><div class="fill" style="width:${pct}%"></div></div>
+      <div class="redeem-progress"><span class="coin-ico sm"></span> ${t('redeem.progress', { have: fmt(p.coins), need: fmt(need) })}</div>
+      ${p.redeem.length ? `<div class="redeem-pending">⏳ ${t('redeem.pending', { n: p.redeem.length })}</div>` : ''}
+      <button class="btn" data-action="redeem" ${ok ? '' : 'disabled'}>${ok ? t('redeem.btn') : t('redeem.missing', { n: fmt(need - p.coins) })}</button>
+      <div class="redeem-note">${t('redeem.note')}</div>`;
+  }
+
   private renderShop(): void {
     const p = this.profile;
     this.$('[data-shop]').innerHTML = SHOP_ITEMS.map(
@@ -310,31 +345,25 @@ export class UI {
   private renderLocker(): void {
     const look = this.profile.look;
     const hairHex = HAIR_COLORS.find((c) => c.id === look.hairColor)?.hex ?? '#5a3418';
+    const kit = KITS.find((k) => k.id === look.kit) ?? KITS[2];
     const tabs: [LockerTab, string][] = [
-      ['kit', '👕'],
-      ['color', '🎨'],
-      ['style', hairIcon('corto', hairHex)],
+      ['kit', kitIcon(kit, 38)],
+      ['color', hairColorIcon(hairHex, 36)],
+      ['style', hairIcon(look.hairStyle, hairHex)],
     ];
     this.$('[data-tabs]').innerHTML = tabs
-      .map(([id, label]) => `<button class="tab ${this.tab === id ? 'on' : ''}" data-action="tab" data-tab="${id}">${label}</button>`)
+      .map(([id, icon]) => `<button class="tab ${this.tab === id ? 'on' : ''}" data-action="tab" data-tab="${id}">${icon}</button>`)
       .join('');
 
+    const tile = (on: boolean, label: string, key: string, value: string, icon: string) =>
+      `<button class="opt ${on ? 'on' : ''}" aria-label="${label}" data-action="look" data-key="${key}" data-value="${value}">${icon}${on ? '<span class="check">✓</span>' : ''}</button>`;
     let html = '';
     if (this.tab === 'color') {
-      html = HAIR_COLORS.map(
-        (c) => `<button class="opt ${look.hairColor === c.id ? 'on' : ''}" aria-label="${c.name}" data-action="look" data-key="hairColor" data-value="${c.id}">
-          <span class="swatch" style="background:${c.hex}"></span></button>`,
-      ).join('');
+      html = HAIR_COLORS.map((c) => tile(look.hairColor === c.id, c.name, 'hairColor', c.id, hairColorIcon(c.hex))).join('');
     } else if (this.tab === 'style') {
-      html = HAIR_STYLES.map(
-        (s) => `<button class="opt ${look.hairStyle === s.id ? 'on' : ''}" aria-label="${s.name}" data-action="look" data-key="hairStyle" data-value="${s.id}">
-          <span class="swatch svg">${hairIcon(s.id, hairHex)}</span></button>`,
-      ).join('');
+      html = HAIR_STYLES.map((st) => tile(look.hairStyle === st.id, st.name, 'hairStyle', st.id, hairIcon(st.id, hairHex))).join('');
     } else {
-      html = KITS.map(
-        (k) => `<button class="opt ${look.kit === k.id ? 'on' : ''}" aria-label="${k.name}" data-action="look" data-key="kit" data-value="${k.id}">
-          <span class="swatch shirt" style="background:${kitCss(k)}"></span></button>`,
-      ).join('');
+      html = KITS.map((k) => tile(look.kit === k.id, k.name, 'kit', k.id, kitIcon(k))).join('');
     }
     this.$('[data-options]').innerHTML = html;
   }
@@ -382,10 +411,9 @@ export class UI {
     if (b.shield) parts.push('<span class="ab">🛡️</span>');
     if (b.magnet > 0) parts.push(`<span class="ab">🧲 ${Math.ceil(b.magnet)}s</span>`);
     if (b.jump > 0) parts.push(`<span class="ab">👟 ${Math.ceil(b.jump)}s</span>`);
-    if (b.fly > 0) parts.push(`<span class="ab">🚀 ${Math.ceil(b.fly)}s</span>`);
     if (b.x2 > 0) parts.push(`<span class="ab">✖2 ${Math.ceil(b.x2)}s</span>`);
     if (b.doubler) parts.push('<span class="ab">💰 x2</span>');
-    if (b.turbo > 0) parts.push(`<span class="ab">🚀 ${Math.ceil(b.turbo)} m</span>`);
+    if (b.turbo > 0) parts.push(`<span class="ab">⚡ ${Math.ceil(b.turbo)} m</span>`);
     const html = parts.join('');
     if (html !== this.lastBoosts) {
       this.lastBoosts = html;
@@ -449,22 +477,6 @@ function clock(secs: number): string {
   const m = Math.floor((secs % 3600) / 60);
   const s = secs % 60;
   return [h, m, s].map((v) => String(v).padStart(2, '0')).join(':');
-}
-
-/** Vista previa de la camiseta en CSS (mismo diseño que la textura 3D). */
-function kitCss(k: Kit): string {
-  switch (k.pattern) {
-    case 'stripes':
-      return `repeating-linear-gradient(90deg, ${k.base} 0 7px, ${k.accent} 7px 14px)`;
-    case 'band':
-      return `linear-gradient(${k.base} 0 36%, ${k.accent} 36% 64%, ${k.base} 64%)`;
-    case 'sash':
-      return `linear-gradient(135deg, ${k.base} 0 38%, ${k.accent} 38% 62%, ${k.base} 62%)`;
-    case 'trim':
-      return `linear-gradient(${k.accent} 0 14%, ${k.base} 14% 86%, ${k.accent} 86%)`;
-    default:
-      return k.base;
-  }
 }
 
 function injectStyles(): void {

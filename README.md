@@ -5,7 +5,11 @@ Three.js + TypeScript + Vite.
 
 📄 Análisis completo (tecnología, arquitectura, economía, riesgos, fases): [`docs/ANALISIS.md`](docs/ANALISIS.md)
 
-## Estado: v0.5 — Más jugabilidad ✅
+## Estado: v0.6 — Gráficos pro, 4 carriles y canje ✅
+
+v0.6: **4 carriles** (configurable en `gameConfig.ts → lanes.count`), estadio más angosto y detallado (asientos por sectores, pantalla gigante, túneles, techo con cercha, pista de atletismo, marcas de cancha que cambian), personaje y defensores rediseñados (atleta con cara adulta, pelo que abraza la cabeza, 5 peinados nuevos), monedas con relieve, camiones rediseñados (parabrisas, parrilla, faros, carteles laterales, techo antideslizante) y sin el "hongo", pelota gigante que rueda (se salta), sin pelota cohete, potenciadores más espaciados, control táctil menos sensible, cámara que sube al correr sobre un camión, íconos dibujados en el vestuario, **ícono de canje (200.000 monedas = US$ 1, queda en revisión)** y arreglo del imán que quedaba activo.
+
+### v0.5 — Más jugabilidad
 
 v0.5: camiones/micros con rampa para correr por arriba (y algunos que vienen en contra), defensores que corren hacia vos, pelota gigante rodando, potenciadores en la pista (imán, escudo, súper salto con mortal, pelota cohete para volar, monedas x2), más velocidad y más obstáculos, desafío diario en un ícono con anillo de progreso, configuración (sonido + idioma ES/EN), íconos dibujados de peinados y cara menos infantil.
 
@@ -56,8 +60,8 @@ npm run preview
 
 ## Ajustar el juego
 
-- [`src/config/gameConfig.ts`](src/config/gameConfig.ts): velocidad, salto, barrida, obstáculos, monedas, cámara, curvatura.
-- [`src/config/economy.ts`](src/config/economy.ts): precios de la tienda, duración de potenciadores, premios del desafío diario.
+- [`src/config/gameConfig.ts`](src/config/gameConfig.ts): carriles, control táctil (sensibilidad), velocidad, salto, obstáculos, potenciadores, monedas, cámara.
+- [`src/config/economy.ts`](src/config/economy.ts): precios de la tienda, premios del desafío diario y tasa de canje (`REDEEM`).
 - [`src/config/cosmetics.ts`](src/config/cosmetics.ts): colores de pelo, peinados y camisetas.
 - [`src/config/themes.ts`](src/config/themes.ts): colores de cada ambiente (día / atardecer / noche).
 

@@ -1,21 +1,20 @@
 import * as THREE from 'three';
-import { CONFIG } from '../config/gameConfig';
+import { laneX } from '../config/gameConfig';
 import { basic } from '../engine/materials';
 import type { Player } from './Player';
 
 /** Potenciadores que aparecen en la pista (ideas de Subway Surfers / Minion Rush). */
-export type PickupKind = 'magnet' | 'shield' | 'jump' | 'fly' | 'x2';
+export type PickupKind = 'magnet' | 'shield' | 'jump' | 'x2';
 
 export const PICKUPS: Record<PickupKind, { icon: string; color: string }> = {
   magnet: { icon: '🧲', color: '#e63946' },
   shield: { icon: '🛡️', color: '#2a9df4' },
   jump: { icon: '👟', color: '#ff7a1a' },
-  fly: { icon: '🚀', color: '#8a4dff' },
   x2: { icon: '✖2', color: '#f5a524' },
 };
 
 /** Duración de cada potenciador recogido en la pista (seg). Configurable. */
-export const PICKUP_SECONDS = { magnet: 12, jump: 10, fly: 6, x2: 15 } as const;
+export const PICKUP_SECONDS = { magnet: 12, jump: 10, x2: 15 } as const;
 
 interface Item {
   kind: PickupKind;
@@ -79,7 +78,7 @@ export class Pickups {
     }
     it.active = true;
     it.mesh.visible = true;
-    it.mesh.position.set(lane * CONFIG.lanes.width, y, z);
+    it.mesh.position.set(laneX(lane), y, z);
     it.mesh.userData.baseY = y;
   }
 

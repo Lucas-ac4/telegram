@@ -106,12 +106,20 @@ export function outlineMaterial(thickness = 0.035): THREE.MeshBasicMaterial {
   });
 }
 
-const sharedOutline = outlineMaterial();
-const thinOutline = outlineMaterial(0.022);
+const outlineCache = new Map<number, THREE.MeshBasicMaterial>();
+const outlineOf = (t: number) => {
+  let m = outlineCache.get(t);
+  if (!m) outlineCache.set(t, (m = outlineMaterial(t)));
+  return m;
+};
 
-/** Agrega el contorno a una malla (como hijo, comparte geometría). */
-export function withOutline<T extends THREE.Mesh>(mesh: T, thin = false): T {
-  const outline = new THREE.Mesh(mesh.geometry, thin ? thinOutline : sharedOutline);
+/**
+ * Agrega el contorno a una malla (como hijo, comparte geometría).
+ * `thickness`: true = fino, false = normal, o un grosor en metros (personajes: 0.014).
+ */
+export function withOutline<T extends THREE.Mesh>(mesh: T, thickness: boolean | number = false): T {
+  const t = typeof thickness === 'number' ? thickness : thickness ? 0.022 : 0.035;
+  const outline = new THREE.Mesh(mesh.geometry, outlineOf(t));
   outline.name = 'outline';
   mesh.add(outline);
   return mesh;

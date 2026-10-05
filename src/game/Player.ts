@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { CONFIG } from '../config/gameConfig';
+import { CONFIG, laneX } from '../config/gameConfig';
 import { Character, createBall, type Pose } from './Character';
 import { basic } from '../engine/materials';
 import { blobTexture } from '../engine/textures';
@@ -18,7 +18,7 @@ export class Player {
   private bubble: THREE.Mesh;
   private jumpBuffer = 0;
 
-  lane = 0;
+  lane: number = CONFIG.lanes.startLane;
   x = 0;
   y = 0;
   private vy = 0;
@@ -60,18 +60,12 @@ export class Player {
 
   /** Altura del piso actual (0, techo de camión o rampa). */
   floor = 0;
-  /** Segundos restantes de vuelo (pelota cohete). */
-  flyTime = 0;
   /** Segundos restantes de súper salto. */
   superJump = 0;
   private flip = 0;
 
   get grounded(): boolean {
-    return this.flyTime <= 0 && this.y <= this.floor + 0.001 && this.vy <= 0;
-  }
-
-  get flying(): boolean {
-    return this.flyTime > 0;
+    return this.y <= this.floor + 0.001 && this.vy <= 0;
   }
 
   get sliding(): boolean {
@@ -83,7 +77,7 @@ export class Player {
   }
 
   reset(): void {
-    this.lane = 0;
+    this.lane = CONFIG.lanes.startLane;
     this.x = 0;
     this.y = 0;
     this.vy = 0;
@@ -93,7 +87,6 @@ export class Player {
     this.shielded = false;
     this.grace = 0;
     this.floor = 0;
-    this.flyTime = 0;
     this.superJump = 0;
     this.flip = 0;
     this.character.reset();
@@ -101,7 +94,7 @@ export class Player {
   }
 
   moveLane(dir: -1 | 1): void {
-    const next = THREE.MathUtils.clamp(this.lane + dir, -1, 1);
+    const next = THREE.MathUtils.clamp(this.lane + dir, 0, CONFIG.lanes.count - 1);
     if (next !== this.lane) {
       this.lane = next;
       this.onLane?.();
@@ -122,7 +115,6 @@ export class Player {
   }
 
   slide(): void {
-    if (this.flying) return;
     if (!this.grounded) {
       // En el aire: caída rápida y barrida al tocar el piso.
       this.vy = Math.min(this.vy, P.fastFallVelocity);
@@ -135,18 +127,11 @@ export class Player {
     if (playing && !this.dead) {
       this.floor = ground;
       // Cambio de carril a velocidad constante (rápido y predecible).
-      const targetX = this.lane * CONFIG.lanes.width;
+      const targetX = laneX(this.lane);
       const step = CONFIG.lanes.switchSpeed * dt;
       this.x += THREE.MathUtils.clamp(targetX - this.x, -step, step);
 
-      if (this.flyTime > 0) {
-        // Vuelo: sube a la altura de las monedas del aire.
-        this.flyTime -= dt;
-        // Al terminar el vuelo, un momento sin choques para aterrizar tranquilo.
-        if (this.flyTime <= 0) this.grace = 1.2;
-        this.y += (5.2 - this.y) * Math.min(1, dt * 4);
-        this.vy = 0;
-      } else if (this.y > this.floor || this.vy > 0) {
+      if (this.y > this.floor || this.vy > 0) {
         // Salto / caída con gravedad.
         this.vy -= P.gravity * dt;
         this.y += this.vy * dt;
@@ -176,13 +161,11 @@ export class Player {
       ? 'dead'
       : !playing
         ? 'idle'
-        : this.flying
-          ? 'fly'
-          : !this.grounded
-            ? 'jump'
-            : this.sliding
-              ? 'slide'
-              : 'run';
+        : !this.grounded
+          ? 'jump'
+          : this.sliding
+            ? 'slide'
+            : 'run';
     // Mortal hacia adelante durante el súper salto.
     // Giro alrededor del centro del cuerpo (y = 0.9), no de los pies.
     const a = this.flip > 0 ? -(1 - this.flip) * Math.PI * 2 : 0;
@@ -191,7 +174,7 @@ export class Player {
     this.character.update(dt, pose, 0.75 + (speed / CONFIG.speed.max) * 0.45);
 
     // Inclinación al cambiar de carril.
-    const lean = THREE.MathUtils.clamp((this.lane * CONFIG.lanes.width - this.x) * -0.25, -0.35, 0.35);
+    const lean = THREE.MathUtils.clamp((laneX(this.lane) - this.x) * -0.25, -0.35, 0.35);
     this.group.rotation.z += (lean - this.group.rotation.z) * Math.min(1, dt * 12);
     this.group.position.set(this.x, this.y, 0);
 
@@ -214,12 +197,6 @@ export class Player {
       // Jueguito al costado (no tapa la cara).
       b.position.set(this.x - 0.42, 0.3 + h * 0.75, 0.42);
       b.rotation.x += dt * 4;
-      return;
-    }
-    if (pose === 'fly') {
-      // Pelota cohete: va debajo de los pies como una tabla.
-      b.position.set(this.x, this.y - 0.05, 0.1);
-      b.rotation.x -= dt * 20;
       return;
     }
     if (pose === 'dead') {
