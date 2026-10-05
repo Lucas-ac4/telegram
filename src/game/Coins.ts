@@ -50,7 +50,7 @@ export class Coins {
   }
 
   /** Mueve, gira y detecta monedas recogidas. Devuelve las posiciones recogidas. */
-  update(dt: number, speed: number, player: Player | null): THREE.Vector3[] {
+  update(dt: number, speed: number, player: Player | null, magnetRadius = 0): THREE.Vector3[] {
     this.spin += dt * 4;
     const collected: THREE.Vector3[] = [];
     // Las monedas activas se escriben al principio y `count` limita lo que se dibuja.
@@ -58,6 +58,13 @@ export class Coins {
     for (let i = 0; i < MAX; i++) {
       if (!this.active[i]) continue;
       this.z[i] += speed * dt;
+      // Imán: las monedas cercanas vuelan hacia el jugador.
+      if (player && magnetRadius > 0 && this.z[i] > -magnetRadius && this.z[i] < 1) {
+        const k = Math.min(1, dt * 12);
+        this.x[i] += (player.x - this.x[i]) * k;
+        this.y[i] += (player.y + 0.9 - this.y[i]) * k;
+        this.z[i] += (0 - this.z[i]) * k * 0.5;
+      }
       if (
         player &&
         Math.abs(this.z[i]) < 0.7 &&

@@ -5,16 +5,24 @@ Three.js + TypeScript + Vite.
 
 📄 Análisis completo (tecnología, arquitectura, economía, riesgos, fases): [`docs/ANALISIS.md`](docs/ANALISIS.md)
 
-## Estado: v0.2 — Fase 1 en 3D ✅
+## Estado: v0.3 — Home, Tienda y Vestuario ✅
 
-- Futbolista cartoon (camiseta 10) que conduce la pelota y corre solo.
-- **3 carriles**: deslizar ← → para cambiar, ↑ (o tocar) para saltar, ↓ para barrida.
-- Obstáculos procedurales: **valla** (saltar), **barra con cartel** (barrida), **barrera de defensores** (esquivar).
-- Monedas (en línea y en arco sobre las vallas).
-- Estadio infinito con hinchada animada, carteles LED, torres de luz y mundo curvo.
-- Tutorial en las primeras partidas, velocidad progresiva, game over, reinicio, récord.
-- Sonidos sintetizados (patadas, monedas, silbato, hinchada) + vibración en Telegram.
-- 0 KB de assets: todo se genera por código → carga instantánea.
+**Juego**
+- 3D estilo Subway Surfers: 3 carriles, deslizar ← → ↑ ↓ (gestos encadenables sin levantar el dedo, salto "guardado" si deslizás antes de aterrizar).
+- Más rápido: arranca a 16 m/s y acelera hasta 36 m/s.
+- Obstáculos: valla con conos, barra acolchada con banner, barrera de defensores.
+- Ambiente según la hora en Argentina: **día suave**, **atardecer** y **noche** con estrellas (`?tema=dia|atardecer|noche` para probar).
+- Calidad adaptativa: si el celu no llega a ~50 fps, baja la resolución solo.
+
+**Home**: monedas arriba al centro, récord, desafío diario (metros del día con 3 premios y cuenta regresiva a las 00:00 de Argentina), potenciadores para activar y botón JUGAR.
+
+**Tienda**: 🛡️ Escudo · ❤️ Vida extra · 🧲 Imán · 💰 Monedas x2 · 🚀 Arranque turbo.
+
+**Vestuario**: 5 colores de pelo, 5 peinados y 10 camisetas.
+
+**Derrota**: vida extra, jugar de nuevo o volver al inicio.
+
+> Monedas, inventario y desafío diario se guardan en el dispositivo (MVP). Cuando haya premios reales, el servidor será la fuente de verdad.
 
 ## Correr en local
 
@@ -40,7 +48,10 @@ npm run preview
 
 ## Ajustar el juego
 
-Todo lo que cambia la sensación del juego está en [`src/config/gameConfig.ts`](src/config/gameConfig.ts): velocidad, salto, barrida, distancia entre obstáculos, monedas, cámara y curvatura del mundo.
+- [`src/config/gameConfig.ts`](src/config/gameConfig.ts): velocidad, salto, barrida, obstáculos, monedas, cámara, curvatura.
+- [`src/config/economy.ts`](src/config/economy.ts): precios de la tienda, duración de potenciadores, premios del desafío diario.
+- [`src/config/cosmetics.ts`](src/config/cosmetics.ts): colores de pelo, peinados y camisetas.
+- [`src/config/themes.ts`](src/config/themes.ts): colores de cada ambiente (día / atardecer / noche).
 
 ## Estructura
 
@@ -61,5 +72,5 @@ src/
   audio/Sfx.ts            sonidos sintetizados
   ui/                     menú, HUD y pantallas (HTML/CSS)
   telegram/telegram.ts    wrapper seguro del SDK
-  save/save.ts            récord local (nada de valor económico)
+  save/save.ts            perfil local: monedas, inventario, look, desafío diario
 ```

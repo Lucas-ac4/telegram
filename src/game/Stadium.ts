@@ -4,6 +4,7 @@ import { CONFIG } from '../config/gameConfig';
 import { ModelBuilder, box, cylinder } from '../engine/geometry';
 import { basic, curved, toon, toonVertexColors } from '../engine/materials';
 import { cloudTexture, ledTexture, pitchTexture } from '../engine/textures';
+import type { Theme } from '../config/themes';
 
 const L = CONFIG.world.segmentLength;
 const PITCH_HALF = 7;
@@ -17,6 +18,8 @@ const PEOPLE_PER_STEP = 9;
 export class Stadium {
   private segments: THREE.Group[] = [];
   private led: THREE.CanvasTexture;
+  private cloudMat!: THREE.MeshBasicMaterial;
+  private stars!: THREE.Points;
 
   constructor(scene: THREE.Scene) {
     const pitchMat = toon(0xffffff, { map: pitchTexture(CONFIG.lanes.width) });
@@ -76,6 +79,7 @@ export class Stadium {
   /** Nubes de fondo: fijas, sin curvatura ni niebla (son parte del cielo). */
   private addClouds(scene: THREE.Scene): void {
     const mat = new THREE.MeshBasicMaterial({ map: cloudTexture(), transparent: true, depthWrite: false, fog: false });
+    this.cloudMat = mat;
     const geo = new THREE.PlaneGeometry(1, 0.5);
     const spots: [number, number, number, number][] = [
       [-70, 34, -190, 60], [-10, 46, -210, 80], [55, 30, -180, 55], [110, 42, -200, 70], [-120, 26, -170, 50],
@@ -87,6 +91,29 @@ export class Stadium {
       cloud.renderOrder = -1;
       scene.add(cloud);
     }
+
+    // Estrellas para los partidos de noche.
+    const pos: number[] = [];
+    for (let i = 0; i < 260; i++) {
+      const az = (Math.random() - 0.5) * Math.PI * 1.3;
+      const el = 0.12 + Math.random() * 0.9;
+      const r = 230;
+      pos.push(Math.sin(az) * Math.cos(el) * r, Math.sin(el) * r, -Math.cos(az) * Math.cos(el) * r);
+    }
+    const geo2 = new THREE.BufferGeometry();
+    geo2.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    this.stars = new THREE.Points(
+      geo2,
+      new THREE.PointsMaterial({ color: 0xffffff, size: 1.6, sizeAttenuation: false, fog: false, transparent: true, opacity: 0.8 }),
+    );
+    this.stars.visible = false;
+    scene.add(this.stars);
+  }
+
+  applyTheme(theme: Theme): void {
+    this.cloudMat.color.setHex(theme.cloudColor);
+    this.cloudMat.opacity = theme.cloudOpacity;
+    this.stars.visible = theme.stars;
   }
 
   reset(): void {
@@ -165,8 +192,8 @@ function fillCrowd(bodies: THREE.InstancedMesh, heads: THREE.InstancedMesh): voi
 /** Tribunas escalonadas + muro + torres de luz (todo en 1 geometría). */
 function buildStands(): THREE.BufferGeometry {
   const b = new ModelBuilder();
-  const seatA = 0x2c4a9e;
-  const seatB = 0x3a5fc4;
+  const seatA = 0x34508f;
+  const seatB = 0x4364a8;
   for (const side of [-1, 1]) {
     // Muro perimetral.
     b.add(boxZ(0.4, 1.0, L), 0xf4f1f8, [side * 9.3, 0.5, -L / 2]);
@@ -177,8 +204,11 @@ function buildStands(): THREE.BufferGeometry {
     }
     // Pared trasera alta.
     const backX = side * (10.05 + STEPS * 1.1 + 0.3);
-    b.add(boxZ(0.6, 7, L), 0x1d2f6b, [backX, 3.5, -L / 2]);
-    b.add(boxZ(0.7, 0.3, L), 0xffd23f, [backX, 7, -L / 2]);
+    b.add(boxZ(0.6, 7, L), 0x26335f, [backX, 3.5, -L / 2]);
+    b.add(boxZ(0.7, 0.3, L), 0xe8b93c, [backX, 7, -L / 2]);
+    // Techo de la tribuna (le da forma de estadio).
+    b.add(boxZ(STEPS * 1.1 + 1.6, 0.22, L), 0xdfe4ec, [side * (10.2 + (STEPS * 1.1) / 2), 7.9, -L / 2], [0, 0, side * 0.1]);
+    b.add(boxZ(0.12, 0.5, L), 0x26335f, [side * 9.55, 7.45, -L / 2]);
     // Torre de luz.
     b.add(cylinder(0.18, 0.25, 12, 8), 0x9aa5b1, [side * 17.5, 9.5, -2]);
     b.add(box(3.2, 1.8, 0.5, 0.1), 0x4b5563, [side * 17.5, 15.6, -2], [0, -side * 0.5, 0]);

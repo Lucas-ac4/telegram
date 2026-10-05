@@ -11,17 +11,19 @@ export const CONFIG = {
   lanes: {
     /** Distancia entre carriles. */
     width: 2.1,
-    /** Velocidad del cambio de carril (unidades/seg). */
-    switchSpeed: 16,
+    /** Velocidad del cambio de carril (unidades/seg). Alto = respuesta instantánea al deslizar. */
+    switchSpeed: 24,
   },
 
   player: {
-    jumpVelocity: 10.5,
-    gravity: 32,
+    jumpVelocity: 12,
+    gravity: 42,
     /** Deslizar hacia abajo en el aire = caer rápido (como Subway Surfers). */
-    fastFallVelocity: -24,
+    fastFallVelocity: -30,
     /** Duración de la barrida (seg). */
-    slideDuration: 0.7,
+    slideDuration: 0.6,
+    /** Si deslizás ↑/↓ un poco antes de aterrizar, la acción se guarda (seg). */
+    inputBuffer: 0.16,
     standHeight: 1.85,
     slideHeight: 0.75,
     /** Medio ancho / medio largo de la caja de colisión. */
@@ -30,22 +32,22 @@ export const CONFIG = {
   },
 
   speed: {
-    start: 13,
-    max: 30,
+    start: 16,
+    max: 36,
     /** Aceleración por segundo de partida. */
-    increasePerSecond: 0.16,
+    increasePerSecond: 0.3,
   },
 
   spawn: {
     /** Distancia del primer obstáculo. */
-    firstRow: 45,
+    firstRow: 50,
     /** Hasta dónde se generan obstáculos por delante. */
     viewDistance: 130,
     /** Separación entre filas, en segundos de recorrido. */
-    minGapSeconds: 0.8,
-    maxGapSeconds: 1.35,
+    minGapSeconds: 0.75,
+    maxGapSeconds: 1.25,
     /** A velocidad máxima, el gap mínimo baja hasta este valor. */
-    minGapSecondsAtMaxSpeed: 0.62,
+    minGapSecondsAtMaxSpeed: 0.55,
   },
 
   coins: {
@@ -54,6 +56,12 @@ export const CONFIG = {
     lineMax: 9,
     /** Probabilidad de que una fila traiga monedas. */
     chancePerRow: 0.7,
+  },
+
+  render: {
+    /** Resolución máxima (pixel ratio). Se baja sola si el celu no llega a ~50 fps. */
+    maxPixelRatio: 2,
+    minPixelRatio: 1,
   },
 
   camera: {

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import type { Kit } from '../config/cosmetics';
 
 /**
  * Texturas generadas con canvas: 0 KB de descarga, carga instantánea.
@@ -28,7 +29,7 @@ export function pitchTexture(laneWidth: number): THREE.CanvasTexture {
   const pxPerM = W / 14;
   const bands = 6;
   for (let i = 0; i < bands; i++) {
-    g.fillStyle = i % 2 ? '#3fbf4a' : '#36ad41';
+    g.fillStyle = i % 2 ? '#47a24d' : '#3f9445';
     g.fillRect(0, (i * H) / bands, W, H / bands);
   }
   // Ruido sutil para que no se vea plano.
@@ -54,22 +55,49 @@ export function pitchTexture(laneWidth: number): THREE.CanvasTexture {
   return toTexture(c, true);
 }
 
-/** Camiseta a bastones con número en la espalda. */
-export function jerseyTexture(base: string, stripe: string, number: string, numberColor: string): THREE.CanvasTexture {
+/** Camiseta según el diseño del equipo, con el 10 en la espalda (u = 0.5 del cilindro). */
+export function jerseyTexture(kit: Kit): THREE.CanvasTexture {
   const [c, g] = canvas(512, 256);
-  g.fillStyle = base;
+  g.fillStyle = kit.base;
   g.fillRect(0, 0, 512, 256);
-  g.fillStyle = stripe;
-  for (let x = 0; x < 512; x += 64) g.fillRect(x + 16, 0, 28, 256);
-  // Número en la espalda (u = 0.5 en el cilindro).
+  g.fillStyle = kit.accent;
+  switch (kit.pattern) {
+    case 'stripes':
+      for (let x = 0; x < 512; x += 64) g.fillRect(x + 16, 0, 30, 256);
+      break;
+    case 'band':
+      g.fillRect(0, 96, 512, 64);
+      break;
+    case 'sash':
+      // Banda diagonal: se dibuja en la mitad delantera y en la trasera.
+      for (const offset of [0, 256]) {
+        g.beginPath();
+        g.moveTo(offset + 10, 0);
+        g.lineTo(offset + 80, 0);
+        g.lineTo(offset + 246, 256);
+        g.lineTo(offset + 176, 256);
+        g.closePath();
+        g.fill();
+      }
+      break;
+    case 'trim':
+      g.fillRect(0, 0, 512, 22);
+      g.fillRect(0, 238, 512, 18);
+      break;
+    case 'solid':
+      // Detalle sutil para que no quede plano.
+      g.fillStyle = 'rgba(0,0,0,0.08)';
+      g.fillRect(0, 230, 512, 26);
+      break;
+  }
   g.font = 'bold 120px "Lilita One", "Arial Black", sans-serif';
   g.textAlign = 'center';
   g.textBaseline = 'middle';
   g.lineWidth = 14;
-  g.strokeStyle = '#ffffff';
-  g.strokeText(number, 256, 130);
-  g.fillStyle = numberColor;
-  g.fillText(number, 256, 130);
+  g.strokeStyle = kit.number === '#ffffff' || kit.number === '#ffcc00' || kit.number === '#ffd23f' ? '#1d1a4f' : '#ffffff';
+  g.strokeText('10', 256, 130);
+  g.fillStyle = kit.number;
+  g.fillText('10', 256, 130);
   return toTexture(c);
 }
 
@@ -103,17 +131,36 @@ export function ledTexture(): THREE.CanvasTexture {
 
 /** Banner de la barra alta. */
 export function bannerTexture(): THREE.CanvasTexture {
-  const [c, g] = canvas(512, 128);
-  const grad = g.createLinearGradient(0, 0, 0, 128);
-  grad.addColorStop(0, '#ff4f81');
-  grad.addColorStop(1, '#c8155a');
+  const [c, g] = canvas(512, 160);
+  const grad = g.createLinearGradient(0, 0, 0, 160);
+  grad.addColorStop(0, '#ef5a7e');
+  grad.addColorStop(1, '#b8204f');
   g.fillStyle = grad;
-  g.fillRect(0, 0, 512, 128);
-  g.fillStyle = '#ffd23f';
-  g.font = 'bold 64px "Lilita One", "Arial Black", sans-serif';
+  g.fillRect(0, 0, 512, 160);
+  // Borde a rayas tipo cinta de seguridad.
+  for (let x = -40; x < 552; x += 40) {
+    g.fillStyle = '#ffd23f';
+    g.beginPath();
+    g.moveTo(x, 0);
+    g.lineTo(x + 20, 0);
+    g.lineTo(x + 6, 16);
+    g.lineTo(x - 14, 16);
+    g.fill();
+    g.beginPath();
+    g.moveTo(x, 144);
+    g.lineTo(x + 20, 144);
+    g.lineTo(x + 6, 160);
+    g.lineTo(x - 14, 160);
+    g.fill();
+  }
+  g.fillStyle = '#ffffff';
+  g.font = 'bold 66px "Lilita One", "Arial Black", sans-serif';
   g.textAlign = 'center';
   g.textBaseline = 'middle';
-  g.fillText('¡BARRIDA! ↓', 256, 68);
+  g.lineWidth = 10;
+  g.strokeStyle = '#5c0f2b';
+  g.strokeText('¡BARRIDA! ↓', 256, 84);
+  g.fillText('¡BARRIDA! ↓', 256, 84);
   return toTexture(c);
 }
 
@@ -128,13 +175,13 @@ export function blobTexture(): THREE.CanvasTexture {
   return toTexture(c);
 }
 
-/** Cielo degradado. */
-export function skyTexture(): THREE.CanvasTexture {
+/** Cielo degradado (3 colores: arriba, medio, horizonte). */
+export function skyTexture(colors: [string, string, string]): THREE.CanvasTexture {
   const [c, g] = canvas(4, 256);
   const grad = g.createLinearGradient(0, 0, 0, 256);
-  grad.addColorStop(0, '#2f8fea');
-  grad.addColorStop(0.55, '#7cc4fa');
-  grad.addColorStop(1, '#d9f0ff');
+  grad.addColorStop(0, colors[0]);
+  grad.addColorStop(0.55, colors[1]);
+  grad.addColorStop(1, colors[2]);
   g.fillStyle = grad;
   g.fillRect(0, 0, 4, 256);
   return toTexture(c);

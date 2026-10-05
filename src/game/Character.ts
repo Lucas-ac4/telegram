@@ -2,11 +2,12 @@ import * as THREE from 'three';
 import { capsule, cylinder, sphere, box } from '../engine/geometry';
 import { toon, withOutline, toonVertexColors } from '../engine/materials';
 import { jerseyTexture } from '../engine/textures';
+import { HAIR_COLORS, KITS, type HairStyleId, type Kit, type Look } from '../config/cosmetics';
 
 export type Pose = 'idle' | 'run' | 'jump' | 'slide' | 'dead';
 
 const SKIN = 0xf2b98b;
-const HAIR = 0x3b2414;
+const jerseyCache = new Map<string, THREE.Texture>();
 
 /**
  * Futbolista estilo "chibi" (cabeza grande, look cartoon) armado con primitivas
@@ -23,15 +24,18 @@ export class Character {
   private arms: { shoulder: THREE.Group; elbow: THREE.Group }[] = [];
   private stars: THREE.Group;
   private time = 0;
+  private target = new Map<THREE.Object3D, [number, number, number]>();
+  private jersey = toon(0xffffff, { map: jerseyTexture(KITS[2]) });
+  private sleeve = toon(0x6cc3f5);
+  private shorts = toon(0x14213d);
+  private sock = toon(0xffffff);
+  private hair = toon(0x5a3418);
+  private hairStyles = new Map<HairStyleId, THREE.Group>();
 
   constructor() {
-    const jersey = toon(0xffffff, { map: jerseyTexture('#ffffff', '#6cc3f5', '10', '#14213d') });
-    const sleeve = toon(0x6cc3f5);
+    const { jersey, sleeve, shorts, sock, hair } = this;
     const skin = toon(SKIN);
-    const shorts = toon(0x14213d);
-    const sock = toon(0xffffff);
     const boot = toon(0xff3d7f);
-    const hair = toon(HAIR);
 
     this.root.add(this.body);
     this.body.add(this.hips, this.torso);
@@ -79,14 +83,9 @@ export class Character {
     this.head.position.y = 0.56;
     this.torso.add(this.head);
     this.head.add(part(sphere(0.36, 20, 14), skin, [0, 0.3, 0]));
-    const hairCap = part(new THREE.SphereGeometry(0.385, 20, 10, 0, Math.PI * 2, 0, Math.PI * 0.55), hair, [0, 0.32, 0.02]);
-    hairCap.rotation.x = 0.45;
-    this.head.add(hairCap);
-    // Mechones (jopo) para darle personalidad.
-    for (let i = 0; i < 5; i++) {
-      const tuft = part(new THREE.ConeGeometry(0.09, 0.22, 6), hair, [-0.16 + i * 0.08, 0.66, -0.14 + Math.abs(i - 2) * 0.03]);
-      tuft.rotation.set(-0.7, 0, (i - 2) * 0.25);
-      this.head.add(tuft);
+    for (const [id, group] of buildHairStyles(hair)) {
+      this.hairStyles.set(id, group);
+      this.head.add(group);
     }
     for (const side of [-1, 1]) {
       this.head.add(part(sphere(0.075), skin, [side * 0.36, 0.28, 0]));
@@ -117,7 +116,28 @@ export class Character {
       this.stars.add(s);
     }
     this.root.add(this.stars);
+  }
 
+  /** Aplica pelo, peinado y camiseta elegidos en el vestuario. */
+  setLook(look: Look): void {
+    const color = HAIR_COLORS.find((c) => c.id === look.hairColor) ?? HAIR_COLORS[1];
+    this.hair.color.set(color.hex);
+    for (const [id, g] of this.hairStyles) g.visible = id === look.hairStyle;
+    const kit: Kit = KITS.find((k) => k.id === look.kit) ?? KITS[2];
+    let tex = jerseyCache.get(kit.id);
+    if (!tex) {
+      tex = jerseyTexture(kit);
+      jerseyCache.set(kit.id, tex);
+    }
+    this.jersey.map = tex;
+    this.sleeve.color.set(kit.sleeve);
+    this.shorts.color.set(kit.shorts);
+    this.sock.color.set(kit.socks);
+  }
+
+  /** Parpadeo (invulnerable después de un choque salvado). */
+  setBlink(on: boolean): void {
+    this.body.visible = !on || Math.floor(this.time * 12) % 2 === 0;
   }
 
   /** Anima el personaje. `cycle` = velocidad de zancada (1 = normal). */
@@ -125,7 +145,8 @@ export class Character {
     this.time += dt;
     const t = this.time;
     const p = t * 13 * cycle;
-    const target = new Map<THREE.Object3D, [number, number, number]>();
+    const target = this.target;
+    target.clear();
     const set = (o: THREE.Object3D, x: number, y = 0, z = 0) => target.set(o, [x, y, z]);
 
     let bodyY = 0;
@@ -273,4 +294,70 @@ export function createBall(radius = 0.22): THREE.Mesh {
   }
   geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
   return withOutline(new THREE.Mesh(geo, toonVertexColors()), true);
+}
+
+/** Los 5 peinados. Todos comparten el material de pelo (cambiar el color es instantáneo). */
+function buildHairStyles(hair: THREE.Material): [HairStyleId, THREE.Group][] {
+  const capGeo = (r: number, cover: number) => new THREE.SphereGeometry(r, 20, 10, 0, Math.PI * 2, 0, Math.PI * cover);
+  const cap = (r: number, cover: number, tilt: number) => {
+    const m = part(capGeo(r, cover), hair, [0, 0.32, 0.02]);
+    m.rotation.x = tilt;
+    return m;
+  };
+
+  const corto = new THREE.Group();
+  corto.add(cap(0.385, 0.55, 0.45));
+  for (let i = 0; i < 5; i++) {
+    const tuft = part(new THREE.ConeGeometry(0.09, 0.22, 6), hair, [-0.16 + i * 0.08, 0.66, -0.14 + Math.abs(i - 2) * 0.03]);
+    tuft.rotation.set(-0.7, 0, (i - 2) * 0.25);
+    corto.add(tuft);
+  }
+
+  const rapado = new THREE.Group();
+  rapado.add(cap(0.368, 0.52, 0.35));
+
+  const melena = new THREE.Group();
+  melena.add(cap(0.39, 0.56, 0.4));
+  const back = part(new THREE.CapsuleGeometry(0.3, 0.32, 3, 12), hair, [0, 0.12, 0.16]);
+  back.scale.set(1.2, 1, 0.65);
+  melena.add(back);
+  for (const side of [-1, 1]) {
+    const lock = part(new THREE.CapsuleGeometry(0.09, 0.3, 2, 8), hair, [side * 0.33, 0.12, -0.02]);
+    lock.rotation.z = side * 0.1;
+    melena.add(lock);
+  }
+
+  const cresta = new THREE.Group();
+  cresta.add(cap(0.366, 0.42, 0.2));
+  for (let i = 0; i < 6; i++) {
+    const a = -0.9 + i * 0.36;
+    const spike = part(new THREE.ConeGeometry(0.07, 0.3, 6), hair, [0, 0.32 + Math.cos(a) * 0.4, Math.sin(a) * 0.4]);
+    spike.rotation.x = a;
+    cresta.add(spike);
+  }
+
+  const rulos = new THREE.Group();
+  rulos.add(cap(0.375, 0.5, 0.35));
+  const curl = new THREE.SphereGeometry(0.12, 10, 8);
+  for (let ring = 0; ring < 3; ring++) {
+    const n = [1, 6, 10][ring];
+    const polar = [0, 0.55, 1.05][ring];
+    for (let k = 0; k < n; k++) {
+      const az = (k / n) * Math.PI * 2 + ring;
+      const r = 0.38;
+      const x = Math.sin(polar) * Math.cos(az) * r;
+      const z = Math.sin(polar) * Math.sin(az) * r + 0.03;
+      const y = 0.32 + Math.cos(polar) * r;
+      if (z < -0.22 && y < 0.62) continue; // deja la cara libre
+      rulos.add(part(curl, hair, [x, y, z]));
+    }
+  }
+
+  return [
+    ['corto', corto],
+    ['rapado', rapado],
+    ['melena', melena],
+    ['cresta', cresta],
+    ['rulos', rulos],
+  ];
 }

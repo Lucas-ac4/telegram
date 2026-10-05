@@ -15,6 +15,8 @@ export class Player {
   readonly ball = createBall();
   readonly group = new THREE.Group();
   private shadow: THREE.Mesh;
+  private bubble: THREE.Mesh;
+  private jumpBuffer = 0;
 
   lane = 0;
   x = 0;
@@ -23,6 +25,10 @@ export class Player {
   private slideTimer = 0;
   private dribble = 0;
   dead = false;
+  /** Escudo activo (burbuja). */
+  shielded = false;
+  /** Segundos de invulnerabilidad restantes (parpadeo). */
+  grace = 0;
 
   /** Eventos para sonido / haptics. */
   onJump?: () => void;
@@ -41,6 +47,15 @@ export class Player {
     this.shadow.rotation.x = -Math.PI / 2;
     this.shadow.position.y = 0.02;
     scene.add(this.shadow);
+
+    // Burbuja del escudo.
+    this.bubble = new THREE.Mesh(
+      new THREE.SphereGeometry(1.15, 24, 16),
+      basic({ color: 0x7fe3ff, transparent: true, opacity: 0.28, depthWrite: false }),
+    );
+    this.bubble.position.y = 0.95;
+    this.bubble.visible = false;
+    this.group.add(this.bubble);
   }
 
   get grounded(): boolean {
@@ -61,7 +76,10 @@ export class Player {
     this.y = 0;
     this.vy = 0;
     this.slideTimer = 0;
+    this.jumpBuffer = 0;
     this.dead = false;
+    this.shielded = false;
+    this.grace = 0;
     this.character.reset();
     this.group.rotation.set(0, 0, 0);
   }
@@ -75,7 +93,12 @@ export class Player {
   }
 
   jump(): void {
-    if (!this.grounded) return;
+    if (!this.grounded) {
+      // Guardamos el salto: si aterriza enseguida, salta solo (se siente fluido).
+      this.jumpBuffer = P.inputBuffer;
+      return;
+    }
+    this.jumpBuffer = 0;
     this.slideTimer = 0;
     this.vy = P.jumpVelocity;
     this.onJump?.();
@@ -105,10 +128,17 @@ export class Player {
           this.y = 0;
           this.vy = 0;
           this.onLand?.();
+          if (this.jumpBuffer > 0) this.jump();
         }
       }
+      if (this.jumpBuffer > 0) this.jumpBuffer -= dt;
       if (this.grounded && this.slideTimer > 0) this.slideTimer -= dt;
+      if (this.grace > 0) this.grace -= dt;
     }
+
+    this.bubble.visible = this.shielded;
+    if (this.shielded) this.bubble.scale.setScalar(1 + Math.sin(performance.now() / 120) * 0.04);
+    this.character.setBlink(this.grace > 0 && !this.dead);
 
     const pose: Pose = this.dead ? 'dead' : !playing ? 'idle' : !this.grounded ? 'jump' : this.sliding ? 'slide' : 'run';
     this.character.update(dt, pose, 0.75 + (speed / CONFIG.speed.max) * 0.45);
@@ -133,7 +163,8 @@ export class Player {
       this.dribble += dt;
       const h = Math.abs(Math.sin(this.dribble * Math.PI * 1.6));
       // El personaje mira a cámara (+z) en el menú: su pie derecho queda en -x.
-      b.position.set(this.x - 0.14, 0.3 + h * 1.15, 0.5);
+      // Jueguito al costado (no tapa la cara).
+      b.position.set(this.x - 0.42, 0.3 + h * 0.75, 0.42);
       b.rotation.x += dt * 4;
       return;
     }

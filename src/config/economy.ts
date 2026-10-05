@@ -1,0 +1,46 @@
+/**
+ * Economía interna (moneda blanda del juego). TODO configurable.
+ *
+ * MVP: se guarda en el dispositivo. En la Fase 4 el servidor será la fuente
+ * de verdad (las monedas que valen algo NUNCA se validan sólo en el cliente).
+ */
+
+export type ItemId = 'shield' | 'life' | 'magnet' | 'doubler' | 'turbo';
+
+export interface ShopItem {
+  id: ItemId;
+  icon: string;
+  name: string;
+  description: string;
+  price: number;
+  /** Se activa antes de la partida (true) o se usa al perder (false). */
+  preRun: boolean;
+}
+
+export const SHOP_ITEMS: ShopItem[] = [
+  { id: 'shield', icon: '🛡️', name: 'Escudo', description: 'Te salva de un choque.', price: 150, preRun: true },
+  { id: 'life', icon: '❤️', name: 'Vida extra', description: 'Seguí corriendo después de perder.', price: 400, preRun: false },
+  { id: 'magnet', icon: '🧲', name: 'Imán', description: 'Atrae las monedas durante 30 s.', price: 200, preRun: true },
+  { id: 'doubler', icon: '💰', name: 'Monedas x2', description: 'Todas las monedas valen doble en la partida.', price: 300, preRun: true },
+  { id: 'turbo', icon: '🚀', name: 'Arranque turbo', description: 'Arrancás volando 400 m sin chocar.', price: 350, preRun: true },
+];
+
+export const ECONOMY = {
+  magnetSeconds: 30,
+  magnetRadius: 9,
+  turboMeters: 400,
+  turboSpeedMultiplier: 1.9,
+  /** Invulnerabilidad después de romper el escudo o revivir (seg). */
+  graceSeconds: 1.6,
+  maxRevivesPerRun: 2,
+} as const;
+
+/** Desafío diario: metros acumulados en el día (hora Argentina). */
+export const DAILY = {
+  timeZone: 'America/Argentina/Buenos_Aires',
+  tiers: [
+    { meters: 1000, coins: 60, item: null as ItemId | null, label: '+60' },
+    { meters: 3000, coins: 150, item: null as ItemId | null, label: '+150' },
+    { meters: 6000, coins: 0, item: 'shield' as ItemId | null, label: '🛡️' },
+  ],
+};

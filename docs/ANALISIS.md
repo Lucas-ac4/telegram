@@ -193,7 +193,8 @@ Gameplay → Monedas (juego, sin valor) → Monedas elegibles (validadas por ser
 | Fase | Contenido | Criterio de "listo" |
 |---|---|---|
 | **1** ✅ | **3D**: 3 carriles, salto, barrida, obstáculos procedurales (valla, barra, barrera de defensores), colisión, game over, reinicio, metros, récord, monedas visuales, tutorial, sonido, integración básica de Telegram | Se juega en el celular dentro de Telegram y dan ganas de otra partida |
-| 2 | Trofeos/power-ups (imán, escudo, botines turbo), obstáculos móviles (defensores que corren, pelotas gigantes), dificultad por tramos, skins | Partidas con objetivos y variedad |
+| 2 ✅ (v0.3) | Home con desafío diario, tienda (escudo, vida extra, imán, x2, turbo), vestuario (pelo, peinado, 10 camisetas), ambientes día/atardecer/noche | Partidas con objetivos y razón para volver mañana |
+| 2b | Obstáculos móviles (defensores que corren, pelotas gigantes), power-ups que aparecen en la pista, festejo de récord | Más variedad |
 | 3 | Analytics (eventos del punto 19), AdProvider + Monetag (revivir, x2, bonus diario), compartir récord | Primeros datos: eCPM, fill rate, D1, anuncios/usuario |
 | 4 | Backend mínimo: validación `initData`, guardado de monedas en servidor, validación de partidas, ranking | El cliente ya no controla nada de valor |
 | 5 | Retención: misiones diarias, rachas, referrals | D7 medible y mejorando |
@@ -204,3 +205,22 @@ Gameplay → Monedas (juego, sin valor) → Monedas elegibles (validadas por ser
 `user_started, game_started, game_completed, distance_reached, coin_collected, trophy_collected, ad_offered, ad_started, ad_completed, ad_rewarded, reward_claimed, mission_completed, referral, withdrawal_requested, withdrawal_completed`
 
 Opciones: PostHog (plan gratis generoso), Amplitude, o endpoint propio + base de datos. Recomendación: **PostHog** para empezar.
+
+## 8. Economía de monedas (v0.3)
+
+Monedas = moneda blanda del juego (sin valor real). Fuentes y sumideros:
+
+| Fuente | Aprox. |
+|---|---|
+| Partida de 1.000 m | 60–120 monedas |
+| Desafío diario (1k / 3k / 6k m) | +60 / +150 / 🛡️ |
+
+| Sumidero (tienda) | Precio | Por qué lo compra el jugador |
+|---|---|---|
+| 🛡️ Escudo | 150 | Perdona un error → partidas más largas |
+| ❤️ Vida extra | 400 | Salva un récord en el momento de más tensión |
+| 🧲 Imán | 200 | Más monedas en menos tiempo |
+| 💰 Monedas x2 | 300 | Se "paga solo" en partidas largas |
+| 🚀 Arranque turbo | 350 | Se saltea la parte fácil y llega antes a la velocidad alta |
+
+Todos los precios y premios están en `src/config/economy.ts`. Fase 3: el revivir y el x2 también se podrán obtener **viendo un anuncio** (opt-in), en los mismos botones.
