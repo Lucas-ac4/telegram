@@ -15,6 +15,9 @@ import { Sfx } from '../audio/Sfx';
 import { UI, type View } from '../ui/UI';
 import { Save } from '../save/save';
 import { Telegram } from '../telegram/telegram';
+import { Pickups, PICKUP_SECONDS, type PickupKind } from './Pickups';
+import { TRUCK } from '../config/gameConfig';
+import { detectLang, setLang, t, type Lang } from '../i18n';
 
 type State = 'menu' | 'playing' | 'dead' | 'over';
 
@@ -36,6 +39,7 @@ export class Game {
   private coins: Coins;
   private effects: Effects;
   private spawner: Spawner;
+  private pickups: Pickups;
   private sfx = new Sfx();
   private ui: UI;
 
@@ -53,6 +57,7 @@ export class Game {
   // Potenciadores de la partida.
   private magnetTime = 0;
   private doubler = false;
+  private x2Time = 0;
   private turboUntil = 0;
   private revivesUsed = 0;
   private saved = { meters: 0, coins: 0, newGame: true };
@@ -76,9 +81,11 @@ export class Game {
     this.obstacles = new Obstacles(this.scene);
     this.coins = new Coins(this.scene);
     this.effects = new Effects(this.scene);
-    this.spawner = new Spawner(this.obstacles, this.coins);
+    this.pickups = new Pickups(this.scene);
+    this.spawner = new Spawner(this.obstacles, this.coins, this.pickups);
 
     const profile = Save.profile;
+    setLang(detectLang(profile.lang, Telegram.unsafeUser?.language_code));
     this.sfx.muted = profile.muted;
     this.player.character.setLook(profile.look);
     this.ui = new UI({
@@ -89,6 +96,13 @@ export class Game {
         this.sfx.setMuted(!this.sfx.muted);
         Save.setMuted(this.sfx.muted);
         this.ui.setMuted(this.sfx.muted);
+      },
+      onLang: (lang: Lang) => {
+        setLang(lang);
+        Save.setLang(lang);
+        this.ui.rebuild();
+        this.ui.setMuted(this.sfx.muted);
+        this.ui.showView(this.view, Save.profile);
       },
       onBuy: (id) => this.buy(id),
       onToggleArmed: (id) => {
@@ -108,7 +122,7 @@ export class Game {
         if (Save.claimDaily(tier)) {
           this.sfx.cheer();
           this.sfx.coin();
-          this.ui.toast(`🎁 ¡Recompensa ${DAILY.tiers[tier].label}!`);
+          this.ui.toast(t('toast.reward', { label: DAILY.tiers[tier].label }));
         }
         this.ui.refresh(Save.profile);
       },
@@ -181,9 +195,9 @@ export class Game {
     const item = SHOP_ITEMS.find((i) => i.id === id)!;
     if (Save.buy(id)) {
       this.sfx.coin();
-      this.ui.toast(`${item.icon} ¡Compraste ${item.name}!`);
+      this.ui.toast(t('toast.bought', { icon: item.icon, name: t(`item.${item.id}.name`) }));
     } else {
-      this.ui.toast('🪙 Te faltan monedas');
+      this.ui.toast(t('toast.noCoins'));
     }
     this.ui.refresh(Save.profile);
   }
@@ -195,6 +209,7 @@ export class Game {
     const fromMenu = this.state === 'menu';
     this.obstacles.clear();
     this.coins.clear();
+    this.pickups.clear();
     this.spawner.reset(profile.gamesPlayed < 2);
     this.stadium.reset();
     this.player.reset();
@@ -214,6 +229,7 @@ export class Game {
     this.player.shielded = used.includes('shield');
     this.magnetTime = used.includes('magnet') ? ECONOMY.magnetSeconds : 0;
     this.doubler = used.includes('doubler');
+    this.x2Time = 0;
     this.turboUntil = used.includes('turbo') ? ECONOMY.turboMeters : 0;
 
     this.state = 'playing';
@@ -308,12 +324,14 @@ export class Game {
       this.speed += THREE.MathUtils.clamp(target - this.speed, -6 * dt, 4 * dt);
       if (step > this.speedStep) {
         this.speedStep = step;
-        this.ui.toast('⚡ ¡MÁS RÁPIDO!');
+        this.ui.toast(t('toast.faster'));
         this.sfx.cheer();
       }
       worldSpeed = this.speed * (turbo ? ECONOMY.turboSpeedMultiplier : 1);
       this.distance += worldSpeed * dt;
       if (this.magnetTime > 0) this.magnetTime -= dt;
+      if (this.x2Time > 0) this.x2Time -= dt;
+      if (this.player.flying) this.effects.trail(this.player.x, this.player.y - 0.1);
       if (turbo) {
         this.effects.streak();
         this.effects.streak();
@@ -334,14 +352,16 @@ export class Game {
     this.stadium.update(dt, worldSpeed);
     this.obstacles.update(dt, worldSpeed);
     this.spawner.update(dt, worldSpeed, this.distance);
-    this.player.update(dt, this.speed, this.state !== 'menu');
-    const magnet = turbo || this.magnetTime > 0 ? ECONOMY.magnetRadius : 0;
+    const ground = this.state === 'playing' ? this.obstacles.groundAt(this.player) : 0;
+    this.player.update(dt, this.speed, this.state !== 'menu', ground);
+    const magnet = turbo || this.magnetTime > 0 || this.player.flying ? ECONOMY.magnetRadius : 0;
     const collected = this.coins.update(dt, worldSpeed, this.state === 'playing' ? this.player : null, magnet);
+    for (const kind of this.pickups.update(dt, worldSpeed, this.state === 'playing' ? this.player : null)) this.activate(kind);
     this.effects.update(dt, worldSpeed);
 
     if (this.state === 'playing') {
       if (collected.length) {
-        this.coinCount += collected.length * (this.doubler ? 2 : 1);
+        this.coinCount += collected.length * (this.doubler ? 2 : 1) * (this.x2Time > 0 ? 2 : 1);
         this.ui.setCoins(this.coinCount);
         this.sfx.coin();
         for (const p of collected) this.effects.coin(p);
@@ -353,28 +373,35 @@ export class Game {
         this.sfx.cheer();
       }
       const hint = this.spawner.hints.find((h) => h.z > -24 && h.z < 0.5);
-      this.ui.showHint(hint?.text ?? null);
+      this.ui.showHint(hint ? t(hint.text) : null);
       this.ui.setBoosts({
         shield: this.player.shielded,
         magnet: this.magnetTime,
         doubler: this.doubler,
         turbo: turbo ? this.turboUntil - this.distance : 0,
+        jump: this.player.superJump,
+        fly: this.player.flyTime,
+        x2: this.x2Time,
       });
 
       const hit = this.obstacles.hit(this.player);
       if (hit) {
+        // Un camión no sale volando: te sube al techo.
+        const popUp = () => hit.kind === 'truck' && (this.player.y = TRUCK.top + 0.01);
         if (turbo || this.player.grace > 0) {
           this.obstacles.knock(hit);
+          popUp();
           this.sfx.land();
         } else if (this.player.shielded) {
           // El escudo te salva: el obstáculo sale volando.
           this.player.shielded = false;
           this.player.grace = ECONOMY.graceSeconds;
           this.obstacles.knock(hit);
+          popUp();
           this.shake = 0.25;
           this.sfx.hit();
           Telegram.hapticError();
-          this.ui.toast('🛡️ ¡El escudo te salvó!');
+          this.ui.toast(t('toast.shield'));
         } else {
           this.die();
         }
@@ -385,6 +412,32 @@ export class Game {
 
     this.updateCamera(dt, turbo);
     this.renderer.render(this.scene, this.camera);
+  }
+
+  /** Potenciador recogido en la pista. */
+  private activate(kind: PickupKind): void {
+    this.sfx.cheer();
+    this.sfx.coin();
+    Telegram.hapticLight();
+    switch (kind) {
+      case 'magnet':
+        this.magnetTime = Math.max(this.magnetTime, PICKUP_SECONDS.magnet);
+        break;
+      case 'shield':
+        this.player.shielded = true;
+        break;
+      case 'jump':
+        this.player.superJump = PICKUP_SECONDS.jump;
+        break;
+      case 'fly':
+        this.player.flyTime = PICKUP_SECONDS.fly;
+        this.spawner.spawnAirTrail(this.speed, PICKUP_SECONDS.fly);
+        break;
+      case 'x2':
+        this.x2Time = PICKUP_SECONDS.x2;
+        break;
+    }
+    this.ui.toast(t(kind === 'shield' ? 'toast.shieldOn' : `toast.${kind}`));
   }
 
   private adaptQuality(rawDt: number): void {

@@ -71,6 +71,18 @@ export class Effects {
     p.mesh.visible = true;
   }
 
+  /** Fuego/chispas debajo de la pelota cohete. */
+  trail(x: number, y: number): void {
+    const p = this.pool.find((q, i) => q.life <= 0 && i % 3 === 1);
+    if (!p) return;
+    p.mesh.position.set(x + (Math.random() - 0.5) * 0.3, y, 0.3);
+    p.vel.set((Math.random() - 0.5) * 1.5, -2 - Math.random() * 2, 6);
+    p.max = p.life = 0.3;
+    p.size = 1.3;
+    p.stretch = 1;
+    p.mesh.visible = true;
+  }
+
   update(dt: number, speed: number): void {
     for (const p of this.pool) {
       if (p.life <= 0) continue;

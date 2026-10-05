@@ -58,8 +58,20 @@ export class Player {
     this.group.add(this.bubble);
   }
 
+  /** Altura del piso actual (0, techo de camión o rampa). */
+  floor = 0;
+  /** Segundos restantes de vuelo (pelota cohete). */
+  flyTime = 0;
+  /** Segundos restantes de súper salto. */
+  superJump = 0;
+  private flip = 0;
+
   get grounded(): boolean {
-    return this.y <= 0;
+    return this.flyTime <= 0 && this.y <= this.floor + 0.001 && this.vy <= 0;
+  }
+
+  get flying(): boolean {
+    return this.flyTime > 0;
   }
 
   get sliding(): boolean {
@@ -80,6 +92,10 @@ export class Player {
     this.dead = false;
     this.shielded = false;
     this.grace = 0;
+    this.floor = 0;
+    this.flyTime = 0;
+    this.superJump = 0;
+    this.flip = 0;
     this.character.reset();
     this.group.rotation.set(0, 0, 0);
   }
@@ -100,11 +116,13 @@ export class Player {
     }
     this.jumpBuffer = 0;
     this.slideTimer = 0;
-    this.vy = P.jumpVelocity;
+    this.vy = P.jumpVelocity * (this.superJump > 0 ? 1.38 : 1);
+    if (this.superJump > 0) this.flip = 1; // mortal en el súper salto
     this.onJump?.();
   }
 
   slide(): void {
+    if (this.flying) return;
     if (!this.grounded) {
       // En el aire: caída rápida y barrida al tocar el piso.
       this.vy = Math.min(this.vy, P.fastFallVelocity);
@@ -113,24 +131,38 @@ export class Player {
     this.onSlide?.();
   }
 
-  update(dt: number, speed: number, playing: boolean): void {
+  update(dt: number, speed: number, playing: boolean, ground = 0): void {
     if (playing && !this.dead) {
+      this.floor = ground;
       // Cambio de carril a velocidad constante (rápido y predecible).
       const targetX = this.lane * CONFIG.lanes.width;
       const step = CONFIG.lanes.switchSpeed * dt;
       this.x += THREE.MathUtils.clamp(targetX - this.x, -step, step);
 
-      // Salto con gravedad.
-      if (this.y > 0 || this.vy > 0) {
+      if (this.flyTime > 0) {
+        // Vuelo: sube a la altura de las monedas del aire.
+        this.flyTime -= dt;
+        // Al terminar el vuelo, un momento sin choques para aterrizar tranquilo.
+        if (this.flyTime <= 0) this.grace = 1.2;
+        this.y += (5.2 - this.y) * Math.min(1, dt * 4);
+        this.vy = 0;
+      } else if (this.y > this.floor || this.vy > 0) {
+        // Salto / caída con gravedad.
         this.vy -= P.gravity * dt;
         this.y += this.vy * dt;
-        if (this.y <= 0) {
-          this.y = 0;
+        if (this.y <= this.floor) {
+          this.y = this.floor;
           this.vy = 0;
+          this.flip = 0;
           this.onLand?.();
           if (this.jumpBuffer > 0) this.jump();
         }
+      } else if (this.y < this.floor) {
+        // Subiendo por la rampa.
+        this.y = this.floor;
       }
+      if (this.superJump > 0) this.superJump -= dt;
+      if (this.flip > 0) this.flip = Math.max(0, this.flip - dt * 1.6);
       if (this.jumpBuffer > 0) this.jumpBuffer -= dt;
       if (this.grounded && this.slideTimer > 0) this.slideTimer -= dt;
       if (this.grace > 0) this.grace -= dt;
@@ -140,7 +172,22 @@ export class Player {
     if (this.shielded) this.bubble.scale.setScalar(1 + Math.sin(performance.now() / 120) * 0.04);
     this.character.setBlink(this.grace > 0 && !this.dead);
 
-    const pose: Pose = this.dead ? 'dead' : !playing ? 'idle' : !this.grounded ? 'jump' : this.sliding ? 'slide' : 'run';
+    const pose: Pose = this.dead
+      ? 'dead'
+      : !playing
+        ? 'idle'
+        : this.flying
+          ? 'fly'
+          : !this.grounded
+            ? 'jump'
+            : this.sliding
+              ? 'slide'
+              : 'run';
+    // Mortal hacia adelante durante el súper salto.
+    // Giro alrededor del centro del cuerpo (y = 0.9), no de los pies.
+    const a = this.flip > 0 ? -(1 - this.flip) * Math.PI * 2 : 0;
+    this.character.root.rotation.x = a;
+    this.character.root.position.set(0, 0.9 - 0.9 * Math.cos(a), -0.9 * Math.sin(a));
     this.character.update(dt, pose, 0.75 + (speed / CONFIG.speed.max) * 0.45);
 
     // Inclinación al cambiar de carril.
@@ -148,9 +195,10 @@ export class Player {
     this.group.rotation.z += (lean - this.group.rotation.z) * Math.min(1, dt * 12);
     this.group.position.set(this.x, this.y, 0);
 
-    // Sombra: se achica y aclara al subir.
-    const s = 1 - Math.min(this.y, 2.5) * 0.22;
+    // Sombra: sobre el piso actual, se achica al subir.
+    const s = Math.max(0.2, 1 - Math.min(this.y - this.floor, 3.5) * 0.22);
     this.shadow.position.x = this.x;
+    this.shadow.position.y = this.floor + 0.02;
     this.shadow.scale.setScalar(s);
 
     this.updateBall(dt, speed, playing, pose);
@@ -166,6 +214,12 @@ export class Player {
       // Jueguito al costado (no tapa la cara).
       b.position.set(this.x - 0.42, 0.3 + h * 0.75, 0.42);
       b.rotation.x += dt * 4;
+      return;
+    }
+    if (pose === 'fly') {
+      // Pelota cohete: va debajo de los pies como una tabla.
+      b.position.set(this.x, this.y - 0.05, 0.1);
+      b.rotation.x -= dt * 20;
       return;
     }
     if (pose === 'dead') {

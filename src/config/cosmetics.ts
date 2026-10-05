@@ -9,11 +9,11 @@ export const HAIR_COLORS = [
 ] as const;
 
 export const HAIR_STYLES = [
-  { id: 'corto', name: 'Normal', icon: '👦' },
-  { id: 'rapado', name: 'Rapado', icon: '✂️' },
-  { id: 'melena', name: 'Melena', icon: '🦁' },
-  { id: 'cresta', name: 'Cresta', icon: '🦔' },
-  { id: 'rulos', name: 'Rulos', icon: '🌀' },
+  { id: 'corto', name: 'Normal' },
+  { id: 'rapado', name: 'Rapado' },
+  { id: 'melena', name: 'Melena' },
+  { id: 'cresta', name: 'Cresta' },
+  { id: 'rulos', name: 'Rulos' },
 ] as const;
 
 export type HairStyleId = (typeof HAIR_STYLES)[number]['id'];

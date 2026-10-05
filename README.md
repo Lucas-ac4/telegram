@@ -5,7 +5,11 @@ Three.js + TypeScript + Vite.
 
 📄 Análisis completo (tecnología, arquitectura, economía, riesgos, fases): [`docs/ANALISIS.md`](docs/ANALISIS.md)
 
-## Estado: v0.4 — Gráficos mejorados ✅
+## Estado: v0.5 — Más jugabilidad ✅
+
+v0.5: camiones/micros con rampa para correr por arriba (y algunos que vienen en contra), defensores que corren hacia vos, pelota gigante rodando, potenciadores en la pista (imán, escudo, súper salto con mortal, pelota cohete para volar, monedas x2), más velocidad y más obstáculos, desafío diario en un ícono con anillo de progreso, configuración (sonido + idioma ES/EN), íconos dibujados de peinados y cara menos infantil.
+
+### v0.4 — Gráficos mejorados
 
 v0.4: personaje y defensores rediseñados (cuerpo torneado, ojos con iris y brillo, luz de borde), barra roja sin texto, trapos y banderas en la tribuna, bancos de suplentes, sol/luna, reflectores encendidos, silbato de árbitro realista, arranque con más espacio y salto de velocidad cada 700 m, desafío diario x4 y precios x5.
 

@@ -22,6 +22,7 @@ export interface Profile {
   look: Look;
   daily: { date: string; meters: number; claimed: number[] };
   muted: boolean;
+  lang?: 'es' | 'en';
 }
 
 const emptyInventory = (): Record<ItemId, number> => ({ shield: 0, life: 0, magnet: 0, doubler: 0, turbo: 0 });
@@ -110,6 +111,11 @@ export const Save = {
 
   setMuted(muted: boolean): void {
     profile.muted = muted;
+    persist();
+  },
+
+  setLang(lang: 'es' | 'en'): void {
+    profile.lang = lang;
     persist();
   },
 
