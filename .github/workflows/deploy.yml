@@ -4,7 +4,7 @@ name: Deploy a GitHub Pages
 
 on:
   push:
-    branches: [main, claude/proyecto-golazo-telegram-8571c1]
+    branches: [main, claude/proyecto-golazo-telegram-8571c1, claude/new-session-e4wbuh]
   workflow_dispatch:
 
 permissions:
