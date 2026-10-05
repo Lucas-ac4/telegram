@@ -6,19 +6,24 @@
 
 ## 1. Tecnología
 
+> **Actualización (v0.2):** después de probar la versión 2D, el feedback fue claro: se veía como el "dinosaurio de Google" y no enganchaba. Pasamos a **3D estilo Subway Surfers** con Three.js.
+
 | Opción | Pros | Contras | Veredicto |
 |---|---|---|---|
-| **Phaser + TypeScript** | Motor completo 2D: física arcade, escenas, input táctil, tweens, pools, escalado. Mucha documentación y ejemplos de runners. TypeScript evita errores. | Bundle ~360 KB gzip. | ✅ **Elegido** |
-| PixiJS | Renderer muy rápido y liviano. | Sólo dibuja: física, escenas, input y colisiones hay que hacerlos a mano. Más tiempo de desarrollo. | Bueno si el rendimiento fuera crítico; no es el caso. |
-| HTML5 Canvas puro | 0 dependencias, mínimo peso. | Reinventar todo (loop, física, escalado, input). Lento de iterar. | No vale la pena. |
-| Cocos Creator / Unity WebGL / Godot Web | Editores visuales potentes. | Unity/Godot web pesan varios MB → carga lenta en Telegram. Cocos es bueno pero más pesado y con editor propio. | Demasiado para un runner 2D. |
+| **Three.js + TypeScript** | 3D real en WebGL, liviano (~150 KB gzip), control total del look (toon shading, contornos, mundo curvo). Enorme comunidad. | Física y UI hay que hacerlas (para un runner de carriles es poca lógica). | ✅ **Elegido** |
+| Babylon.js | Motor 3D completo con editor e inspector. | Pesa ~1 MB+ → carga más lenta en Telegram. | Bueno, pero pesado para el MVP. |
+| PlayCanvas | Editor online, buen rendimiento móvil. | Editor/flujo propio, menos control desde código. | Alternativa válida. |
+| Unity WebGL / Godot Web | Editores potentes. | Builds de varios MB, arranque lento en Telegram. | Descartado. |
+| Phaser (v0.1) | Muy rápido para 2D. | Sólo 2D: no da el look 3D que queremos. | Usado en la v0.1, reemplazado. |
 
-**Decisión:** Phaser 4 + TypeScript + Vite.
+**Decisión:** Three.js + TypeScript + Vite, con:
 
-- Phaser resuelve el 80% del gameplay (física, colisiones, pools, escenas).
-- Vite: dev server instantáneo y build estático → se hostea gratis (GitHub Pages / Netlify / Vercel / Cloudflare Pages).
-- Gráficos generados por código en el MVP → **0 KB de assets**, carga casi instantánea.
-- Sin framework de UI (React, etc.) por ahora: la UI se hace dentro de Phaser.
+- **Gráficos 100 % generados por código** (personaje, estadio, público, obstáculos, texturas en canvas, sonido sintetizado) → **0 KB de assets** y carga en ~1 segundo.
+- **Toon shading + contorno negro** → look cartoon tipo Subway Surfers / Pou.
+- **Mundo curvo** (shader) → el horizonte "cae", firma visual de los runners modernos.
+- **Rendimiento móvil:** geometrías fusionadas e instanciadas (≈200 draw calls, ≈170 k triángulos), sombras "blob" en vez de sombras reales, pixel ratio limitado a 2.
+- **UI en HTML/CSS** sobre el canvas: nítida en cualquier pantalla y fácil de iterar.
+- Más adelante se puede reemplazar el personaje por un modelo `.glb` animado hecho por un artista sin tocar la lógica.
 
 ## 2. Arquitectura
 
@@ -27,9 +32,11 @@ Principio: **la lógica del juego no sabe nada de dinero**. El juego emite event
 ```text
 src/
   config/        → valores ajustables (gameplay y, más adelante, economía)
-  game/
-    scenes/      → Boot (texturas), Game (loop principal)
-    entities/    → Player, Obstacles (luego Collectibles, PowerUps)
+  engine/        → materiales toon + mundo curvo, geometrías, texturas procedurales
+  game/          → Game (loop/cámara), Player + Character, Stadium, Obstacles,
+                   Coins, Spawner (generación procedural), Effects, Input
+  audio/         → efectos de sonido sintetizados (WebAudio)
+  ui/            → menú, HUD y pantallas en HTML/CSS
   telegram/      → wrapper del SDK de Telegram (seguro fuera de Telegram)
   save/          → guardado local de datos NO económicos (récord)
   -- fases siguientes --
@@ -45,7 +52,7 @@ Módulos del prompt y en qué fase aparecen:
 | Módulo | Fase |
 |---|---|
 | Game, Player, Obstacles, ProceduralGeneration, Distance, UI, Save, Telegram | 1 ✅ |
-| Collectibles (monedas), PowerUps (trofeos), dificultad por tramos | 2 |
+| Collectibles (monedas) ✅, PowerUps (trofeos), dificultad por tramos | 2 (monedas adelantadas en v0.2) |
 | Analytics, Ads (opt-in: revivir, x2) | 3 |
 | User, Economy, Rewards, AntiFraud (servidor) | 4 |
 | Retiros reales | 6+ (sólo con datos) |
@@ -185,8 +192,8 @@ Gameplay → Monedas (juego, sin valor) → Monedas elegibles (validadas por ser
 
 | Fase | Contenido | Criterio de "listo" |
 |---|---|---|
-| **1** ✅ | Player, movimiento automático, salto (corto/largo), obstáculos procedurales, colisión, game over, reinicio, metros, récord local, integración básica de Telegram | Se juega en el celular dentro de Telegram y dan ganas de otra partida |
-| 2 | Monedas, trofeos/power-ups (imán, escudo), dificultad por tramos, sonido, pantalla de inicio | Partidas con objetivos y variedad |
+| **1** ✅ | **3D**: 3 carriles, salto, barrida, obstáculos procedurales (valla, barra, barrera de defensores), colisión, game over, reinicio, metros, récord, monedas visuales, tutorial, sonido, integración básica de Telegram | Se juega en el celular dentro de Telegram y dan ganas de otra partida |
+| 2 | Trofeos/power-ups (imán, escudo, botines turbo), obstáculos móviles (defensores que corren, pelotas gigantes), dificultad por tramos, skins | Partidas con objetivos y variedad |
 | 3 | Analytics (eventos del punto 19), AdProvider + Monetag (revivir, x2, bonus diario), compartir récord | Primeros datos: eCPM, fill rate, D1, anuncios/usuario |
 | 4 | Backend mínimo: validación `initData`, guardado de monedas en servidor, validación de partidas, ranking | El cliente ya no controla nada de valor |
 | 5 | Retención: misiones diarias, rachas, referrals | D7 medible y mejorando |

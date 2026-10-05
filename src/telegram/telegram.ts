@@ -51,8 +51,8 @@ export const Telegram = {
     // Evita que un swipe vertical cierre la Mini App en medio de la partida.
     if (app.isVersionAtLeast('7.7')) app.disableVerticalSwipes?.();
     if (app.isVersionAtLeast('6.1')) {
-      app.setHeaderColor?.('#0b3d1e');
-      app.setBackgroundColor?.('#0b3d1e');
+      app.setHeaderColor?.('#1d1a4f');
+      app.setBackgroundColor?.('#7cc4fa');
     }
   },
 
