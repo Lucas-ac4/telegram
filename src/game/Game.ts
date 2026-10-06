@@ -121,6 +121,8 @@ export class Game {
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1;
     this.renderer.info.autoReset = false;
+    // Si el post-proceso no compila o falla en este dispositivo, se apaga solo (el juego sigue sin bloom).
+    this.renderer.debug.onShaderError = () => this.disablePost();
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
     const pmrem = new THREE.PMREMGenerator(this.renderer);
@@ -527,6 +529,9 @@ export class Game {
         this.ui.setCombo(this.combo);
         if (this.combo % 10 < collected.length && this.combo >= 10) this.fovPulse += 3;
         for (const p of collected) this.effects.coin(p);
+        // La moneda "vuela" al contador: se proyecta su posición 3D a pantalla.
+        this.tmp.copy(collected[0]).project(this.camera);
+        this.ui.flyCoin((this.tmp.x * 0.5 + 0.5) * window.innerWidth, (-this.tmp.y * 0.5 + 0.5) * window.innerHeight);
       }
       if (this.comboTimer > 0 && (this.comboTimer -= dt) <= 0) {
         this.combo = 0;
@@ -825,12 +830,25 @@ export class Game {
     this.post?.setSize(Math.round(w * this.pixelRatio), Math.round(h * this.pixelRatio));
   }
 
+  private disablePost(): void {
+    if (!this.post) return;
+    this.post.dispose();
+    this.post = null;
+    this.postWanted = false;
+    this.renderer.setRenderTarget(null);
+  }
+
   /** Dibuja la escena (con post-proceso si está activo). */
   private draw(): void {
     this.renderer.info.reset(); // las métricas suman todos los pasos del post-proceso
     if (this.post) {
-      this.post.render(this.renderer, this.scene, this.camera);
-      this.renderer.setRenderTarget(null);
+      try {
+        this.post.render(this.renderer, this.scene, this.camera);
+        this.renderer.setRenderTarget(null);
+      } catch (e) {
+        console.warn('[postfx] desactivado', e);
+        this.disablePost();
+      }
     } else {
       this.renderer.render(this.scene, this.camera);
     }

@@ -5,7 +5,14 @@ Three.js + TypeScript + Vite.
 
 📄 Análisis completo (tecnología, arquitectura, economía, riesgos, fases): [`docs/ANALISIS.md`](docs/ANALISIS.md)
 
-## Estado: v0.8 — Overhaul visual y de feedback ✅
+## Estado: v0.9 — Pulido premium ✅
+
+v0.9 (segunda pasada gráfica):
+- **Post-proceso en HIGH** (`engine/postfx.ts`): bloom suave en sol, reflectores, monedas y chispas + color grading, con buffer HDR y antialiasing. Se apaga solo si el dispositivo no lo soporta o falla (`?nopost` para comparar).
+- **Césped con grano de hebras** nítido cerca de la cámara; **rostro más expresivo** (ojos grandes, cejas, sonrisa, rubor); cuerpo más robusto.
+- **Escudo con brillo fresnel**, potenciadores que oscilan en 3D y largan chispas, moneda que **vuela al contador**, botón de **pausa**, **pantalla de carga** de marca, foco de luz y motitas en el inicio, dirigible en el cielo.
+
+## v0.8 — Overhaul visual y de feedback
 
 v0.8 (de prototipo a producto):
 - **Calidad LOW / MEDIUM / HIGH:** se elige sola según el dispositivo (núcleos, RAM, GPU) y se puede cambiar en ⚙️ Ajustes. Si el celu no llega a ~48 fps, baja resolución y después de nivel. `?q=low|medium|high` para probar, `?perf=1` muestra fps / draw calls / triángulos / memoria de texturas.

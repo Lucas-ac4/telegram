@@ -501,6 +501,31 @@ export class UI {
     el.classList.add('go');
   }
 
+  private lastFly = 0;
+
+  /** Moneda que vuela desde donde la recogiste hasta el contador (px de pantalla). */
+  flyCoin(px: number, py: number): void {
+    const now = performance.now();
+    if (now - this.lastFly < 70) return;
+    this.lastFly = now;
+    const target = this.$('.coins .coin-ico').getBoundingClientRect();
+    const el = document.createElement('i');
+    el.className = 'fly-coin';
+    el.style.left = `${px}px`;
+    el.style.top = `${py}px`;
+    this.root.appendChild(el);
+    const dx = target.left + target.width / 2 - px;
+    const dy = target.top + target.height / 2 - py;
+    el.animate(
+      [
+        { transform: 'translate(-50%,-50%) scale(1.1)', opacity: 1 },
+        { transform: `translate(calc(-50% + ${dx * 0.3}px), calc(-50% + ${dy * 0.15 - 30}px)) scale(1)`, opacity: 1, offset: 0.35 },
+        { transform: `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px)) scale(0.55)`, opacity: 0.9 },
+      ],
+      { duration: 480, easing: 'cubic-bezier(.4,0,.7,.6)' },
+    ).onfinish = () => el.remove();
+  }
+
   setQuality(q: QualityId): void {
     this.quality = q;
     for (const b of this.root.querySelectorAll<HTMLElement>('[data-action="quality"]')) b.classList.toggle('on', b.dataset.q === q);

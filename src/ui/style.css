@@ -1371,3 +1371,15 @@ body.no-screenfx .speedfx { display: none; }
   background: #fff;
 }
 .pause-btn:active { transform: scale(0.92); }
+
+.fly-coin {
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #fff3a8 0 18%, var(--gold) 19% 55%, var(--gold-dark) 56%);
+  border: 2px solid var(--navy);
+  box-sizing: border-box;
+  pointer-events: none;
+  filter: drop-shadow(0 0 6px rgba(255, 210, 63, 0.8));
+}
