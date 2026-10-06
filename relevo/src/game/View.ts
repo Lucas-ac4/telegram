@@ -290,7 +290,7 @@ export class View {
     ctx.strokeStyle = `rgba(255,255,255,${0.22 + lit * 0.4})`;
     ctx.lineWidth = 1;
     ctx.beginPath();
-    const pz = CONFIG.difficulty.perfectZone;
+    const pz = g.perfectZone;
     ctx.ellipse(0, 0, R * pz, Ry * pz, 0, 0, Math.PI * 2);
     ctx.stroke();
     ctx.restore();

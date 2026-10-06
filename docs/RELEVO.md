@@ -135,24 +135,38 @@ Música generada en vivo (WebAudio, 0 KB de archivos): acordes, bajo, arpegio co
 
 ## Personajes con habilidad
 
-Más caros que antes, y cada uno ayuda distinto. **En el reto diario las habilidades no cuentan**: ahí todos juegan igual.
+21 personajes. Todos tienen una habilidad, incluso el gratis (una chica). Fénix es el más caro. **En el reto diario las habilidades no cuentan**: ahí todos juegan igual.
 
 | Personaje | Rareza | Precio | Habilidad |
 |---|---|---|---|
-| Ámbar | Común | Gratis | Sin habilidad |
-| Erizo | Rara | 300 | +15% monedas |
-| Rocío | Rara | 450 | +60% hojas doradas |
-| Luna | Épica | 700 | Mecha 12% más larga |
-| Brasa | Épica | 1.000 | Potenciadores más seguido y más largos |
-| Cometa | Legendaria | 1.800 | Aro 8% más grande |
-| Brote | Rara | 400 | Trampolines 3 veces más seguido |
-| Rayo | Épica | 1.300 | +25% puntos |
-| Cristal | Épica | 1.500 | Las hojas frágiles no te apuran |
-| Fénix | Legendaria | 3.000 | Renace gratis 1 vez por partida |
-| Dragón | Legendaria | 4.000 | Arranca con un cohete: +12 relevos |
-| Sol | Legendaria | 5.000 | +50% monedas |
+| Ámbar | Común | Gratis | Mecha 5% más larga |
+| Erizo | Rara | 500 | +15% monedas |
+| Brote | Rara | 800 | Trampolines 3 veces más seguido |
+| Rocío | Rara | 900 | +60% hojas doradas |
+| Luciérnaga | Rara | 1.000 | Imanes 3 veces más seguido y duran el doble |
+| Nube | Rara | 1.200 | Calma 3 veces más seguido y dura el doble |
+| Luna | Épica | 1.800 | Mecha 12% más larga |
+| Medusa | Épica | 2.200 | Las hojas ondulan 40% menos |
+| Brasa | Épica | 2.500 | Potenciadores más seguido y más largos |
+| Rayo | Épica | 3.000 | Cada 10 perfectos seguidos carga un escudo |
+| Cristal | Épica | 3.500 | Las hojas frágiles no te apuran |
+| Cometa | Legendaria | 5.000 | Cohetes 3 veces más seguido |
+| Dragón | Legendaria | 7.000 | Arranca con un cohete: +12 relevos |
+| Sol | Legendaria | 9.000 | +50% monedas |
+| Fénix | Legendaria | 12.000 | Renace gratis 1 vez por partida |
 | Aurora | Exclusiva | — | Regalo diario, día 7 · Faroles +50% |
 | Estrella | Exclusiva | — | Logro cadena 50 · Empieza con escudo |
+
+### Personajes secretos
+
+Se ven en silueta, sin nombre ni habilidad, con una pista. Se desbloquean solos al terminar la partida que cumple la misión.
+
+| Personaje | Pista | Misión real | Habilidad |
+|---|---|---|---|
+| Sombra | "Solo juega cuando todos duermen" | Jugar una partida (5+ relevos) entre las 0 y las 5 h | 30% menos hojas secas |
+| Destello | "Veinte veces perfecto, sin fallar ni una" | 20 pases perfectos seguidos | Zona de perfecto 50% más grande |
+| Nova | "Tres cohetes en un mismo viaje" | Atrapar 3 cohetes en una partida | Trampolines y cohetes: +1 moneda por relevo saltado |
+| **Lucero** (Mítica) | "Te espera donde nace la luz" | Llegar al mundo 50, Origen de la luz | Escudo al empezar, mecha +10% y +30% monedas |
 
 ## Lobby (5 pestañas)
 
@@ -167,7 +181,7 @@ Hay puntos rojos en cada pestaña cuando hay algo para cobrar.
   - **4 semanales**, elegidas de 10, más el **cofre semanal** (+250). Se renuevan los lunes.
   - **Logros** permanentes.
   - Algunas misiones empujan los anuncios opcionales: "Reviví 1 vez" y "Duplicá tus monedas".
-- **Personajes:** los 9, con rareza, habilidad y precio.
+- **Personajes:** los 21, con rareza, habilidad y precio; los secretos en silueta con su pista.
 - **Mundos:** mapa de abajo hacia arriba. Cada mundo da un premio de exploración la primera vez que llegás: +50, +100, +150 y +300.
 - **Perfil:** nivel con barra de XP (sube con relevos, perfectos, faroles y mundos; cada nivel da monedas), personajes y mundos desbloqueados, y 12 estadísticas.
 

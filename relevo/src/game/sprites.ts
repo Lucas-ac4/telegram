@@ -27,7 +27,14 @@ export type SkinId =
   | 'dragon'
   | 'sol'
   | 'aurora'
-  | 'estrella';
+  | 'estrella'
+  | 'luciernaga'
+  | 'nube'
+  | 'medusa'
+  | 'sombra'
+  | 'destello'
+  | 'nova'
+  | 'lucero';
 
 /** Habilidad de cada personaje. En el reto del día no se aplican: ahí todos juegan igual. */
 export type PerkKind =
@@ -35,14 +42,21 @@ export type PerkKind =
   | 'gold'
   | 'fuse'
   | 'power'
-  | 'ring'
   | 'phoenix'
   | 'lantern'
   | 'shield'
   | 'spring'
-  | 'score'
+  | 'rocket'
+  | 'magnet'
+  | 'calm'
+  | 'charge'
+  | 'wave'
+  | 'dry'
+  | 'perfect'
+  | 'boostCoins'
   | 'fragile'
-  | 'rocketStart';
+  | 'rocketStart'
+  | 'lucero';
 
 export interface Perk {
   kind: PerkKind;
@@ -52,10 +66,12 @@ export interface Perk {
 
 export interface SkinStyle {
   name: string;
-  rarity: 'Común' | 'Rara' | 'Épica' | 'Legendaria' | 'Exclusiva';
+  rarity: 'Común' | 'Rara' | 'Épica' | 'Legendaria' | 'Exclusiva' | 'Secreta' | 'Mítica';
   /** Precio en monedas. 0 + `unlock` = no se compra, se gana. */
   price: number;
   unlock?: string;
+  /** Personaje secreto: mientras no lo tengas, se ve en silueta con esta pista. */
+  hint?: string;
   perk: Perk | null;
   glow: string;
   /** Color de las partículas y del puente. */
@@ -72,7 +88,7 @@ export const SKINS: Record<SkinId, SkinStyle> = {
     name: 'Ámbar',
     rarity: 'Común',
     price: 0,
-    perk: null,
+    perk: { kind: 'fuse', value: 1.05, text: 'Mecha 5% más larga' },
     glow: '#ffae3d',
     light: '#ffc861',
     eye: '#3b1a05',
@@ -83,7 +99,7 @@ export const SKINS: Record<SkinId, SkinStyle> = {
   erizo: {
     name: 'Erizo',
     rarity: 'Rara',
-    price: 300,
+    price: 500,
     perk: { kind: 'coins', value: 0.15, text: '+15% monedas en cada partida' },
     glow: '#62d4ff',
     light: '#9fe8ff',
@@ -95,7 +111,7 @@ export const SKINS: Record<SkinId, SkinStyle> = {
   rocio: {
     name: 'Rocío',
     rarity: 'Rara',
-    price: 450,
+    price: 900,
     perk: { kind: 'gold', value: 1.6, text: '+60% hojas doradas' },
     glow: '#6fd0ff',
     light: '#bfeaff',
@@ -107,7 +123,7 @@ export const SKINS: Record<SkinId, SkinStyle> = {
   luna: {
     name: 'Luna',
     rarity: 'Épica',
-    price: 700,
+    price: 1800,
     perk: { kind: 'fuse', value: 1.12, text: 'Mecha 12% más larga' },
     glow: '#b9a6ff',
     light: '#d8ccff',
@@ -119,7 +135,7 @@ export const SKINS: Record<SkinId, SkinStyle> = {
   brasa: {
     name: 'Brasa',
     rarity: 'Épica',
-    price: 1000,
+    price: 2500,
     perk: { kind: 'power', value: 1.6, text: 'Potenciadores más seguido y más largos' },
     glow: '#ff6a3d',
     light: '#ff9a6a',
@@ -131,8 +147,8 @@ export const SKINS: Record<SkinId, SkinStyle> = {
   cometa: {
     name: 'Cometa',
     rarity: 'Legendaria',
-    price: 1800,
-    perk: { kind: 'ring', value: 1.08, text: 'Aro 8% más grande' },
+    price: 5000,
+    perk: { kind: 'rocket', value: 3, text: 'Cohetes 3 veces más seguido' },
     glow: '#9ab8ff',
     light: '#d6e2ff',
     eye: '#1a2350',
@@ -143,7 +159,7 @@ export const SKINS: Record<SkinId, SkinStyle> = {
   fenix: {
     name: 'Fénix',
     rarity: 'Legendaria',
-    price: 3000,
+    price: 12000,
     perk: { kind: 'phoenix', value: 1, text: 'Renace gratis 1 vez por partida' },
     glow: '#ff7a3d',
     light: '#ffb36b',
@@ -155,7 +171,7 @@ export const SKINS: Record<SkinId, SkinStyle> = {
   brote: {
     name: 'Brote',
     rarity: 'Rara',
-    price: 400,
+    price: 800,
     perk: { kind: 'spring', value: 3, text: 'Trampolines 3 veces más seguido' },
     glow: '#8fef6a',
     light: '#c8ff9a',
@@ -167,8 +183,8 @@ export const SKINS: Record<SkinId, SkinStyle> = {
   rayo: {
     name: 'Rayo',
     rarity: 'Épica',
-    price: 1300,
-    perk: { kind: 'score', value: 1.25, text: '+25% puntos' },
+    price: 3000,
+    perk: { kind: 'charge', value: 10, text: 'Cada 10 perfectos seguidos carga un escudo' },
     glow: '#ffe14a',
     light: '#fff3a0',
     eye: '#3a2a00',
@@ -179,7 +195,7 @@ export const SKINS: Record<SkinId, SkinStyle> = {
   cristal: {
     name: 'Cristal',
     rarity: 'Épica',
-    price: 1500,
+    price: 3500,
     perk: { kind: 'fragile', value: 1, text: 'Las hojas frágiles no te apuran' },
     glow: '#9ff0ff',
     light: '#d9fbff',
@@ -191,7 +207,7 @@ export const SKINS: Record<SkinId, SkinStyle> = {
   dragon: {
     name: 'Dragón',
     rarity: 'Legendaria',
-    price: 4000,
+    price: 7000,
     perk: { kind: 'rocketStart', value: 12, text: 'Arranca con un cohete: +12 relevos' },
     glow: '#ff5a8a',
     light: '#ffa8c4',
@@ -203,7 +219,7 @@ export const SKINS: Record<SkinId, SkinStyle> = {
   sol: {
     name: 'Sol',
     rarity: 'Legendaria',
-    price: 5000,
+    price: 9000,
     perk: { kind: 'coins', value: 0.5, text: '+50% monedas en cada partida' },
     glow: '#ffc24a',
     light: '#ffe08a',
@@ -238,23 +254,123 @@ export const SKINS: Record<SkinId, SkinStyle> = {
     eyeY: 3,
     eyeGap: 6.6,
   },
+  luciernaga: {
+    name: 'Luciérnaga',
+    rarity: 'Rara',
+    price: 1000,
+    perk: { kind: 'magnet', value: 3, text: 'Imanes 3 veces más seguido y duran el doble' },
+    glow: '#d8ff6a',
+    light: '#ecff9a',
+    eye: '#2a3a00',
+    eyeX: 0,
+    eyeY: 2,
+    eyeGap: 8,
+  },
+  nube: {
+    name: 'Nube',
+    rarity: 'Rara',
+    price: 1200,
+    perk: { kind: 'calm', value: 3, text: 'Calma 3 veces más seguido y dura el doble' },
+    glow: '#cfe0ff',
+    light: '#e8f0ff',
+    eye: '#1a2a50',
+    eyeX: 0.5,
+    eyeY: 4,
+    eyeGap: 8.4,
+  },
+  medusa: {
+    name: 'Medusa',
+    rarity: 'Épica',
+    price: 2200,
+    perk: { kind: 'wave', value: 0.6, text: 'Las hojas ondulan 40% menos' },
+    glow: '#ff9ae8',
+    light: '#ffc8f2',
+    eye: '#3a0a40',
+    eyeX: 0,
+    eyeY: -1,
+    eyeGap: 8.4,
+  },
+  sombra: {
+    name: 'Sombra',
+    rarity: 'Secreta',
+    price: 0,
+    unlock: 'Jugar una partida de madrugada (0 a 5 h)',
+    hint: 'Solo juega cuando todos duermen',
+    perk: { kind: 'dry', value: 0.7, text: '30% menos hojas secas' },
+    glow: '#8a6aff',
+    light: '#b8a8ff',
+    eye: '#f0eaff',
+    eyeX: 0,
+    eyeY: 3,
+    eyeGap: 8.4,
+  },
+  destello: {
+    name: 'Destello',
+    rarity: 'Secreta',
+    price: 0,
+    unlock: '20 pases perfectos seguidos en una partida',
+    hint: 'Veinte veces perfecto, sin fallar ni una',
+    perk: { kind: 'perfect', value: 1.5, text: 'Zona de perfecto 50% más grande' },
+    glow: '#ffffff',
+    light: '#e8fbff',
+    eye: '#0a2a40',
+    eyeX: 0,
+    eyeY: 2.5,
+    eyeGap: 6.6,
+  },
+  nova: {
+    name: 'Nova',
+    rarity: 'Secreta',
+    price: 0,
+    unlock: 'Atrapar 3 cohetes en una misma partida',
+    hint: 'Tres cohetes en un mismo viaje',
+    perk: { kind: 'boostCoins', value: 1, text: 'Trampolines y cohetes: +1 moneda por relevo saltado' },
+    glow: '#ff6aa0',
+    light: '#ffb0cc',
+    eye: '#3a0420',
+    eyeX: 0,
+    eyeY: 2.5,
+    eyeGap: 7.6,
+  },
+  lucero: {
+    name: 'Lucero',
+    rarity: 'Mítica',
+    price: 0,
+    unlock: 'Llegar al Origen de la luz (mundo 50)',
+    hint: 'Te espera donde nace la luz',
+    perk: { kind: 'lucero', value: 1, text: 'Escudo al empezar, mecha +10% y +30% monedas' },
+    glow: '#fff0a0',
+    light: '#fff8d0',
+    eye: '#4a3000',
+    eyeX: 0,
+    eyeY: 3,
+    eyeGap: 6.6,
+  },
 };
 
+/** Orden de la tienda: de más barato a más caro, después los que se ganan y los secretos. */
 export const SKIN_ORDER: SkinId[] = [
   'ambar',
   'erizo',
   'brote',
   'rocio',
+  'luciernaga',
+  'nube',
   'luna',
+  'medusa',
   'brasa',
   'rayo',
   'cristal',
   'cometa',
-  'fenix',
   'dragon',
   'sol',
+  'fenix',
   'aurora',
   'estrella',
+  'sombra',
+  'destello',
+  'nova',
+  'lucero',
 ];
 
 export function makeSprite(w: number, h: number, k: number, draw: (ctx: CanvasRenderingContext2D) => void): Sprite {
@@ -576,6 +692,57 @@ function sparkBodyPath(ctx: CanvasRenderingContext2D, skin: SkinId): void {
       if (i === 0) ctx.moveTo(x, y);
       else ctx.lineTo(x, y);
     }
+  } else if (skin === 'luciernaga') {
+    ctx.ellipse(0, 3, 10.5, 12.5, 0, 0, Math.PI * 2);
+  } else if (skin === 'nube') {
+    // Nube: tres bollos y base plana
+    ctx.moveTo(-14, 11);
+    ctx.arc(-8, 5, 7, Math.PI * 0.75, Math.PI * 1.6);
+    ctx.arc(0, -1, 9.5, Math.PI * 1.15, Math.PI * 1.95);
+    ctx.arc(9, 4.5, 7.5, Math.PI * 1.45, Math.PI * 0.35);
+    ctx.lineTo(-14, 11);
+  } else if (skin === 'medusa') {
+    // Campana con borde ondulado
+    ctx.arc(0, 1, 12.5, Math.PI, 0);
+    for (let i = 0; i <= 6; i++) {
+      const x = 12.5 - (i * 25) / 6;
+      ctx.lineTo(x, 6 + (i % 2 === 0 ? 0 : 3));
+    }
+  } else if (skin === 'sombra') {
+    // Llama oscura de dos puntas
+    ctx.moveTo(-4, -18);
+    ctx.bezierCurveTo(-2, -12, 1, -12, 3, -15);
+    ctx.bezierCurveTo(5, -9, 11.5, -5, 11.5, 3);
+    ctx.arc(0, 3, 11.5, 0, Math.PI, false);
+    ctx.bezierCurveTo(-11.5, -6, -6, -9, -4, -18);
+  } else if (skin === 'destello') {
+    for (let i = 0; i <= 8; i++) {
+      const a = (i / 8) * Math.PI * 2 - Math.PI / 2;
+      const r = i % 2 === 0 ? 17 : 6.5;
+      const x = Math.cos(a) * r;
+      const y = Math.sin(a) * r + 2;
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+  } else if (skin === 'nova') {
+    const rays = 8;
+    for (let i = 0; i <= rays * 2; i++) {
+      const a = (i / (rays * 2)) * Math.PI * 2 - Math.PI / 2;
+      const r = i % 2 === 0 ? 17 : 10.5;
+      const x = Math.cos(a) * r;
+      const y = Math.sin(a) * r + 2;
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+  } else if (skin === 'lucero') {
+    for (let i = 0; i <= 12; i++) {
+      const a = (i / 12) * Math.PI * 2 - Math.PI / 2;
+      const r = i % 2 === 0 ? 16.5 : 9.5;
+      const x = Math.cos(a) * r;
+      const y = Math.sin(a) * r + 2.5;
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
   } else {
     ctx.arc(0, 2, 12.5, 0, Math.PI * 2);
   }
@@ -597,6 +764,13 @@ const SPARK_GRADIENT: Record<SkinId, [string, string, string, string]> = {
   cristal: ['#ffffff', '#d9fbff', '#7fe0ff', '#3a8fd0'],
   dragon: ['#ffe8f0', '#ff8ab0', '#d03a6a', '#6a1a50'],
   sol: ['#ffffff', '#fff2b0', '#ffb92a', '#ff7a10'],
+  luciernaga: ['#ffffe8', '#f4ff8a', '#c8e83a', '#6a9a1a'],
+  nube: ['#ffffff', '#f4f8ff', '#cfdcff', '#8aa4e0'],
+  medusa: ['#ffffff', '#ffd6f2', '#e88ad8', '#8a4ac0'],
+  sombra: ['#c8b8ff', '#6a5aaa', '#2e2258', '#140c2c'],
+  destello: ['#ffffff', '#ffffff', '#c8f4ff', '#7ad0ff'],
+  nova: ['#ffffff', '#ffd0e0', '#ff6aa0', '#c02a6a'],
+  lucero: ['#ffffff', '#fffbe0', '#ffe27a', '#ffb020'],
 };
 
 function drawSparkBody(ctx: CanvasRenderingContext2D, skin: SkinId): void {
@@ -631,10 +805,56 @@ function drawSparkBody(ctx: CanvasRenderingContext2D, skin: SkinId): void {
       g.fill();
     }
   }
+  if (skin === 'luciernaga') {
+    // Alitas translúcidas detrás del cuerpo
+    g.fillStyle = 'rgba(230,255,200,0.45)';
+    for (const s of [-1, 1]) {
+      g.beginPath();
+      g.ellipse(s * 10, -6, 7, 4, s * -0.6, 0, Math.PI * 2);
+      g.fill();
+    }
+  }
+  if (skin === 'medusa') {
+    // Tentáculos
+    g.strokeStyle = 'rgba(255,170,230,0.8)';
+    g.lineWidth = 1.6;
+    g.lineCap = 'round';
+    for (const x of [-8, -3, 2, 7]) {
+      g.beginPath();
+      g.moveTo(x, 7);
+      g.bezierCurveTo(x - 3, 11, x + 3, 14, x, 18);
+      g.stroke();
+    }
+  }
+  if (skin === 'lucero') {
+    // Halo
+    g.strokeStyle = 'rgba(255,240,170,0.85)';
+    g.lineWidth = 1.4;
+    g.beginPath();
+    g.ellipse(0, -14, 9, 2.6, 0, 0, Math.PI * 2);
+    g.stroke();
+  }
   sparkBodyPath(g, skin);
   g.fillStyle = grad;
   g.fill();
-  if (skin === 'estrella' || skin === 'sol') {
+  if (skin === 'luciernaga') {
+    // Antenas con puntitas de luz
+    g.strokeStyle = '#4a6a10';
+    g.lineWidth = 1.2;
+    g.beginPath();
+    g.moveTo(-3, -9);
+    g.quadraticCurveTo(-6, -15, -9, -17);
+    g.moveTo(3, -9);
+    g.quadraticCurveTo(6, -15, 9, -17);
+    g.stroke();
+    g.fillStyle = '#ffffc0';
+    for (const s of [-1, 1]) {
+      g.beginPath();
+      g.arc(s * 9, -17, 1.8, 0, Math.PI * 2);
+      g.fill();
+    }
+  }
+  if (skin === 'estrella' || skin === 'sol' || skin === 'destello' || skin === 'nova' || skin === 'lucero') {
     g.strokeStyle = grad;
     g.lineJoin = 'round';
     g.lineWidth = 3.5;

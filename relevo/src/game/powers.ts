@@ -34,9 +34,13 @@ export const POWER_ORDER = Object.keys(POWERS) as PowerId[];
 /** Los que te lanzan hacia arriba sin tocar. */
 export const isBoost = (id: PowerId) => id === 'spring' || id === 'rocket';
 
-export function pickPower(r: number, zone: number, favor: PowerId | null, springMul = 1): PowerId {
+/**
+ * Sortea qué poder lleva una hoja. `favor` es el beneficio estrella del mundo (×3) y
+ * `perkFavor` el que el personaje hace aparecer más seguido (×`perkMul`).
+ */
+export function pickPower(r: number, zone: number, favor: PowerId | null, perkFavor: PowerId | null = null, perkMul = 1): PowerId {
   const options = POWER_ORDER.filter((id) => POWERS[id].minZone <= zone);
-  const weight = (id: PowerId) => POWERS[id].weight * (id === favor ? 3 : 1) * (id === 'spring' ? springMul : 1);
+  const weight = (id: PowerId) => POWERS[id].weight * (id === favor ? 3 : 1) * (id === perkFavor ? perkMul : 1);
   const total = options.reduce((s, id) => s + weight(id), 0);
   let x = r * total;
   for (const id of options) {

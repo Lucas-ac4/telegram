@@ -529,6 +529,28 @@
 .skin-card.excl {
   --tier: #ffd76a;
 }
+.skin-card.secret {
+  --tier: #b48cff;
+  background: linear-gradient(160deg, rgba(150, 110, 255, 0.14), rgba(8, 18, 44, 0.62)) !important;
+}
+.skin-card.mythic {
+  --tier: #fff0a0;
+  background: linear-gradient(160deg, rgba(255, 230, 140, 0.18), rgba(140, 90, 255, 0.12) 55%, rgba(8, 18, 44, 0.62)) !important;
+  border-color: rgba(255, 240, 160, 0.45) !important;
+}
+.skin-card.hidden-secret.locked img {
+  filter: brightness(0) drop-shadow(0 0 10px var(--tier));
+  opacity: 0.85;
+}
+.skin-card.hidden-secret .skin-state span {
+  font-style: italic;
+  color: #d8c8ff;
+}
+.levelup.secret {
+  color: #ffffff;
+  text-align: center;
+  background: linear-gradient(180deg, #9a7aff, #5a3ad0);
+}
 .skin-card .perk {
   min-height: 2.5em;
   font-size: 12px;

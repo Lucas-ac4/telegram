@@ -24,7 +24,7 @@ import { damp, hashString, rng, todayKey } from '../util/math';
 import { createRow, judge, leafPose, occupant, ringXAt, updateRow, type Leaf, type LeafType, type Row, type RowOpts } from './Course';
 import { Particles } from './Particles';
 import { isBoost, POWERS, type PowerId } from './powers';
-import { SKIN_ORDER, SKINS, SPARK_LIFT, type Perk, type SkinId } from './sprites';
+import { SKIN_ORDER, SKINS, SPARK_LIFT, type Perk, type PerkKind, type SkinId } from './sprites';
 import { View } from './View';
 import { ZONES, zoneIndex } from './zones';
 
@@ -80,6 +80,9 @@ interface Landing {
  * y la conexión con UI, sonido y telemetría.
  * El dibujo vive en View; la generación de relevos y el juicio de cada toque en Course.
  */
+/** Personajes que hacen aparecer más seguido un poder (×valor de su habilidad). */
+const PERK_FAVOR: Partial<Record<PerkKind, PowerId>> = { spring: 'spring', rocket: 'rocket', magnet: 'magnet', calm: 'calm' };
+
 export class Game {
   readonly view: View;
   readonly particles = new Particles();
@@ -135,6 +138,8 @@ export class Game {
   private fuseBoostLeft = 0;
   private phoenixLeft = 0;
   private powersCaught = 0;
+  /** Cohetes atrapados en la partida (personaje secreto Nova). */
+  private rocketsCaught = 0;
   private fragiles = 0;
   private bigRingLeft = 0;
   private bonusCoins = 0;
@@ -210,6 +215,11 @@ export class Game {
     return this.perk?.kind === 'fragile';
   }
 
+  /** Zona de "Perfecto" del aro (Destello la agranda). */
+  get perfectZone(): number {
+    return CONFIG.difficulty.perfectZone * (this.perk?.kind === 'perfect' ? this.perk.value : 1);
+  }
+
   /** Cada relevo tiene su propia semilla: en el reto del día, el relevo N es igual para todos. */
   private rowRand(n: number): () => number {
     return rng(hashString(`${this.seed}:${n}`));
@@ -219,16 +229,19 @@ export class Game {
   private rowOpts(extra: RowOpts = {}): RowOpts {
     const perk = this.perk;
     const P = CONFIG.powers;
-    let fuseMul = perk?.kind === 'fuse' ? perk.value : 1;
+    let fuseMul = perk?.kind === 'fuse' ? perk.value : perk?.kind === 'lucero' ? 1.1 : 1;
     if (this.fuseBoostLeft > 0) fuseMul *= P.fuseBoost;
     if (this.carrier.type === 'fragile' && !this.fragileSafe) fuseMul *= CONFIG.difficulty.fragile.fuseMul;
     return {
       fuseMul,
       speedMul: this.calmLeft > 0 ? P.calmSpeed : 1,
-      ringMul: (perk?.kind === 'ring' ? perk.value : 1) * (this.bigRingLeft > 0 ? P.bigRing : 1),
+      ringMul: this.bigRingLeft > 0 ? P.bigRing : 1,
       goldMul: perk?.kind === 'gold' ? perk.value : 1,
       powerMul: perk?.kind === 'power' ? perk.value : 1,
-      springMul: perk?.kind === 'spring' ? perk.value : 1,
+      favorPower: perk ? (PERK_FAVOR[perk.kind] ?? null) : null,
+      favorMul: perk?.value ?? 1,
+      waveMul: perk?.kind === 'wave' ? perk.value : 1,
+      dryMul: perk?.kind === 'dry' ? perk.value : 1,
       ...extra,
     };
   }
@@ -309,9 +322,11 @@ export class Game {
     this.lanternCoins = 0;
     this.magnetCoins = 0;
     this.powersCaught = 0;
+    this.rocketsCaught = 0;
     this.fragiles = 0;
     this.phoenixLeft = this.perk?.kind === 'phoenix' ? this.perk.value : 0;
     if (this.perk?.kind === 'shield') this.shields += this.perk.value;
+    if (this.perk?.kind === 'lucero') this.shields += 1;
     let boosted = false;
     if (mode === 'normal' && save.boost.shield) {
       this.shields++;
@@ -419,7 +434,7 @@ export class Game {
       zone: this.zone,
     });
 
-    if (j.kind === 'hit') this.pass(j.leaf, t, j.precision, j.perfect);
+    if (j.kind === 'hit') this.pass(j.leaf, t, j.precision, j.perfect || 1 - j.precision <= this.perfectZone);
     else if (j.kind === 'dry') this.jumpToDry(j.leaf, t);
     else this.miss(t, j.kind, j.kind === 'empty' ? undefined : j.delta);
   }
@@ -458,12 +473,17 @@ export class Game {
     const sc = CONFIG.score;
     const mult = 1 + Math.floor(this.chain / sc.chainStep);
     const gold = leaf.type === 'gold';
-    this.score += Math.round((sc.base + sc.precisionBonus * precision) * mult * (gold ? sc.goldMultiplier : 1) * this.scoreMul());
+    this.score += Math.round((sc.base + sc.precisionBonus * precision) * mult * (gold ? sc.goldMultiplier : 1));
     this.chain++;
     if (perfect) {
       this.perfects++;
       this.streak++;
       this.bestStreak = Math.max(this.bestStreak, this.streak);
+      // Rayo: cada N perfectos seguidos se carga un escudo.
+      if (this.perk?.kind === 'charge' && this.streak % this.perk.value === 0) {
+        this.shields++;
+        this.ui.powerToast('Carga eléctrica', '+1 escudo', '#ffe14a');
+      }
     } else {
       this.streak = 0;
     }
@@ -538,6 +558,7 @@ export class Game {
     // Trampolín o cohete: la chispa sale disparada hacia arriba sin tocar.
     if (info.power && isBoost(info.power)) {
       this.powersCaught++;
+      if (info.power === 'rocket') this.rocketsCaught++;
       Analytics.track('power_caught', { power: info.power, chain: this.chain });
       this.startBoost(info.power, POWERS[info.power].amount);
       return;
@@ -545,10 +566,6 @@ export class Game {
 
     this.nextRow();
     this.onRowStart();
-  }
-
-  private scoreMul(): number {
-    return this.perk?.kind === 'score' ? this.perk.value : 1;
   }
 
   /** Récord, faroles y mundos: se revisa cada vez que sube la cadena. */
@@ -594,11 +611,16 @@ export class Game {
     const sc = CONFIG.score;
     for (let i = 0; i < relays; i++) {
       const mult = 1 + Math.floor(this.chain / sc.chainStep);
-      this.score += Math.round(sc.base * mult * this.scoreMul());
+      this.score += Math.round(sc.base * mult);
       this.chain++;
       this.afterChainUp();
     }
     this.ui.setChain(this.chain, true);
+    if (this.perk?.kind === 'boostCoins') {
+      const c = relays * this.perk.value;
+      this.bonusCoins += c;
+      this.ui.bumpCoins(c);
+    }
     this.row = null;
     this.ghosts.push({ ...this.carrier, vx: 0, vy: 40, alpha: 1, fade: 1 });
     const target: Carrier = {
@@ -631,7 +653,9 @@ export class Game {
   }
 
   private gainPower(id: PowerId): void {
-    const scale = this.perk?.kind === 'power' ? 1.5 : 1;
+    let scale = this.perk?.kind === 'power' ? 1.5 : 1;
+    // Luciérnaga y Nube: su poder dura el doble.
+    if ((id === 'magnet' || id === 'calm') && this.perk?.kind === id) scale *= 2;
     const amount = Math.round(POWERS[id].amount * scale);
     if (id === 'shield') this.shields++;
     else if (id === 'magnet') this.magnetLeft += amount;
@@ -852,7 +876,8 @@ export class Game {
       this.lanternCoins +
       this.magnetCoins +
       this.bonusCoins;
-    const coins = Math.round(raw * (this.perk?.kind === 'coins' ? 1 + this.perk.value : 1));
+    const coinMul = this.perk?.kind === 'coins' ? 1 + this.perk.value : this.perk?.kind === 'lucero' ? 1.3 : 1;
+    const coins = Math.round(raw * coinMul);
     this.lastRunCoins = coins;
     this.doubled = false;
     const reto = this.mode === 'reto';
@@ -901,6 +926,7 @@ export class Game {
       for (const m of d.weeklyMissions.list) applyRun(WEEKLY, m, stats);
     });
     const lv = levelFromXp(save.stats.xp);
+    const secrets = this.checkSecrets();
 
     const reason = this.death?.reason ?? 'fuse';
     Analytics.track('run_ended', {
@@ -951,7 +977,27 @@ export class Game {
       levelInto: lv.into,
       levelNeed: lv.need,
       levelUp: levelCoins ? { level: lv.level, coins: levelCoins } : null,
+      secrets: secrets.map((id) => SKINS[id].name),
     });
+  }
+
+  /** Personajes secretos: se desbloquean solos al terminar una partida que cumple su misión. */
+  private checkSecrets(): SkinId[] {
+    const owned = Save.data.skins;
+    const missions: [SkinId, boolean][] = [
+      ['sombra', new Date().getHours() < 5 && this.chain >= 5],
+      ['destello', this.bestStreak >= 20],
+      ['nova', this.rocketsCaught >= 3],
+      ['lucero', Save.data.zones.reached >= ZONES.length - 1],
+    ];
+    const got = missions.filter(([id, ok]) => ok && !owned.includes(id)).map(([id]) => id);
+    if (!got.length) return got;
+    Save.update((d) => {
+      for (const id of got) if (!d.skins.includes(id)) d.skins.push(id);
+    });
+    for (const id of got) Analytics.track('cosmetic_unlocked', { skin: id, source: 'secret' });
+    Telegram.success();
+    return got;
   }
 
   private claimableCount(save: SaveData): number {

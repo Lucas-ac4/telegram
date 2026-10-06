@@ -105,6 +105,8 @@ export interface ResultData {
   levelInto: number;
   levelNeed: number;
   levelUp: { level: number; coins: number } | null;
+  /** Personajes secretos desbloqueados en esta partida. */
+  secrets: string[];
 }
 
 export interface ReviveData {
@@ -317,6 +319,7 @@ export class UI {
             <span data-r-xp></span>
           </div>
           <div class="levelup" data-r-levelup hidden></div>
+          <div class="levelup secret" data-r-secret hidden></div>
           <button class="btn ad-pill" data-double hidden>${ICON.play}<span>Duplicar monedas</span><b data-double-amt></b></button>
           <div class="mission-line" data-r-mission></div>
           <button class="btn primary big" data-retry>UNA MÁS</button>
@@ -591,27 +594,45 @@ export class UI {
   private renderSkins(d: LobbyData): void {
     const box = this.$('[data-skins]');
     box.innerHTML = '';
-    const tiers: Record<string, string> = { Común: 'common', Rara: 'rare', Épica: 'epic', Legendaria: 'legend', Exclusiva: 'excl' };
+    const tiers: Record<string, string> = {
+      Común: 'common',
+      Rara: 'rare',
+      Épica: 'epic',
+      Legendaria: 'legend',
+      Exclusiva: 'excl',
+      Secreta: 'secret',
+      Mítica: 'mythic',
+    };
     for (const id of SKIN_ORDER) {
       const st = SKINS[id];
       const owned = d.owned.includes(id);
       const b = document.createElement('button');
       b.className = `skin-card ${tiers[st.rarity]}${id === d.skin ? ' selected' : ''}${owned ? '' : ' locked'}`;
+      // Los secretos se ven en silueta, sin nombre ni habilidad, con una pista.
+      const hidden = !!st.hint && !owned;
       let state: string;
       if (owned) state = id === d.skin ? 'En uso' : 'Usar';
+      else if (hidden) state = `${ICON.lock}<span>Pista: ${st.hint}</span>`;
       else if (st.unlock) state = `${ICON.lock}<span>${st.unlock}</span>`;
       else state = `${st.price.toLocaleString('es-AR')} ${COIN}`;
+      if (hidden) b.classList.add('hidden-secret');
       b.innerHTML = `
         <span class="rarity">${st.rarity}</span>
         <img alt="" src="${this.preview(id)}" />
-        <span class="skin-name">${st.name}</span>
-        <span class="perk">${st.perk ? st.perk.text : 'Sin habilidad: puro talento'}</span>
+        <span class="skin-name">${hidden ? '???' : st.name}</span>
+        <span class="perk">${hidden ? 'Habilidad secreta' : st.perk ? st.perk.text : 'Sin habilidad'}</span>
         <span class="skin-state">${state}</span>`;
       b.addEventListener('click', () => {
         const r = this.h.onSkin(id);
         if (r === 'poor' || r === 'locked') {
           this.replay(b, 'nope');
-          this.toast(r === 'poor' ? `Te faltan ${(st.price - d.coins).toLocaleString('es-AR')} monedas` : `Se consigue con: ${st.unlock}`);
+          this.toast(
+            r === 'poor'
+              ? `Te faltan ${(st.price - d.coins).toLocaleString('es-AR')} monedas`
+              : hidden
+                ? `Personaje secreto. Pista: ${st.hint}`
+                : `Se consigue con: ${st.unlock}`,
+          );
         } else if (r === 'bought') {
           this.toast(`¡Desbloqueaste a ${st.name}!`);
         }
@@ -864,6 +885,9 @@ export class UI {
     const lu = this.$('[data-r-levelup]');
     lu.hidden = !r.levelUp;
     if (r.levelUp) lu.innerHTML = `¡Subiste a nivel ${r.levelUp.level}! +${r.levelUp.coins} ${COIN}`;
+    const sec = this.$('[data-r-secret]');
+    sec.hidden = !r.secrets.length;
+    sec.textContent = r.secrets.length ? `¡Personaje secreto: ${r.secrets.join(' y ')}!` : '';
 
     const dbl = this.$<HTMLButtonElement>('[data-double]');
     dbl.hidden = !r.canDouble;

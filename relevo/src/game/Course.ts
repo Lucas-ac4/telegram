@@ -74,8 +74,13 @@ export interface RowOpts {
   ringMul?: number;
   goldMul?: number;
   powerMul?: number;
-  /** Trampolines más seguido (habilidad de Brote). */
-  springMul?: number;
+  /** Un poder que aparece más seguido (habilidad de Brote, Cometa, Luciérnaga y Nube). */
+  favorPower?: PowerId | null;
+  favorMul?: number;
+  /** Ondas más suaves (Medusa). */
+  waveMul?: number;
+  /** Menos hojas secas (Sombra). */
+  dryMul?: number;
 }
 
 export type Judgement =
@@ -151,6 +156,8 @@ export function createRow(n: number, fromX: number, y: number, rand: () => numbe
   }
   p.ringR *= opts.ringMul ?? 1;
   p.pGold *= opts.goldMul ?? 1;
+  p.amp *= opts.waveMul ?? 1;
+  p.pDry *= opts.dryMul ?? 1;
 
   let speed = p.speed * (opts.speedMul ?? 1);
   if (n >= D.speedJitter.startAt) speed *= 1 + (rand() * 2 - 1) * D.speedJitter.amount;
@@ -218,7 +225,7 @@ export function createRow(n: number, fromX: number, y: number, rand: () => numbe
   const powers = new Map<number, PowerId>();
   if (rand() < p.pPower * (opts.powerMul ?? 1)) {
     const options = candidates.filter((i) => types[i] === 'normal' || types[i] === 'fragile');
-    if (options.length) powers.set(options[Math.floor(rand() * options.length)], pickPower(rand(), z, rules.favor, opts.springMul ?? 1));
+    if (options.length) powers.set(options[Math.floor(rand() * options.length)], pickPower(rand(), z, rules.favor, opts.favorPower ?? null, opts.favorMul ?? 1));
   }
 
   const currents: Current[] = [{ dir, firstLead, types, powers, pDry: p.pDry, next: 0 }];
