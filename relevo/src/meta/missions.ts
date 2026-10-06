@@ -25,7 +25,16 @@ export interface RunStats {
 }
 
 /** Cosas que pasan fuera de la partida y también cuentan. */
-export type MissionEvent = 'double' | 'dailyMission' | 'dailyGift';
+export type MissionEvent =
+  | 'double'
+  | 'dailyMission'
+  | 'dailyGift'
+  | 'fishRound'
+  | 'fishStars'
+  | 'towerRound'
+  | 'towerFloors'
+  | 'towerPerfects'
+  | 'subStars';
 
 export interface MissionDef {
   text: string;
@@ -35,6 +44,10 @@ export interface MissionDef {
   mode: 'sum' | 'max';
   value?: (r: RunStats) => number;
   event?: MissionEvent;
+  /** Estrellas ⭐ de premio, además de las monedas. */
+  stars?: number;
+  /** Misión de los subjuegos: todos los días hay una. */
+  sub?: boolean;
 }
 
 const sum = (text: string, target: number, reward: number, value: (r: RunStats) => number): MissionDef => ({
@@ -59,6 +72,17 @@ const ev = (text: string, target: number, reward: number, event: MissionEvent): 
   event,
 });
 
+/** Misión de subjuego: da estrellas ⭐ (la moneda de los mejores personajes). */
+const subEv = (text: string, target: number, reward: number, stars: number, event: MissionEvent, mode: 'sum' | 'max' = 'sum'): MissionDef => ({
+  text,
+  target,
+  reward,
+  stars,
+  mode,
+  event,
+  sub: true,
+});
+
 export const DAILY: Record<string, MissionDef> = {
   perfects5: sum('Lográ 5 pases perfectos', 5, 15, (r) => r.perfects),
   perfects15: sum('Lográ 15 pases perfectos', 15, 25, (r) => r.perfects),
@@ -76,6 +100,12 @@ export const DAILY: Record<string, MissionDef> = {
   score800: max('Hacé 800 puntos en una partida', 800, 20, (r) => r.score),
   revive1: sum('Reviví 1 vez', 1, 20, (r) => r.revives),
   double1: ev('Duplicá tus monedas 1 vez', 1, 20, 'double'),
+  // Subjuegos (una por día)
+  fishStars2: subEv('Ganá 2 ⭐ en una tirada de Pesca', 2, 10, 2, 'fishStars', 'max'),
+  fishRounds2: subEv('Jugá 2 tiradas de Pesca de estrellas', 2, 10, 2, 'fishRound'),
+  towerFloor20: subEv('Llegá al piso 20 en la Torre de faroles', 20, 10, 2, 'towerFloors', 'max'),
+  towerPerfect8: subEv('Hacé 8 faroles perfectos en la Torre', 8, 10, 2, 'towerPerfects'),
+  subStars4: subEv('Ganá 4 ⭐ en los juegos', 4, 15, 3, 'subStars'),
 };
 
 export const WEEKLY: Record<string, MissionDef> = {
@@ -89,6 +119,8 @@ export const WEEKLY: Record<string, MissionDef> = {
   missions12: ev('Cobrá 12 misiones diarias', 12, 150, 'dailyMission'),
   zone2: max('Llegá al Mar de nubes', 2, 200, (r) => r.zone),
   gifts5: ev('Reclamá el regalo diario 5 días', 5, 100, 'dailyGift'),
+  subStars25: { ...subEv('Ganá 25 ⭐ en los juegos', 25, 100, 10, 'subStars'), sub: false },
+  towerRounds10: { ...subEv('Jugá 10 torres de faroles', 10, 100, 8, 'towerRound'), sub: false },
 };
 
 export interface MissionState {
@@ -97,8 +129,8 @@ export interface MissionState {
   claimed: boolean;
 }
 
-function pick(pool: Record<string, MissionDef>, seed: string, count: number): MissionState[] {
-  const ids = Object.keys(pool);
+function pick(pool: Record<string, MissionDef>, seed: string, count: number, only?: (d: MissionDef) => boolean): MissionState[] {
+  const ids = Object.keys(pool).filter((id) => !only || only(pool[id]));
   const r = rng(hashString(seed));
   const picked: string[] = [];
   while (picked.length < count) {
@@ -108,7 +140,11 @@ function pick(pool: Record<string, MissionDef>, seed: string, count: number): Mi
   return picked.map((id) => ({ id, progress: 0, claimed: false }));
 }
 
-export const dailyFor = (day: string) => pick(DAILY, `relevo:diarias:${day}`, 4);
+/** 3 misiones del juego principal + 1 de los subjuegos (la que da estrellas). */
+export const dailyFor = (day: string) => [
+  ...pick(DAILY, `relevo:diarias:${day}`, 3, (d) => !d.sub),
+  ...pick(DAILY, `relevo:juegos:${day}`, 1, (d) => !!d.sub),
+];
 export const weeklyFor = (week: string) => pick(WEEKLY, `relevo:semanales:${week}`, 4);
 
 export function applyRun(pool: Record<string, MissionDef>, m: MissionState, run: RunStats): void {
@@ -118,10 +154,10 @@ export function applyRun(pool: Record<string, MissionDef>, m: MissionState, run:
   m.progress = Math.min(def.target, def.mode === 'sum' ? m.progress + v : Math.max(m.progress, v));
 }
 
-export function applyEvent(pool: Record<string, MissionDef>, m: MissionState, event: MissionEvent): void {
+export function applyEvent(pool: Record<string, MissionDef>, m: MissionState, event: MissionEvent, amount = 1): void {
   const def = pool[m.id];
   if (def?.event !== event || m.claimed) return;
-  m.progress = Math.min(def.target, m.progress + 1);
+  m.progress = Math.min(def.target, def.mode === 'max' ? Math.max(m.progress, amount) : m.progress + amount);
 }
 
 export const isDone = (pool: Record<string, MissionDef>, m: MissionState) => !!pool[m.id] && m.progress >= pool[m.id].target;

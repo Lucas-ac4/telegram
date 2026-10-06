@@ -78,6 +78,9 @@ export const CONFIG = {
     /** Cofres: se abren al cobrar todas las misiones diarias / semanales. */
     dailyChest: 40,
     weeklyChest: 250,
+    /** Estrellas ⭐ de los cofres. */
+    dailyChestStars: 3,
+    weeklyChestStars: 12,
   },
 
   /** Nivel del jugador: XP por partida y monedas al subir. */
@@ -145,6 +148,27 @@ export const CONFIG = {
     maxShards: 2,
     /** Fragmentos para completar un personaje: base + precio / perPrice. */
     fragments: { base: 6, perPrice: 700 },
+    /** Monedas juntadas en una tirada para 1, 2 y 3 estrellas. */
+    stars: [20, 45, 75],
+  },
+
+  /** Subjuego Torre de faroles. */
+  tower: {
+    freePerDay: 3,
+    adPerDay: 3,
+    startWidth: 200,
+    /** Hasta dónde se desliza el farol desde el centro (unidades). */
+    travel: 165,
+    speed: 160,
+    speedPerFloor: 4,
+    maxSpeed: 380,
+    /** Distancia al centro que cuenta como "¡Perfecto!" (unidades). */
+    perfect: 5,
+    /** Cuánto crece el farol con 3 perfectos seguidos. */
+    grow: 12,
+    goldenCoins: 5,
+    /** Pisos para 1, 2 y 3 estrellas. */
+    stars: [15, 30, 50],
   },
 
   ads: {

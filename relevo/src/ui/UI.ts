@@ -7,7 +7,7 @@ import type { DailyStatus, Lantern } from '../meta/progress';
 
 export type DeathReason = 'early' | 'late' | 'empty' | 'dry' | 'fuse';
 type ScreenName = 'menu' | 'hud' | 'over' | 'pause' | 'stats' | 'revive';
-type Tab = 'home' | 'missions' | 'chars' | 'worlds' | 'profile';
+type Tab = 'home' | 'games' | 'missions' | 'chars' | 'worlds' | 'profile';
 
 /** Textos del tutorial: cortos, se enseña jugando. */
 export const HINTS: Record<HintKey, string> = {
@@ -36,6 +36,8 @@ const ICON = {
   gift: svg('<rect x="3" y="8" width="18" height="4" rx="1"/><path d="M12 8v13M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7"/><path d="M7.5 8a2.5 2.5 0 0 1 0-5C11 3 12 8 12 8s1-5 4.5-5a2.5 2.5 0 0 1 0 5"/>'),
   target: svg('<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.2"/>'),
   fish: svg('<path d="M2 12c3-5 9-7 14-3l5-3v12l-5-3c-5 4-11 2-14-3z"/><circle cx="8" cy="11" r="1"/>'),
+  tower: svg('<rect x="6" y="15" width="12" height="5" rx="2"/><rect x="7.5" y="9.5" width="9" height="5" rx="2"/><rect x="9" y="4" width="6" height="5" rx="2"/>'),
+  games: svg('<rect x="2.5" y="7" width="19" height="11" rx="5"/><path d="M7 11v3M5.5 12.5h3"/><circle cx="15.5" cy="11.5" r="1"/><circle cx="17.5" cy="13.5" r="1"/>'),
   home: svg('<path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/>'),
   list: svg('<path d="M10 6h10M10 12h10M10 18h10"/><path d="M3.5 6l1.5 1.5L7.5 5M3.5 12l1.5 1.5 2.5-2.5M3.5 18l1.5 1.5 2.5-2.5"/>'),
   flame: svg('<path d="M12 3c1 4 6 6 6 11a6 6 0 0 1-12 0c0-3 2-5 3-6 0 2 1 3 2 3 0-3 0-6 1-8z"/>'),
@@ -54,12 +56,20 @@ const ICON = {
 };
 
 const COIN = '<i class="coin"></i>';
+const STAR = '<i class="star-ico"></i>';
+
+/** Subjuegos: textos fijos de cada tarjeta. */
+const GAMES: Record<string, { name: string; desc: string; icon: string }> = {
+  fish: { name: 'Pesca de estrellas', desc: 'Soltá la chispa desde un péndulo y atrapá tesoros en 30 segundos.', icon: ICON.fish },
+  tower: { name: 'Torre de faroles', desc: 'Apilá faroles con un toque. Lo que sobresale se cae.', icon: ICON.tower },
+};
 
 export interface MissionView {
   text: string;
   progress: number;
   target: number;
   reward: number;
+  stars: number;
   done: boolean;
   claimed: boolean;
 }
@@ -68,13 +78,15 @@ export interface MissionBox {
   list: MissionView[];
   chestClaimed: boolean;
   chestReward: number;
+  chestStars: number;
   resetIn: string;
 }
 
 export interface LobbyData {
   coins: number;
-  /** Pesca de estrellas: tiradas que quedan hoy y personaje que se está completando. */
-  fish: { free: number; ad: number; target: string | null; have: number; need: number };
+  /** Subjuegos: tiradas que quedan hoy, récord y un dato extra. */
+  games: { id: string; free: number; ad: number; best: string; extra: string }[];
+  stars: number;
   best: number;
   skin: SkinId;
   owned: SkinId[];
@@ -145,7 +157,7 @@ interface Handlers {
   onRevive(): void;
   onDeclineRevive(): void;
   onDouble(): void;
-  onFish(): void;
+  onGame(id: string): void;
 }
 
 /** Interfaz HTML/CSS sobre el canvas: nítida en cualquier pantalla y fácil de iterar. */
@@ -168,7 +180,16 @@ export class UI {
     this.root.id = 'ui';
     this.root.innerHTML = `
       <section class="screen menu" hidden>
-        <div class="coin-pill">${COIN}<b data-menu-coins>0</b></div>
+        <div class="lobby-top">
+          <button class="me-chip" data-me aria-label="Perfil">
+            <img alt="" data-me-img />
+            <span class="me-text"><b data-me-level>Nivel 1</b><span class="bar"><i data-me-xp></i></span></span>
+          </button>
+          <div class="wallet">
+            <span class="coin-pill">${COIN}<b data-menu-coins>0</b></span>
+            <span class="coin-pill stars">${STAR}<b data-menu-stars>0</b></span>
+          </div>
+        </div>
 
         <div class="pane home" data-pane="home">
           <header class="title">
@@ -176,27 +197,29 @@ export class UI {
             <p class="tagline">Un toque. Un relevo. Una más.</p>
           </header>
           <div class="home-bottom">
-            <div class="tiles">
-              <button class="tile gift" data-open="daily">
-                <span class="tile-ico">${ICON.gift}</span>
-                <span class="tile-text"><b>Regalo</b><small data-daily-sub></small></span>
+            <div class="quick">
+              <button class="qa gift" data-open="daily">
+                <span class="qa-ico">${ICON.gift}</span><b>Regalo</b><small data-daily-sub></small>
                 <i class="dot" data-daily-dot hidden></i>
               </button>
-              <button class="tile reto" data-open="reto">
-                <span class="tile-ico">${ICON.target}</span>
-                <span class="tile-text"><b>Reto diario</b><small data-reto-sub></small></span>
+              <button class="qa reto" data-open="reto">
+                <span class="qa-ico">${ICON.target}</span><b>Reto</b><small data-reto-sub></small>
               </button>
-              <button class="tile fish" data-fish>
-                <span class="tile-ico">${ICON.fish}</span>
-                <span class="tile-text"><b>Pesca de estrellas</b><small data-fish-sub></small></span>
-                <span class="tile-new">NUEVO</span>
-                <i class="dot" data-fish-dot hidden></i>
+              <button class="qa shield" data-open="boost">
+                <span class="qa-ico">${ICON.shield}</span><b>Escudo</b><small data-boost-sub></small>
               </button>
             </div>
-            <div class="boost" data-boost></div>
-            <div class="best-line"><span class="star">★</span> Récord <b data-best>0</b> · <span data-home-level></span></div>
+            <div class="best-line"><span class="star">★</span> Récord <b data-best>0</b></div>
             <button class="btn primary" data-play>JUGAR</button>
             <button class="link" data-stats hidden>Datos de prueba</button>
+          </div>
+        </div>
+
+        <div class="pane list-pane" data-pane="games" hidden>
+          <div class="pane-scroll">
+            <div class="pane-head"><h2>Juegos</h2><span class="muted">Ganá estrellas</span></div>
+            <div class="games-lead">${STAR}<span>Con estrellas se consiguen los mejores personajes. Cada tirada da hasta 3, y algunas misiones diarias también.</span></div>
+            <div class="games" data-games></div>
           </div>
         </div>
 
@@ -230,6 +253,7 @@ export class UI {
 
         <div class="pane list-pane" data-pane="profile" hidden>
           <div class="pane-scroll">
+            <div class="pane-head"><h2>Perfil</h2><button class="mini" data-sound-toggle>Sonido: sí</button></div>
             <div class="profile-card" data-profile-card></div>
             <div class="stat-grid" data-profile-stats></div>
           </div>
@@ -237,10 +261,10 @@ export class UI {
 
         <nav class="tabbar">
           <button data-tab="home">${ICON.home}<span>Inicio</span></button>
+          <button data-tab="games">${ICON.games}<span>Juegos</span><i class="dot" data-games-dot hidden></i></button>
           <button data-tab="missions">${ICON.list}<span>Misiones</span><i class="dot" data-missions-dot hidden></i></button>
           <button data-tab="chars">${ICON.flame}<span>Personajes</span><i class="dot" data-chars-dot hidden></i></button>
           <button data-tab="worlds">${ICON.map}<span>Mundos</span><i class="dot" data-worlds-dot hidden></i></button>
-          <button data-tab="profile">${ICON.user}<span>Perfil</span></button>
         </nav>
       </section>
 
@@ -251,6 +275,15 @@ export class UI {
           <p class="muted">Volvé todos los días. El día 7 trae a Aurora, una chispa exclusiva.</p>
           <div class="days" data-days></div>
           <div class="daily-actions" data-daily-actions></div>
+        </div>
+      </section>
+
+      <section class="screen modal" data-modal="boost" hidden>
+        <div class="sheet">
+          <button class="sheet-close" data-close aria-label="Cerrar">✕</button>
+          <h2>Escudo inicial</h2>
+          <p class="sheet-text">Arrancá la próxima partida con un escudo: te salva de un error.</p>
+          <div class="boost" data-boost></div>
         </div>
       </section>
 
@@ -394,7 +427,8 @@ export class UI {
       h.onDeclineRevive();
     });
     click('[data-double]', () => h.onDouble());
-    click('[data-fish]', () => h.onFish());
+    click('[data-me]', () => this.setTab('profile'));
+    click('[data-sound-toggle]', () => h.onMute());
     click('[data-tab]', (el) => this.setTab(el.dataset.tab as Tab));
     click('[data-open]', (el) => this.openModal(el.dataset.open!));
     click('[data-close]', () => this.closeModals());
@@ -433,6 +467,7 @@ export class UI {
 
   private only(name: ScreenName | null): void {
     for (const [k, el] of Object.entries(this.screens)) el.hidden = k !== name;
+    this.root.classList.toggle('in-menu', name === 'menu' || name === null);
     if (name !== 'menu') this.closeModals();
   }
 
@@ -452,20 +487,23 @@ export class UI {
   showMenu(d: LobbyData): void {
     this.only('menu');
     this.$('[data-menu-coins]').textContent = d.coins.toLocaleString('es-AR');
+    this.$('[data-menu-stars]').textContent = d.stars.toLocaleString('es-AR');
     this.$('[data-best]').textContent = String(d.best);
-    this.$('[data-home-level]').textContent = `Nivel ${d.profile.level}`;
-    const f = d.fish;
-    const tickets = f.free > 0 ? `${f.free} tiradas gratis` : f.ad > 0 ? 'Tirada extra con anuncio' : 'Mañana hay más tiradas';
-    this.$('[data-fish-sub]').textContent = f.target ? `${tickets} · ${f.target} ${f.have}/${f.need}` : tickets;
-    this.$('[data-fish-dot]').hidden = f.free <= 0;
+    this.$<HTMLImageElement>('[data-me-img]').src = this.preview(d.skin);
+    this.$('[data-me-level]').textContent = `Nivel ${d.profile.level}`;
+    this.$('[data-me-xp]').style.width = `${Math.round((d.profile.into / d.profile.need) * 100)}%`;
     this.$('[data-stats]').hidden = !d.showStats;
+    this.renderGames(d);
+    this.$('[data-games-dot]').hidden = !d.games.some((g) => g.free > 0);
 
     // Inicio
     const dl = d.daily;
-    this.$('[data-daily-sub]').textContent = dl.claimable ? `¡Día ${dl.day} listo!` : `Racha: ${dl.day} ${dl.day === 1 ? 'día' : 'días'}`;
+    this.$('[data-daily-sub]').textContent = dl.claimable ? '¡Listo!' : `Día ${dl.day}`;
     this.$('[data-daily-dot]').hidden = !dl.claimable;
-    this.$('.tile.gift').classList.toggle('ready', dl.claimable);
-    this.$('[data-reto-sub]').textContent = d.reto.attempts ? `Tu mejor: ${d.reto.best}` : 'Nuevo hoy';
+    this.$('.qa.gift').classList.toggle('ready', dl.claimable);
+    this.$('[data-reto-sub]').textContent = d.reto.attempts ? `Mejor ${d.reto.best}` : 'Nuevo';
+    this.$('[data-boost-sub]').textContent = d.boost.armed ? 'Listo' : 'Gratis';
+    this.$('.qa.shield').classList.toggle('armed', d.boost.armed);
     this.renderBoost(d);
 
     // Misiones
@@ -479,7 +517,11 @@ export class UI {
 
     // Personajes, mundos y perfil
     this.renderSkins(d);
-    const affordable = SKIN_ORDER.some((id) => !d.owned.includes(id) && SKINS[id].price > 0 && SKINS[id].price <= d.coins);
+    const affordable = SKIN_ORDER.some((id) => {
+      const st = SKINS[id];
+      if (d.owned.includes(id)) return false;
+      return st.starPrice ? st.starPrice <= d.stars : st.price > 0 && st.price <= d.coins;
+    });
     this.$('[data-chars-dot]').hidden = !affordable;
     this.renderWorlds(d);
     this.$('[data-worlds-dot]').hidden = !d.zones.some((z) => z.reached && !z.claimed);
@@ -503,6 +545,33 @@ export class UI {
 
   private closeModals(): void {
     this.root.querySelectorAll<HTMLElement>('[data-modal]').forEach((m) => (m.hidden = true));
+  }
+
+  private renderGames(d: LobbyData): void {
+    const box = this.$('[data-games]');
+    box.innerHTML = '';
+    for (const g of d.games) {
+      const info = GAMES[g.id];
+      const card = document.createElement('div');
+      card.className = `game-card ${g.id}`;
+      const label = g.free > 0 ? `JUGAR <small>${g.free} gratis</small>` : g.ad > 0 ? `${ICON.play} Con anuncio` : 'Mañana hay más';
+      card.innerHTML = `
+        <div class="gc-top">
+          <span class="gc-art">${info.icon}</span>
+          <div class="gc-main">
+            <b>${info.name}</b>
+            <span class="gc-desc">${info.desc}</span>
+          </div>
+        </div>
+        <div class="gc-meta"><span>${g.best}</span>${g.extra ? `<span>${g.extra}</span>` : ''}</div>`;
+      const b = document.createElement('button');
+      b.className = `btn primary gc-play${g.free > 0 ? '' : ' soft'}`;
+      b.innerHTML = label;
+      b.disabled = g.free <= 0 && g.ad <= 0;
+      b.addEventListener('click', () => this.h.onGame(g.id));
+      card.appendChild(b);
+      box.appendChild(card);
+    }
   }
 
   private renderBoost(d: LobbyData): void {
@@ -575,7 +644,9 @@ export class UI {
           <div class="bar"><div class="fill" style="width:${pct}%"></div></div>
           <div class="ri-sub">${m.progress}/${m.target}</div>
         </div>`;
-      row.appendChild(this.claimButton(m.claimed, m.done, `+${m.reward} ${COIN}`, () => this.h.onClaimMission(weekly, i)));
+      const label = `+${m.reward} ${COIN}${m.stars ? ` +${m.stars} ${STAR}` : ''}`;
+      if (m.stars) row.classList.add('has-stars');
+      row.appendChild(this.claimButton(m.claimed, m.done, label, () => this.h.onClaimMission(weekly, i)));
       box.appendChild(row);
     });
   }
@@ -593,7 +664,7 @@ export class UI {
         <div class="ri-sub">${data.chestClaimed ? 'Abierto. Pronto hay otro.' : `Cobrá las ${data.list.length} misiones para abrirlo`}</div>
         <div class="pips">${pips}</div>
       </div>`;
-    el.appendChild(this.claimButton(data.chestClaimed, ready, `+${data.chestReward} ${COIN}`, () => this.h.onClaimChest(weekly)));
+    el.appendChild(this.claimButton(data.chestClaimed, ready, `+${data.chestReward} ${COIN} +${data.chestStars} ${STAR}`, () => this.h.onClaimChest(weekly)));
   }
 
   private claimButton(claimed: boolean, done: boolean, label: string, fn: () => void): HTMLElement {
@@ -634,6 +705,7 @@ export class UI {
       if (owned) state = id === d.skin ? 'En uso' : 'Usar';
       else if (hidden) state = `${ICON.lock}<span>Pista: ${st.hint}</span>`;
       else if (st.unlock) state = `${ICON.lock}<span>${st.unlock}</span>`;
+      else if (st.starPrice) state = `${st.starPrice} ${STAR}`;
       else state = `${st.price.toLocaleString('es-AR')} ${COIN}`;
       if (hidden) b.classList.add('hidden-secret');
       b.innerHTML = `
@@ -648,7 +720,9 @@ export class UI {
           this.replay(b, 'nope');
           this.toast(
             r === 'poor'
-              ? `Te faltan ${(st.price - d.coins).toLocaleString('es-AR')} monedas`
+              ? st.starPrice
+                ? `Te faltan ${st.starPrice - d.stars} estrellas: ganalas en Juegos`
+                : `Te faltan ${(st.price - d.coins).toLocaleString('es-AR')} monedas`
               : hidden
                 ? `Personaje secreto. Pista: ${st.hint}`
                 : `Se consigue con: ${st.unlock}`,
@@ -962,6 +1036,7 @@ export class UI {
 
   setMuted(muted: boolean): void {
     this.$('[data-mute]').textContent = muted ? '🔇' : '🔊';
+    this.$('[data-sound-toggle]').textContent = muted ? 'Sonido: no' : 'Sonido: sí';
   }
 
   toast(text: string): void {

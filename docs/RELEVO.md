@@ -135,7 +135,7 @@ Música generada en vivo (WebAudio, 0 KB de archivos): acordes, bajo, arpegio co
 
 ## Personajes con habilidad
 
-21 personajes. Todos tienen una habilidad, incluso el gratis (una chica). Fénix es el más caro. **En el reto diario las habilidades no cuentan**: ahí todos juegan igual.
+21 personajes. Todos tienen una habilidad, incluso el gratis (una chica). **Los legendarios se compran con estrellas ⭐** (de los juegos y las misiones), y Fénix es el más caro. **En el reto diario las habilidades no cuentan**: ahí todos juegan igual.
 
 | Personaje | Rareza | Precio | Habilidad |
 |---|---|---|---|
@@ -150,10 +150,10 @@ Música generada en vivo (WebAudio, 0 KB de archivos): acordes, bajo, arpegio co
 | Brasa | Épica | 2.500 | Potenciadores más seguido y más largos |
 | Rayo | Épica | 3.000 | Cada 10 perfectos seguidos carga un escudo |
 | Cristal | Épica | 3.500 | Las hojas frágiles no te apuran |
-| Cometa | Legendaria | 5.000 | Cohetes 3 veces más seguido |
-| Dragón | Legendaria | 7.000 | Arranca con un cohete: +12 relevos |
-| Sol | Legendaria | 9.000 | +50% monedas |
-| Fénix | Legendaria | 12.000 | Renace gratis 1 vez por partida |
+| Cometa | Legendaria | 60 ⭐ | Cohetes 3 veces más seguido |
+| Dragón | Legendaria | 90 ⭐ | Arranca con un cohete: +12 relevos |
+| Sol | Legendaria | 120 ⭐ | +50% monedas |
+| Fénix | Legendaria | 160 ⭐ | Renace gratis 1 vez por partida |
 | Aurora | Exclusiva | — | Regalo diario, día 7 · Faroles +50% |
 | Estrella | Exclusiva | — | Logro cadena 50 · Empieza con escudo |
 
@@ -174,7 +174,7 @@ Se abre desde Inicio. Tu personaje cuelga de un hilo de luz que se balancea como
 
 | Objeto | Qué da |
 |---|---|
-| Estrella chica / grande | 1 / 4 monedas |
+| Moneda / perla | 1 / 4 monedas |
 | Cofre (en el fondo, pesado) | 12 monedas |
 | Reloj de arena | +5 s |
 | Fragmento de personaje (a veces, en el fondo) | 1 fragmento |
@@ -183,9 +183,35 @@ Se abre desde Inicio. Tu personaje cuelga de un hilo de luz que se balancea como
 - **Mismo enganche que el juego:** un toque, combo por atrapar seguido (×2 desde 3 y ×3 desde 6), "¡Perfecto!" al enganchar justo en el centro (+50%), récord de pesca y "Otra tirada".
 - **Nueva ola:** si atrapás todo lo que vale, aparece otra (+3 s) y el péndulo va un poco más rápido.
 - **Tiradas:** 3 gratis por día y hasta 3 más viendo un anuncio (lugar de anuncio `fish`).
-- **Fragmentos:** completan un personaje de la tienda que no tengas (elegís cuál). Hacen falta 6 + precio/700: Erizo 6, Brote 7, Luna 8, Cometa 13, Dragón 16, Fénix 23. Cuando ya tenés todos, cada fragmento vale 50 monedas.
+- **Estrellas ⭐:** 1, 2 o 3 por tirada al juntar 20, 45 y 75 monedas.
+- **Fragmentos:** completan un personaje de la tienda que se compra con monedas y no tengas (elegís cuál). Hacen falta 6 + precio/700: Erizo 6, Brote 7, Luna 8, Cristal 11. Cuando ya tenés todos, cada fragmento vale 50 monedas.
 
-## Lobby (5 pestañas)
+## Torre de faroles (subjuego)
+
+Un farol de papel se desliza de lado a lado: **tocás y cae sobre la torre**. Lo que sobresale se corta y se cae, así que el próximo es más angosto. Código en `relevo/src/sub/Tower.ts`, valores en `CONFIG.tower`.
+
+- **¡Perfecto!** si cae justo encima: no se corta nada. **Tres perfectos seguidos hacen crecer el farol** (+12).
+- Cada 10 pisos hay un **farol dorado** (+5 monedas). La torre sube del lago al cielo y después al espacio; tu personaje viaja arriba de todo.
+- **Estrellas ⭐ a los 15, 30 y 50 pisos**, marcadas en la torre con una línea.
+- Si se cae un farol (desde el piso 3), **se puede seguir una vez con un anuncio** (`tower_continue`).
+- 3 tiradas gratis por día y hasta 3 más con anuncio (`tower`). Monedas: 1 por piso, +1 por perfecto.
+
+## Estrellas ⭐ (moneda nueva)
+
+Las monedas siguen comprando casi todo; **las estrellas compran los mejores personajes** (los legendarios).
+
+| De dónde salen | Cuántas |
+|---|---|
+| Cada tirada de Pesca o Torre | 0 a 3 según cómo te vaya |
+| Misión diaria de juegos (hay una por día) | 2 o 3 |
+| Cofre del día / cofre semanal | 3 / 12 |
+| Misiones semanales de juegos | 8 a 10 |
+
+Un jugador activo junta unas 12 a 18 por día: Cometa en menos de una semana y Fénix en unas dos.
+
+## Lobby (5 pestañas, más ordenado)
+
+Arriba siempre se ve tu perfil (personaje, nivel y barra de XP; tocalo para abrir Perfil, donde también está el sonido) y la billetera con monedas y estrellas. Inicio quedó con el logo, tres accesos rápidos (Regalo, Reto y Escudo, que abre su propia ventanita) y JUGAR. Las pestañas son Inicio, **Juegos** (Pesca de estrellas y Torre de faroles), Misiones, Personajes y Mundos.
 
 Hay puntos rojos en cada pestaña cuando hay algo para cobrar.
 

@@ -1,17 +1,19 @@
 import { CONFIG } from '../config';
 import { drawGlow, skinPreview, SKINS, withAlpha, type SkinId } from '../game/sprites';
+import { starsFor, starsRow } from '../sub/common';
 
 /**
  * Pesca de estrellas: subjuego de un toque.
  *
  * Tu personaje cuelga de un hilo de luz que se balancea como un péndulo. Tocás y se lanza
  * en esa dirección: atrapa lo primero que toca y vuelve (más lento si pesa). Cada tirada
- * dura 30 segundos. Estrellas y cofres dan monedas; las hojas secas pesan y no valen nada;
+ * dura 30 segundos. Monedas, perlas y cofres suman; las hojas secas pesan y no valen nada;
  * los relojes suman tiempo; los fragmentos completan personajes. Atrapar seguido sube el
- * combo (×2, ×3) y enganchar justo en el centro es un "¡Perfecto!" (+50%).
+ * combo (×2, ×3) y enganchar justo en el centro es un "¡Perfecto!" (+50%). Según lo que
+ * juntes, la tirada da de 0 a 3 estrellas ⭐ (la moneda de los mejores personajes).
  */
 
-type Kind = 'star' | 'bigstar' | 'chest' | 'dry' | 'clock' | 'shard';
+type Kind = 'coin' | 'pearl' | 'chest' | 'dry' | 'clock' | 'shard';
 
 interface ItemDef {
   r: number;
@@ -21,8 +23,8 @@ interface ItemDef {
 }
 
 const ITEMS: Record<Kind, ItemDef> = {
-  star: { r: 12, coins: 1, reel: 430 },
-  bigstar: { r: 19, coins: 4, reel: 270 },
+  coin: { r: 12, coins: 1, reel: 430 },
+  pearl: { r: 19, coins: 4, reel: 270 },
   chest: { r: 22, coins: 12, reel: 150 },
   dry: { r: 18, coins: 0, reel: 115 },
   clock: { r: 14, coins: 0, reel: 400 },
@@ -67,6 +69,9 @@ export interface FishTarget {
 export interface FishResult {
   coins: number;
   shards: number;
+  /** Objetos de valor atrapados. */
+  items: number;
+  /** Estrellas ⭐ ganadas en la tirada (0 a 3). */
   stars: number;
   combo: number;
 }
@@ -74,6 +79,7 @@ export interface FishResult {
 export interface FishOutcome {
   record: boolean;
   best: number;
+  starsTotal: number;
   unlocked: SkinId | null;
   target: FishTarget | null;
 }
@@ -106,6 +112,7 @@ const W = 400;
 const F = CONFIG.fish;
 const COIN = '<i class="coin"></i>';
 const REST = 62;
+const STARS: readonly number[] = F.stars;
 
 export class Fishing {
   readonly el = document.createElement('section');
@@ -150,6 +157,7 @@ export class Fishing {
         <div class="fish-timer"><i data-f-timefill></i><b data-f-time>30</b></div>
         <div class="coin-pill small">${COIN}<b data-f-coins>0</b></div>
       </div>
+      <div class="sub-stars" data-f-stars hidden></div>
       <div class="fish-combo" data-f-combo hidden></div>
       <div class="fish-help" data-f-help hidden>Tocá para soltar la chispa</div>
       <div class="fish-panel" data-f-panel></div>`;
@@ -198,6 +206,7 @@ export class Fishing {
   private showIntro(): void {
     this.mode = 'intro';
     this.$('[data-f-hud]').hidden = true;
+    this.$('[data-f-stars]').hidden = true;
     this.$('[data-f-combo]').hidden = true;
     this.$('[data-f-help]').hidden = true;
     const t = this.host.tickets();
@@ -205,7 +214,8 @@ export class Fishing {
     panel.hidden = false;
     panel.innerHTML = `
       <h2>Pesca de estrellas</h2>
-      <p class="muted">Tocá para soltar la chispa. Atrapá estrellas, cofres y fragmentos antes de que se acabe el tiempo. Las hojas secas pesan y no valen nada.</p>
+      <p class="muted">Tocá para soltar la chispa. Atrapá monedas, perlas, cofres y fragmentos antes de que se acabe el tiempo. Las hojas secas pesan y no valen nada.</p>
+      ${starsRow(3, STARS.map((s) => `${s} monedas`))}
       ${this.targetCard()}
       <p class="fish-tickets">${this.ticketText(t)}</p>
       ${this.playButtons(t, 'PESCAR')}
@@ -216,9 +226,11 @@ export class Fishing {
   private showResult(o: FishOutcome, timeUp: boolean): void {
     this.mode = 'result';
     this.$('[data-f-hud]').hidden = true;
+    this.$('[data-f-stars]').hidden = true;
     this.$('[data-f-combo]').hidden = true;
     this.$('[data-f-help]').hidden = true;
     const t = this.host.tickets();
+    const stars = starsFor(this.coins, STARS);
     const title = o.record ? '¡Nuevo récord de pesca!' : timeUp ? '¡Se acabó el tiempo!' : 'Pesca terminada';
     const unlocked = o.unlocked
       ? `<div class="levelup secret">¡Completaste a ${SKINS[o.unlocked].name}! Ya es tuyo</div>`
@@ -228,12 +240,13 @@ export class Fishing {
     panel.innerHTML = `
       <h2>${title}</h2>
       <div class="fish-total">+${this.coins} ${COIN}</div>
+      ${starsRow(stars, STARS)}
       <div class="result-stats">
-        <div><span>Estrellas</span><b>${this.stars}</b></div>
+        <div><span>Tesoros</span><b>${this.stars}</b></div>
         <div><span>Combo máx.</span><b>${this.bestCombo}</b></div>
         <div><span>Fragmentos</span><b>${this.shards}</b></div>
       </div>
-      <p class="muted">Récord: ${o.best} ${o.best === 1 ? 'moneda' : 'monedas'} en una tirada</p>
+      <p class="muted">Récord: ${o.best} ${o.best === 1 ? 'moneda' : 'monedas'} en una tirada · Tenés ${o.starsTotal} estrellas</p>
       ${unlocked}
       ${this.targetCard()}
       <p class="fish-tickets">${this.ticketText(t)}</p>
@@ -317,6 +330,8 @@ export class Fishing {
     this.spawnWave(false);
     this.$('[data-f-panel]').hidden = true;
     this.$('[data-f-hud]').hidden = false;
+    this.$('[data-f-stars]').hidden = false;
+    this.$('[data-f-stars]').innerHTML = starsRow(0, STARS);
     this.$('[data-f-help]').hidden = false;
     this.$('[data-f-coins]').textContent = '0';
     this.updateCombo();
@@ -326,7 +341,13 @@ export class Fishing {
   private endRound(): void {
     if (this.mode !== 'play') return;
     const timeUp = this.left <= 0;
-    const o = this.host.finish({ coins: this.coins, shards: this.shards, stars: this.stars, combo: this.bestCombo });
+    const o = this.host.finish({
+      coins: this.coins,
+      shards: this.shards,
+      items: this.stars,
+      stars: starsFor(this.coins, STARS),
+      combo: this.bestCombo,
+    });
     this.host.sound.musicIntensity(1);
     if (o.record || o.unlocked) {
       this.host.sound.record();
@@ -355,8 +376,8 @@ export class Fishing {
     const depth = bottom - top;
     const list: [Kind, number, number][] = [
       // tipo, profundidad mínima y máxima (0 = arriba, 1 = fondo)
-      ...Array.from({ length: 6 }, () => ['star', 0, 0.55] as [Kind, number, number]),
-      ...Array.from({ length: 3 }, () => ['bigstar', 0.3, 0.8] as [Kind, number, number]),
+      ...Array.from({ length: 6 }, () => ['coin', 0, 0.55] as [Kind, number, number]),
+      ...Array.from({ length: 3 }, () => ['pearl', 0.3, 0.8] as [Kind, number, number]),
       ['chest', 0.75, 1],
       ...Array.from({ length: 3 }, () => ['dry', 0.25, 0.9] as [Kind, number, number]),
     ];
@@ -372,7 +393,7 @@ export class Fishing {
       for (let tries = 0; tries < 40; tries++) {
         const x = 24 + r + rand() * (W - 48 - 2 * r);
         const y = top + (d0 + rand() * (d1 - d0)) * depth;
-        const moving = kind === 'bigstar' || kind === 'shard' || (kind === 'star' && rand() < 0.3);
+        const moving = kind === 'pearl' || kind === 'shard' || (kind === 'coin' && rand() < 0.3);
         const amp = moving ? 18 + rand() * 30 : 0;
         const clear = items.every((o) => Math.hypot(o.bx - x, o.y - y) > ITEMS[o.kind].r + r + 14 + amp + o.amp);
         if (!clear && tries < 39) continue;
@@ -515,9 +536,16 @@ export class Fishing {
     } else {
       let c = ITEMS[it.kind].coins * m;
       if (this.hook.perfect) c = Math.ceil(c * 1.5);
+      const before = starsFor(this.coins, STARS);
       this.coins += c;
       this.stars++;
       this.$('[data-f-coins]').textContent = String(this.coins);
+      const after = starsFor(this.coins, STARS);
+      if (after > before) {
+        this.$('[data-f-stars]').innerHTML = starsRow(after, STARS);
+        this.addText(200, this.waterY + 40, `¡Estrella ${after}!`, '#fff3b0', 28);
+        this.host.sound.record();
+      }
       this.addText(x, y - 30, `+${c}`, '#ffd76a', it.kind === 'chest' ? 30 : 24);
       if (this.hook.perfect) this.addText(x, y - 58, '¡Perfecto!', '#fff1c2', 20);
       this.burst(x, y, '#ffd76a', it.kind === 'chest' ? 34 : 18);
@@ -807,16 +835,49 @@ export class Fishing {
     const { x, y } = it;
     const r = ITEMS[it.kind].r;
     const pulse = 0.85 + 0.15 * Math.sin(this.time * 3 + it.ph);
-    if (it.kind === 'star' || it.kind === 'bigstar') {
+    if (it.kind === 'coin') {
       ctx.globalCompositeOperation = 'lighter';
-      drawGlow(ctx, '#ffc24a', x, y, r * 2.2, 0.35 * pulse);
+      drawGlow(ctx, '#ffc24a', x, y, r * 2.2, 0.3 * pulse);
       ctx.globalCompositeOperation = 'source-over';
-      star(ctx, x, y, r, r * 0.45, this.time * 0.6 + it.ph);
-      const g = ctx.createRadialGradient(x - r * 0.3, y - r * 0.3, 1, x, y, r);
-      g.addColorStop(0, '#fffbe0');
-      g.addColorStop(0.6, '#ffd36b');
-      g.addColorStop(1, '#e8901c');
+      // Moneda que gira: se achica en x
+      const sx = Math.max(0.25, Math.abs(Math.cos(this.time * 2 + it.ph)));
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.scale(sx, 1);
+      const g = ctx.createRadialGradient(-r * 0.3, -r * 0.3, 1, 0, 0, r);
+      g.addColorStop(0, '#fff6cf');
+      g.addColorStop(0.55, '#ffd66b');
+      g.addColorStop(1, '#d88a14');
       ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(0, 0, r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(150,80,0,0.6)';
+      ctx.lineWidth = 1.4;
+      ctx.beginPath();
+      ctx.arc(0, 0, r * 0.68, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    } else if (it.kind === 'pearl') {
+      // Perla que brilla en una almeja abierta
+      ctx.fillStyle = '#5a3a6a';
+      ctx.beginPath();
+      ctx.ellipse(x, y + r * 0.35, r * 1.15, r * 0.5, 0, 0, Math.PI);
+      ctx.fill();
+      ctx.fillStyle = '#7a5a8a';
+      ctx.beginPath();
+      ctx.ellipse(x, y - r * 0.1, r * 1.1, r * 0.55, 0, Math.PI, 0);
+      ctx.fill();
+      ctx.globalCompositeOperation = 'lighter';
+      drawGlow(ctx, '#e8f4ff', x, y + r * 0.1, r * 2.4, 0.4 * pulse);
+      ctx.globalCompositeOperation = 'source-over';
+      const g = ctx.createRadialGradient(x - r * 0.2, y - r * 0.1, 1, x, y + r * 0.1, r * 0.55);
+      g.addColorStop(0, '#ffffff');
+      g.addColorStop(0.6, '#f0e8ff');
+      g.addColorStop(1, '#b8c8ea');
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(x, y + r * 0.1, r * 0.5, 0, Math.PI * 2);
       ctx.fill();
     } else if (it.kind === 'chest') {
       ctx.globalCompositeOperation = 'lighter';
@@ -895,19 +956,6 @@ export class Fishing {
       }
     }
   }
-}
-
-function star(ctx: CanvasRenderingContext2D, x: number, y: number, r1: number, r2: number, rot: number): void {
-  ctx.beginPath();
-  for (let i = 0; i <= 10; i++) {
-    const a = rot + (i / 10) * Math.PI * 2 - Math.PI / 2;
-    const r = i % 2 === 0 ? r1 : r2;
-    const px = x + Math.cos(a) * r;
-    const py = y + Math.sin(a) * r;
-    if (i === 0) ctx.moveTo(px, py);
-    else ctx.lineTo(px, py);
-  }
-  ctx.closePath();
 }
 
 function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number): void {

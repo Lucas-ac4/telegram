@@ -69,6 +69,8 @@ export interface SkinStyle {
   rarity: 'Común' | 'Rara' | 'Épica' | 'Legendaria' | 'Exclusiva' | 'Secreta' | 'Mítica';
   /** Precio en monedas. 0 + `unlock` = no se compra, se gana. */
   price: number;
+  /** Los mejores personajes se compran con estrellas ⭐ (de los subjuegos y misiones). */
+  starPrice?: number;
   unlock?: string;
   /** Personaje secreto: mientras no lo tengas, se ve en silueta con esta pista. */
   hint?: string;
@@ -147,7 +149,8 @@ export const SKINS: Record<SkinId, SkinStyle> = {
   cometa: {
     name: 'Cometa',
     rarity: 'Legendaria',
-    price: 5000,
+    price: 0,
+    starPrice: 60,
     perk: { kind: 'rocket', value: 3, text: 'Cohetes 3 veces más seguido' },
     glow: '#9ab8ff',
     light: '#d6e2ff',
@@ -159,7 +162,8 @@ export const SKINS: Record<SkinId, SkinStyle> = {
   fenix: {
     name: 'Fénix',
     rarity: 'Legendaria',
-    price: 12000,
+    price: 0,
+    starPrice: 160,
     perk: { kind: 'phoenix', value: 1, text: 'Renace gratis 1 vez por partida' },
     glow: '#ff7a3d',
     light: '#ffb36b',
@@ -207,7 +211,8 @@ export const SKINS: Record<SkinId, SkinStyle> = {
   dragon: {
     name: 'Dragón',
     rarity: 'Legendaria',
-    price: 7000,
+    price: 0,
+    starPrice: 90,
     perk: { kind: 'rocketStart', value: 12, text: 'Arranca con un cohete: +12 relevos' },
     glow: '#ff5a8a',
     light: '#ffa8c4',
@@ -219,7 +224,8 @@ export const SKINS: Record<SkinId, SkinStyle> = {
   sol: {
     name: 'Sol',
     rarity: 'Legendaria',
-    price: 9000,
+    price: 0,
+    starPrice: 120,
     perk: { kind: 'coins', value: 0.5, text: '+50% monedas en cada partida' },
     glow: '#ffc24a',
     light: '#ffe08a',

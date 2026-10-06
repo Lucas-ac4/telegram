@@ -16,6 +16,8 @@ export interface SaveData {
   bestScore: number;
   runs: number;
   coins: number;
+  /** Estrellas ⭐: se ganan en los subjuegos y en misiones; compran los mejores personajes. */
+  stars: number;
   skins: SkinId[];
   skin: SkinId;
   muted: boolean;
@@ -40,6 +42,8 @@ export interface SaveData {
     best: number;
     rounds: number;
   };
+  /** Torre de faroles: tiradas usadas hoy y récord de pisos. */
+  tower: { day: string; used: number; ads: number; best: number; rounds: number };
   firstOpen: string | null;
   lastOpen: string | null;
   daysPlayed: number;
@@ -66,6 +70,7 @@ function defaults(): SaveData {
     bestScore: 0,
     runs: 0,
     coins: 0,
+    stars: 0,
     skins: ['ambar'],
     skin: 'ambar',
     muted: false,
@@ -79,6 +84,7 @@ function defaults(): SaveData {
     zones: { reached: 0, claimed: [] },
     boost: { shield: false },
     fish: { day, used: 0, ads: 0, fragments: {}, target: null, best: 0, rounds: 0 },
+    tower: { day, used: 0, ads: 0, best: 0, rounds: 0 },
     firstOpen: null,
     lastOpen: null,
     daysPlayed: 0,
@@ -112,6 +118,7 @@ export const Save = {
     if (cache.weeklyMissions.week !== week) cache.weeklyMissions = { week, list: weeklyFor(week), chestClaimed: false };
     if (cache.reto.day !== day) cache.reto = { day, best: 0, attempts: 0 };
     if (cache.fish.day !== day) cache.fish = { ...cache.fish, day, used: 0, ads: 0 };
+    if (cache.tower.day !== day) cache.tower = { ...cache.tower, day, used: 0, ads: 0 };
     return cache;
   },
 

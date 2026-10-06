@@ -1,7 +1,8 @@
 import { CONFIG } from '../config';
 import { Ads, type AdPlacement } from '../ads';
 import { Analytics } from '../analytics';
-import { Fishing, type FishResult, type FishTarget } from '../fish/Fishing';
+import { Fishing, type FishOutcome, type FishResult, type FishTarget } from '../fish/Fishing';
+import { Tower, type TowerOutcome, type TowerResult } from '../sub/Tower';
 import { Sfx } from '../audio/Sfx';
 import {
   ACHIEVEMENT_ORDER,
@@ -89,6 +90,7 @@ export class Game {
   readonly particles = new Particles();
   private ui: UI;
   private fishing: Fishing;
+  private tower: Tower;
   private sfx = new Sfx();
 
   phase: Phase = 'menu';
@@ -178,7 +180,7 @@ export class Game {
       onRevive: () => void this.acceptRevive(),
       onDeclineRevive: () => this.declineRevive(),
       onDouble: () => void this.doubleCoins(),
-      onFish: () => this.openFishing(),
+      onGame: (id) => (id === 'fish' ? this.openFishing() : this.openTower()),
     });
     this.fishing = new Fishing({
       skin: () => this.skin,
@@ -188,11 +190,22 @@ export class Game {
       useTicket: () => this.useFishTicket(),
       adTicket: () => this.adFishTicket(),
       finish: (r) => this.finishFishing(r),
-      close: () => this.closeFishing(),
+      close: () => this.closeSub(),
       sound: this.sfx,
       haptic: Telegram,
     });
-    document.getElementById('ui')?.appendChild(this.fishing.el);
+    this.tower = new Tower({
+      skin: () => this.skin,
+      tickets: () => this.towerTickets(),
+      useTicket: () => this.useTowerTicket(),
+      adTicket: () => this.adTowerTicket(),
+      adContinue: () => this.rewarded('tower_continue'),
+      finish: (r) => this.finishTower(r),
+      close: () => this.closeSub(),
+      sound: this.sfx,
+      haptic: Telegram,
+    });
+    document.getElementById('ui')?.append(this.fishing.el, this.tower.el);
     this.ui.setMuted(save.muted);
     // La primera partida nunca tiene anuncios; después se precarga el SDK.
     if (save.runs >= CONFIG.revive.minRunsBefore) Ads.preload();
@@ -395,12 +408,12 @@ export class Game {
 
   private bindInput(): void {
     const onDown = (e: PointerEvent) => {
-      if (this.fishing.isOpen || (e.target as Element).closest('button, .panel, .sheet')) return;
+      if (this.subOpen || (e.target as Element).closest('button, .panel, .sheet')) return;
       this.tap(e.timeStamp);
     };
     window.addEventListener('pointerdown', onDown, { passive: true });
     window.addEventListener('keydown', (e) => {
-      if (this.fishing.isOpen || e.repeat || !['Space', 'Enter', 'ArrowUp', 'KeyW'].includes(e.code)) return;
+      if (this.subOpen || e.repeat || !['Space', 'Enter', 'ArrowUp', 'KeyW'].includes(e.code)) return;
       if (this.phase === 'playing') {
         e.preventDefault();
         this.tap(e.timeStamp);
@@ -1042,9 +1055,9 @@ export class Game {
     this.ui.setDoubled(this.lastRunCoins * 2);
   }
 
-  private missionEvent(d: SaveData, event: MissionEvent): void {
-    for (const m of d.dailyMissions.list) applyEvent(DAILY, m, event);
-    for (const m of d.weeklyMissions.list) applyEvent(WEEKLY, m, event);
+  private missionEvent(d: SaveData, event: MissionEvent, amount = 1): void {
+    for (const m of d.dailyMissions.list) applyEvent(DAILY, m, event, amount);
+    for (const m of d.weeklyMissions.list) applyEvent(WEEKLY, m, event, amount);
   }
 
   // ------------------------------------------------------------ lobby
@@ -1053,22 +1066,41 @@ export class Game {
     const save = Save.data;
     const mission = (pool: Record<string, MissionDef>) => (m: MissionState) => {
       const def = pool[m.id];
-      return { text: def.text, progress: m.progress, target: def.target, reward: def.reward, done: isDone(pool, m), claimed: m.claimed };
+      return {
+        text: def.text,
+        progress: m.progress,
+        target: def.target,
+        reward: def.reward,
+        stars: def.stars ?? 0,
+        done: isDone(pool, m),
+        claimed: m.claimed,
+      };
     };
     const lv = levelFromXp(save.stats.xp);
     const st = save.stats;
     const mins = Math.round(st.playTime / 60);
     const fishTarget = this.fishTarget();
     const fishTickets = this.fishTickets();
+    const towerTickets = this.towerTickets();
     return {
-      fish: {
-        free: fishTickets.free,
-        ad: fishTickets.ad,
-        target: fishTarget ? SKINS[fishTarget.id].name : null,
-        have: fishTarget?.have ?? 0,
-        need: fishTarget?.need ?? 0,
-      },
+      games: [
+        {
+          id: 'fish',
+          free: fishTickets.free,
+          ad: fishTickets.ad,
+          best: save.fish.best ? `Récord: ${save.fish.best} monedas` : 'Todavía sin récord',
+          extra: fishTarget ? `Fragmentos de ${SKINS[fishTarget.id].name}: ${fishTarget.have}/${fishTarget.need}` : '',
+        },
+        {
+          id: 'tower',
+          free: towerTickets.free,
+          ad: towerTickets.ad,
+          best: save.tower.best ? `Récord: ${save.tower.best} pisos` : 'Todavía sin récord',
+          extra: `Estrellas a los ${CONFIG.tower.stars.join(', ')} pisos`,
+        },
+      ],
       coins: save.coins,
+      stars: save.stars,
       best: save.bestChain,
       skin: this.skin,
       owned: save.skins,
@@ -1082,12 +1114,14 @@ export class Game {
         list: save.dailyMissions.list.map(mission(DAILY)),
         chestClaimed: save.dailyMissions.chestClaimed,
         chestReward: CONFIG.economy.dailyChest,
+        chestStars: CONFIG.economy.dailyChestStars,
         resetIn: untilTomorrow(),
       },
       weeklyMissions: {
         list: save.weeklyMissions.list.map(mission(WEEKLY)),
         chestClaimed: save.weeklyMissions.chestClaimed,
         chestReward: CONFIG.economy.weeklyChest,
+        chestStars: CONFIG.economy.weeklyChestStars,
         resetIn: untilNextWeek(),
       },
       achievements: ACHIEVEMENT_ORDER.map((id) => {
@@ -1179,27 +1213,34 @@ export class Game {
     const m = box.list[i];
     if (!m || m.claimed || !isDone(pool, m)) return;
     const reward = pool[m.id].reward;
+    const stars = pool[m.id].stars ?? 0;
     Save.update((d) => {
       (weekly ? d.weeklyMissions : d.dailyMissions).list[i].claimed = true;
       d.coins += reward;
+      d.stars += stars;
       if (!weekly) this.missionEvent(d, 'dailyMission');
     });
     Analytics.track('mission_completed', { id: m.id, weekly });
     Analytics.track('currency_earned', { amount: reward, source: weekly ? 'weekly_mission' : 'mission' });
-    this.ui.toast(`+${reward} monedas`);
+    if (stars) Analytics.track('currency_earned', { amount: stars, source: weekly ? 'weekly_mission' : 'mission', currency: 'stars' });
+    this.ui.toast(stars ? `+${reward} monedas y +${stars} estrellas` : `+${reward} monedas`);
     this.refreshLobby(reward);
   }
 
   private claimChest(weekly: boolean): void {
     const box = weekly ? Save.data.weeklyMissions : Save.data.dailyMissions;
     if (box.chestClaimed || !box.list.every((m) => m.claimed)) return;
-    const reward = weekly ? CONFIG.economy.weeklyChest : CONFIG.economy.dailyChest;
+    const E = CONFIG.economy;
+    const reward = weekly ? E.weeklyChest : E.dailyChest;
+    const stars = weekly ? E.weeklyChestStars : E.dailyChestStars;
     Save.update((d) => {
       (weekly ? d.weeklyMissions : d.dailyMissions).chestClaimed = true;
       d.coins += reward;
+      d.stars += stars;
     });
     Analytics.track('currency_earned', { amount: reward, source: weekly ? 'weekly_chest' : 'daily_chest' });
-    this.ui.toast(`¡Cofre abierto! +${reward} monedas`);
+    Analytics.track('currency_earned', { amount: stars, source: weekly ? 'weekly_chest' : 'daily_chest', currency: 'stars' });
+    this.ui.toast(`¡Cofre abierto! +${reward} monedas y +${stars} estrellas`);
     this.refreshLobby(reward);
   }
 
@@ -1215,10 +1256,69 @@ export class Game {
     this.fishing.show();
   }
 
-  private closeFishing(): void {
+  private get subOpen(): boolean {
+    return this.fishing.isOpen || this.tower.isOpen;
+  }
+
+  /** Al salir de un subjuego se vuelve a la pestaña Juegos. */
+  private closeSub(): void {
     this.sfx.musicWorld(0);
     this.sfx.musicIntensity(0);
     this.ui.showMenu(this.menuData());
+  }
+
+  // ------------------------------------------------------------ torre de faroles
+
+  private openTower(): void {
+    this.sfx.unlock();
+    this.sfx.click();
+    this.ui.hide();
+    this.sfx.musicWorld(36);
+    this.sfx.musicIntensity(1);
+    Analytics.track('tower_open', { free: this.towerTickets().free });
+    this.tower.show();
+  }
+
+  private towerTickets(): { free: number; ad: number } {
+    const t = Save.data.tower;
+    return { free: Math.max(0, CONFIG.tower.freePerDay - t.used), ad: Math.max(0, CONFIG.tower.adPerDay - t.ads) };
+  }
+
+  private useTowerTicket(): boolean {
+    if (this.towerTickets().free <= 0) return false;
+    Save.update((d) => d.tower.used++);
+    Analytics.track('tower_start', { ticket: 'free' });
+    return true;
+  }
+
+  private async adTowerTicket(): Promise<boolean> {
+    if (this.towerTickets().ad <= 0 || this.adBusy) return false;
+    Analytics.track('ad_offer_shown', { ad_placement: 'tower', ad_format: Ads.format });
+    const ok = await this.rewarded('tower');
+    if (ok) {
+      Save.update((d) => d.tower.ads++);
+      Analytics.track('tower_start', { ticket: 'ad' });
+    }
+    return ok;
+  }
+
+  private finishTower(r: TowerResult): TowerOutcome {
+    let record = false;
+    const save = Save.update((d) => {
+      d.coins += r.coins;
+      d.stars += r.stars;
+      d.tower.rounds++;
+      record = r.floors > d.tower.best && d.tower.rounds > 1;
+      d.tower.best = Math.max(d.tower.best, r.floors);
+      this.missionEvent(d, 'towerRound');
+      this.missionEvent(d, 'towerFloors', r.floors);
+      if (r.perfects) this.missionEvent(d, 'towerPerfects', r.perfects);
+      if (r.stars) this.missionEvent(d, 'subStars', r.stars);
+    });
+    Analytics.track('tower_round', { floors: r.floors, stars: r.stars, coins: r.coins, perfects: r.perfects });
+    if (r.coins) Analytics.track('currency_earned', { amount: r.coins, source: 'tower' });
+    if (r.stars) Analytics.track('currency_earned', { amount: r.stars, source: 'tower', currency: 'stars' });
+    return { record, best: save.tower.best, starsTotal: save.stars };
   }
 
   private fishTickets(): { free: number; ad: number } {
@@ -1271,14 +1371,20 @@ export class Game {
     return ok;
   }
 
-  private finishFishing(r: FishResult): { record: boolean; best: number; unlocked: SkinId | null; target: FishTarget | null } {
+  private finishFishing(r: FishResult): FishOutcome {
     const tg = this.fishTarget();
     let unlocked: SkinId | null = null;
     let record = false;
     let shardCoins = 0;
     const save = Save.update((d) => {
       d.coins += r.coins;
+      d.stars += r.stars;
       d.fish.rounds++;
+      this.missionEvent(d, 'fishRound');
+      if (r.stars) {
+        this.missionEvent(d, 'fishStars', r.stars);
+        this.missionEvent(d, 'subStars', r.stars);
+      }
       record = r.coins > d.fish.best && d.fish.rounds > 1;
       d.fish.best = Math.max(d.fish.best, r.coins);
       if (!r.shards) return;
@@ -1296,10 +1402,11 @@ export class Game {
         d.coins += shardCoins;
       }
     });
-    Analytics.track('fish_round', { coins: r.coins, shards: r.shards, stars: r.stars, combo: r.combo });
+    Analytics.track('fish_round', { coins: r.coins, shards: r.shards, items: r.items, stars: r.stars, combo: r.combo });
+    if (r.stars) Analytics.track('currency_earned', { amount: r.stars, source: 'fish', currency: 'stars' });
     if (r.coins + shardCoins > 0) Analytics.track('currency_earned', { amount: r.coins + shardCoins, source: 'fish' });
     if (unlocked) Analytics.track('cosmetic_unlocked', { skin: unlocked, source: 'fish' });
-    return { record, best: save.fish.best, unlocked, target: this.fishTarget() };
+    return { record, best: save.fish.best, starsTotal: save.stars, unlocked, target: this.fishTarget() };
   }
 
   private claimAchievement(id: AchievementId): void {
@@ -1369,15 +1476,16 @@ export class Game {
     }
     const st = SKINS[id];
     if (st.unlock) return 'locked';
-    if (save.coins < st.price) return 'poor';
+    if (st.starPrice ? save.stars < st.starPrice : save.coins < st.price) return 'poor';
     Save.update((d) => {
-      d.coins -= st.price;
+      if (st.starPrice) d.stars -= st.starPrice;
+      else d.coins -= st.price;
       d.skins.push(id);
       d.skin = id;
     });
     this.skin = id;
     this.sfx.record();
-    Analytics.track('currency_spent', { amount: st.price, item: id });
+    Analytics.track('currency_spent', st.starPrice ? { amount: st.starPrice, item: id, currency: 'stars' } : { amount: st.price, item: id });
     Analytics.track('cosmetic_unlocked', { skin: id, source: 'shop' });
     this.ui.showMenu(this.menuData());
     return 'bought';
@@ -1438,8 +1546,10 @@ export class Game {
     const dt = Math.min(0.1, Math.max(0, (now - this.lastFrame) / 1000));
     this.lastFrame = now;
     if (this.fishing.isOpen) {
-      // Durante la pesca el juego principal queda quieto (no se dibuja).
+      // Durante un subjuego el juego principal queda quieto (no se dibuja).
       this.fishing.step(dt);
+    } else if (this.tower.isOpen) {
+      this.tower.step(dt);
     } else {
       this.update(dt);
       this.view.render(this);
