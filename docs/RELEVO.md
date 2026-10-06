@@ -168,6 +168,23 @@ Se ven en silueta, sin nombre ni habilidad, con una pista. Se desbloquean solos 
 | Nova | "Tres cohetes en un mismo viaje" | Atrapar 3 cohetes en una partida | Trampolines y cohetes: +1 moneda por relevo saltado |
 | **Lucero** (Mítica) | "Te espera donde nace la luz" | Llegar al mundo 50, Origen de la luz | Escudo al empezar, mecha +10% y +30% monedas |
 
+## Pesca de estrellas (subjuego)
+
+Se abre desde Inicio. Tu personaje cuelga de un hilo de luz que se balancea como un péndulo: **tocás y se lanza** en esa dirección, engancha lo primero que toca y vuelve (más lento si pesa). Cada tirada dura **30 segundos**. Código en `relevo/src/fish/Fishing.ts`, valores en `CONFIG.fish`.
+
+| Objeto | Qué da |
+|---|---|
+| Estrella chica / grande | 1 / 4 monedas |
+| Cofre (en el fondo, pesado) | 12 monedas |
+| Reloj de arena | +5 s |
+| Fragmento de personaje (a veces, en el fondo) | 1 fragmento |
+| Hoja seca | Nada: pesa mucho y corta el combo |
+
+- **Mismo enganche que el juego:** un toque, combo por atrapar seguido (×2 desde 3 y ×3 desde 6), "¡Perfecto!" al enganchar justo en el centro (+50%), récord de pesca y "Otra tirada".
+- **Nueva ola:** si atrapás todo lo que vale, aparece otra (+3 s) y el péndulo va un poco más rápido.
+- **Tiradas:** 3 gratis por día y hasta 3 más viendo un anuncio (lugar de anuncio `fish`).
+- **Fragmentos:** completan un personaje de la tienda que no tengas (elegís cuál). Hacen falta 6 + precio/700: Erizo 6, Brote 7, Luna 8, Cometa 13, Dragón 16, Fénix 23. Cuando ya tenés todos, cada fragmento vale 50 monedas.
+
 ## Lobby (5 pestañas)
 
 Hay puntos rojos en cada pestaña cuando hay algo para cobrar.

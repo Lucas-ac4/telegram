@@ -1,6 +1,7 @@
 import { CONFIG } from '../config';
 import { Ads, type AdPlacement } from '../ads';
 import { Analytics } from '../analytics';
+import { Fishing, type FishResult, type FishTarget } from '../fish/Fishing';
 import { Sfx } from '../audio/Sfx';
 import {
   ACHIEVEMENT_ORDER,
@@ -87,6 +88,7 @@ export class Game {
   readonly view: View;
   readonly particles = new Particles();
   private ui: UI;
+  private fishing: Fishing;
   private sfx = new Sfx();
 
   phase: Phase = 'menu';
@@ -176,7 +178,21 @@ export class Game {
       onRevive: () => void this.acceptRevive(),
       onDeclineRevive: () => this.declineRevive(),
       onDouble: () => void this.doubleCoins(),
+      onFish: () => this.openFishing(),
     });
+    this.fishing = new Fishing({
+      skin: () => this.skin,
+      tickets: () => this.fishTickets(),
+      target: () => this.fishTarget(),
+      cycleTarget: () => this.cycleFishTarget(),
+      useTicket: () => this.useFishTicket(),
+      adTicket: () => this.adFishTicket(),
+      finish: (r) => this.finishFishing(r),
+      close: () => this.closeFishing(),
+      sound: this.sfx,
+      haptic: Telegram,
+    });
+    document.getElementById('ui')?.appendChild(this.fishing.el);
     this.ui.setMuted(save.muted);
     // La primera partida nunca tiene anuncios; después se precarga el SDK.
     if (save.runs >= CONFIG.revive.minRunsBefore) Ads.preload();
@@ -379,12 +395,12 @@ export class Game {
 
   private bindInput(): void {
     const onDown = (e: PointerEvent) => {
-      if ((e.target as Element).closest('button, .panel, .sheet')) return;
+      if (this.fishing.isOpen || (e.target as Element).closest('button, .panel, .sheet')) return;
       this.tap(e.timeStamp);
     };
     window.addEventListener('pointerdown', onDown, { passive: true });
     window.addEventListener('keydown', (e) => {
-      if (e.repeat || !['Space', 'Enter', 'ArrowUp', 'KeyW'].includes(e.code)) return;
+      if (this.fishing.isOpen || e.repeat || !['Space', 'Enter', 'ArrowUp', 'KeyW'].includes(e.code)) return;
       if (this.phase === 'playing') {
         e.preventDefault();
         this.tap(e.timeStamp);
@@ -1042,7 +1058,16 @@ export class Game {
     const lv = levelFromXp(save.stats.xp);
     const st = save.stats;
     const mins = Math.round(st.playTime / 60);
+    const fishTarget = this.fishTarget();
+    const fishTickets = this.fishTickets();
     return {
+      fish: {
+        free: fishTickets.free,
+        ad: fishTickets.ad,
+        target: fishTarget ? SKINS[fishTarget.id].name : null,
+        have: fishTarget?.have ?? 0,
+        need: fishTarget?.need ?? 0,
+      },
       coins: save.coins,
       best: save.bestChain,
       skin: this.skin,
@@ -1176,6 +1201,105 @@ export class Game {
     Analytics.track('currency_earned', { amount: reward, source: weekly ? 'weekly_chest' : 'daily_chest' });
     this.ui.toast(`¡Cofre abierto! +${reward} monedas`);
     this.refreshLobby(reward);
+  }
+
+  // ------------------------------------------------------------ pesca de estrellas
+
+  private openFishing(): void {
+    this.sfx.unlock();
+    this.sfx.click();
+    this.ui.hide();
+    this.sfx.musicWorld(24);
+    this.sfx.musicIntensity(1);
+    Analytics.track('fish_open', { free: this.fishTickets().free });
+    this.fishing.show();
+  }
+
+  private closeFishing(): void {
+    this.sfx.musicWorld(0);
+    this.sfx.musicIntensity(0);
+    this.ui.showMenu(this.menuData());
+  }
+
+  private fishTickets(): { free: number; ad: number } {
+    const f = Save.data.fish;
+    return { free: Math.max(0, CONFIG.fish.freePerDay - f.used), ad: Math.max(0, CONFIG.fish.adPerDay - f.ads) };
+  }
+
+  /** Personajes de la tienda que todavía no tenés: a esos van los fragmentos. */
+  private fishCandidates(): SkinId[] {
+    const owned = Save.data.skins;
+    return SKIN_ORDER.filter((id) => SKINS[id].price > 0 && !owned.includes(id));
+  }
+
+  private fishNeed(id: SkinId): number {
+    const f = CONFIG.fish.fragments;
+    return f.base + Math.floor(SKINS[id].price / f.perPrice);
+  }
+
+  private fishTarget(): FishTarget | null {
+    const c = this.fishCandidates();
+    if (!c.length) return null;
+    const f = Save.data.fish;
+    const id = f.target && c.includes(f.target) ? f.target : c[0];
+    return { id, have: f.fragments[id] ?? 0, need: this.fishNeed(id) };
+  }
+
+  private cycleFishTarget(): void {
+    const c = this.fishCandidates();
+    const cur = this.fishTarget();
+    if (!cur || c.length < 2) return;
+    const next = c[(c.indexOf(cur.id) + 1) % c.length];
+    Save.update((d) => (d.fish.target = next));
+  }
+
+  private useFishTicket(): boolean {
+    if (this.fishTickets().free <= 0) return false;
+    Save.update((d) => d.fish.used++);
+    Analytics.track('fish_start', { ticket: 'free' });
+    return true;
+  }
+
+  private async adFishTicket(): Promise<boolean> {
+    if (this.fishTickets().ad <= 0 || this.adBusy) return false;
+    Analytics.track('ad_offer_shown', { ad_placement: 'fish', ad_format: Ads.format });
+    const ok = await this.rewarded('fish');
+    if (ok) {
+      Save.update((d) => d.fish.ads++);
+      Analytics.track('fish_start', { ticket: 'ad' });
+    }
+    return ok;
+  }
+
+  private finishFishing(r: FishResult): { record: boolean; best: number; unlocked: SkinId | null; target: FishTarget | null } {
+    const tg = this.fishTarget();
+    let unlocked: SkinId | null = null;
+    let record = false;
+    let shardCoins = 0;
+    const save = Save.update((d) => {
+      d.coins += r.coins;
+      d.fish.rounds++;
+      record = r.coins > d.fish.best && d.fish.rounds > 1;
+      d.fish.best = Math.max(d.fish.best, r.coins);
+      if (!r.shards) return;
+      if (tg) {
+        const have = (d.fish.fragments[tg.id] ?? 0) + r.shards;
+        if (have >= tg.need) {
+          if (!d.skins.includes(tg.id)) d.skins.push(tg.id);
+          delete d.fish.fragments[tg.id];
+          d.fish.target = null;
+          unlocked = tg.id;
+        } else d.fish.fragments[tg.id] = have;
+      } else {
+        // Sin personajes por completar, cada fragmento vale 50 monedas.
+        shardCoins = r.shards * 50;
+        d.coins += shardCoins;
+      }
+    });
+    Analytics.track('fish_round', { coins: r.coins, shards: r.shards, stars: r.stars, combo: r.combo });
+    if (r.coins + shardCoins > 0) Analytics.track('currency_earned', { amount: r.coins + shardCoins, source: 'fish' });
+    if (unlocked) Analytics.track('cosmetic_unlocked', { skin: unlocked, source: 'fish' });
+    return { record, best: save.fish.best, unlocked, target: this.fishTarget() };
   }
 
   private claimAchievement(id: AchievementId): void {
@@ -1313,9 +1437,14 @@ export class Game {
   private frame = (now: number) => {
     const dt = Math.min(0.1, Math.max(0, (now - this.lastFrame) / 1000));
     this.lastFrame = now;
-    this.update(dt);
-    this.view.render(this);
-    this.view.measure(dt);
+    if (this.fishing.isOpen) {
+      // Durante la pesca el juego principal queda quieto (no se dibuja).
+      this.fishing.step(dt);
+    } else {
+      this.update(dt);
+      this.view.render(this);
+      this.view.measure(dt);
+    }
     requestAnimationFrame(this.frame);
   };
 

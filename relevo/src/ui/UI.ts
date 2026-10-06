@@ -35,6 +35,7 @@ const svg = (body: string, fill = false) =>
 const ICON = {
   gift: svg('<rect x="3" y="8" width="18" height="4" rx="1"/><path d="M12 8v13M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7"/><path d="M7.5 8a2.5 2.5 0 0 1 0-5C11 3 12 8 12 8s1-5 4.5-5a2.5 2.5 0 0 1 0 5"/>'),
   target: svg('<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.2"/>'),
+  fish: svg('<path d="M2 12c3-5 9-7 14-3l5-3v12l-5-3c-5 4-11 2-14-3z"/><circle cx="8" cy="11" r="1"/>'),
   home: svg('<path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/>'),
   list: svg('<path d="M10 6h10M10 12h10M10 18h10"/><path d="M3.5 6l1.5 1.5L7.5 5M3.5 12l1.5 1.5 2.5-2.5M3.5 18l1.5 1.5 2.5-2.5"/>'),
   flame: svg('<path d="M12 3c1 4 6 6 6 11a6 6 0 0 1-12 0c0-3 2-5 3-6 0 2 1 3 2 3 0-3 0-6 1-8z"/>'),
@@ -72,6 +73,8 @@ export interface MissionBox {
 
 export interface LobbyData {
   coins: number;
+  /** Pesca de estrellas: tiradas que quedan hoy y personaje que se está completando. */
+  fish: { free: number; ad: number; target: string | null; have: number; need: number };
   best: number;
   skin: SkinId;
   owned: SkinId[];
@@ -142,6 +145,7 @@ interface Handlers {
   onRevive(): void;
   onDeclineRevive(): void;
   onDouble(): void;
+  onFish(): void;
 }
 
 /** Interfaz HTML/CSS sobre el canvas: nítida en cualquier pantalla y fácil de iterar. */
@@ -181,6 +185,12 @@ export class UI {
               <button class="tile reto" data-open="reto">
                 <span class="tile-ico">${ICON.target}</span>
                 <span class="tile-text"><b>Reto diario</b><small data-reto-sub></small></span>
+              </button>
+              <button class="tile fish" data-fish>
+                <span class="tile-ico">${ICON.fish}</span>
+                <span class="tile-text"><b>Pesca de estrellas</b><small data-fish-sub></small></span>
+                <span class="tile-new">NUEVO</span>
+                <i class="dot" data-fish-dot hidden></i>
               </button>
             </div>
             <div class="boost" data-boost></div>
@@ -384,6 +394,7 @@ export class UI {
       h.onDeclineRevive();
     });
     click('[data-double]', () => h.onDouble());
+    click('[data-fish]', () => h.onFish());
     click('[data-tab]', (el) => this.setTab(el.dataset.tab as Tab));
     click('[data-open]', (el) => this.openModal(el.dataset.open!));
     click('[data-close]', () => this.closeModals());
@@ -415,6 +426,11 @@ export class UI {
     return this.root.querySelector(sel) as T;
   }
 
+  /** Oculta todas las pantallas (la pesca de estrellas dibuja la suya). */
+  hide(): void {
+    this.only(null);
+  }
+
   private only(name: ScreenName | null): void {
     for (const [k, el] of Object.entries(this.screens)) el.hidden = k !== name;
     if (name !== 'menu') this.closeModals();
@@ -438,6 +454,10 @@ export class UI {
     this.$('[data-menu-coins]').textContent = d.coins.toLocaleString('es-AR');
     this.$('[data-best]').textContent = String(d.best);
     this.$('[data-home-level]').textContent = `Nivel ${d.profile.level}`;
+    const f = d.fish;
+    const tickets = f.free > 0 ? `${f.free} tiradas gratis` : f.ad > 0 ? 'Tirada extra con anuncio' : 'Mañana hay más tiradas';
+    this.$('[data-fish-sub]').textContent = f.target ? `${tickets} · ${f.target} ${f.have}/${f.need}` : tickets;
+    this.$('[data-fish-dot]').hidden = f.free <= 0;
     this.$('[data-stats]').hidden = !d.showStats;
 
     // Inicio

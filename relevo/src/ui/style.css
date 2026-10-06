@@ -1711,3 +1711,196 @@
     transform: translateX(5px);
   }
 }
+
+/* ---------- Pesca de estrellas ---------- */
+.tile.fish {
+  grid-column: 1 / -1;
+}
+.tile.fish .tile-ico {
+  color: #1a0a3a;
+  background: linear-gradient(180deg, #e8dcff, #9a7aff);
+}
+.tile-new {
+  margin-left: auto;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #1a0a3a;
+  background: linear-gradient(180deg, #fff3b0, #ffc861);
+}
+#ui .screen.fish {
+  padding: 0;
+  pointer-events: auto;
+  background: #040918;
+  touch-action: none;
+}
+.fish-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.fish-hud {
+  position: absolute;
+  top: calc(12px + var(--safe-top));
+  left: 12px;
+  right: 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.round-btn {
+  flex: none;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  font-size: 16px;
+  background: var(--glass) !important;
+  border: 1px solid var(--line) !important;
+}
+.fish-timer {
+  position: relative;
+  flex: 1;
+  height: 26px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(8, 18, 44, 0.7);
+  border: 1px solid var(--line);
+}
+.fish-timer i {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: linear-gradient(90deg, #4fd6e8, #8ff7ff);
+  opacity: 0.55;
+  transition: width 0.1s linear;
+}
+.fish-timer b {
+  position: relative;
+  display: block;
+  text-align: center;
+  line-height: 24px;
+  font-size: 15px;
+}
+.fish-timer.low i {
+  background: linear-gradient(90deg, #ff6a4a, #ffb08a);
+}
+.coin-pill.small {
+  position: static;
+  padding: 5px 12px;
+  font-size: 16px;
+}
+.fish-combo {
+  position: absolute;
+  top: calc(60px + var(--safe-top));
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 5px 14px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  background: rgba(8, 18, 44, 0.7);
+  border: 1px solid var(--line);
+}
+.fish-combo.hot {
+  color: #2a1400;
+  background: linear-gradient(180deg, #ffe39a, var(--amber-2));
+  border-color: transparent;
+}
+.fish-help {
+  position: absolute;
+  bottom: calc(28px + var(--safe-bottom));
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 16px;
+  color: var(--muted);
+  animation: breathe 1.6s ease-in-out infinite;
+}
+.fish-panel {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: calc(14px + var(--safe-bottom));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 18px 16px 16px;
+  border-radius: 24px;
+  text-align: center;
+  background: rgba(6, 14, 36, 0.86);
+  border: 1px solid var(--line);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  pointer-events: auto;
+}
+.fish-panel h2 {
+  margin: 0;
+  font-size: 24px;
+}
+.fish-panel p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.35;
+}
+.fish-total {
+  font-size: 40px;
+  font-weight: 700;
+  color: var(--amber);
+}
+.fish-tickets b {
+  color: var(--amber);
+}
+.fish-target {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: 16px;
+  text-align: left;
+  background: rgba(150, 110, 255, 0.14) !important;
+  border: 1px solid rgba(180, 140, 255, 0.4) !important;
+}
+.fish-target.done {
+  display: block;
+  font-size: 13px;
+  color: var(--muted);
+}
+.fish-target img {
+  width: 44px;
+  height: 44px;
+}
+.ft-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.ft-text small {
+  font-size: 11px;
+  color: var(--muted);
+}
+.ft-text b {
+  font-size: 15px;
+}
+.ft-text .bar {
+  height: 6px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.12);
+}
+.ft-text .bar i {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #b48cff, #e8dcff);
+}
+.ft-change {
+  flex: none;
+  font-size: 12px;
+  color: #d8c8ff;
+}

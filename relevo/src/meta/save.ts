@@ -30,6 +30,16 @@ export interface SaveData {
   zones: { reached: number; claimed: number[] };
   /** Potenciador de arranque comprado o ganado con anuncio (se usa en la próxima partida). */
   boost: { shield: boolean };
+  /** Pesca de estrellas: tiradas usadas hoy (gratis y con anuncio), fragmentos y récord. */
+  fish: {
+    day: string;
+    used: number;
+    ads: number;
+    fragments: Partial<Record<SkinId, number>>;
+    target: SkinId | null;
+    best: number;
+    rounds: number;
+  };
   firstOpen: string | null;
   lastOpen: string | null;
   daysPlayed: number;
@@ -68,6 +78,7 @@ function defaults(): SaveData {
     reto: { day, best: 0, attempts: 0 },
     zones: { reached: 0, claimed: [] },
     boost: { shield: false },
+    fish: { day, used: 0, ads: 0, fragments: {}, target: null, best: 0, rounds: 0 },
     firstOpen: null,
     lastOpen: null,
     daysPlayed: 0,
@@ -100,6 +111,7 @@ export const Save = {
     if (cache.dailyMissions.day !== day) cache.dailyMissions = { day, list: dailyFor(day), chestClaimed: false };
     if (cache.weeklyMissions.week !== week) cache.weeklyMissions = { week, list: weeklyFor(week), chestClaimed: false };
     if (cache.reto.day !== day) cache.reto = { day, best: 0, attempts: 0 };
+    if (cache.fish.day !== day) cache.fish = { ...cache.fish, day, used: 0, ads: 0 };
     return cache;
   },
 

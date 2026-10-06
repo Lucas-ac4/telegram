@@ -12,7 +12,7 @@ import { CONFIG } from './config';
  * La recompensa nunca es dinero ni puntos canjeables (regla de la propuesta).
  */
 
-export type AdPlacement = 'revive' | 'double' | 'daily' | 'boost';
+export type AdPlacement = 'revive' | 'double' | 'daily' | 'boost' | 'fish';
 
 const ZONE = CONFIG.ads.monetagZone;
 let sdk: Promise<boolean> | null = null;

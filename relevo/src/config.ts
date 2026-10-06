@@ -126,6 +126,27 @@ export const CONFIG = {
     skin: 'aurora',
   },
 
+  /** Subjuego Pesca de estrellas. */
+  fish: {
+    freePerDay: 3,
+    /** Tiradas extra por día viendo un anuncio. */
+    adPerDay: 3,
+    roundTime: 30,
+    /** Péndulo: ángulo máximo (rad) y velocidad angular. */
+    swingMax: 0.9,
+    swingSpeed: 2.1,
+    shootSpeed: 560,
+    emptyReel: 720,
+    clockTime: 5,
+    waveTime: 3,
+    /** Fragmentos: chance en la primera ola y en las siguientes (máximo por tirada). */
+    shardChance: 0.45,
+    shardChanceLater: 0.15,
+    maxShards: 2,
+    /** Fragmentos para completar un personaje: base + precio / perPrice. */
+    fragments: { base: 6, perPrice: 700 },
+  },
+
   ads: {
     /** Zona de Monetag (rewarded interstitial). Sin zona se usa un anuncio de prueba. */
     monetagZone: (import.meta.env.VITE_MONETAG_ZONE as string | undefined) ?? '',
