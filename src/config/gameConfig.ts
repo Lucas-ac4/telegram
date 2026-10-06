@@ -95,11 +95,11 @@ export const CONFIG = {
   },
 
   camera: {
-    height: 4.5,
-    distance: 8.2,
+    height: 4.1,
+    distance: 7.3,
     lookAhead: 7,
     /** FOV horizontal mínimo para que entren los 3 carriles en pantallas finas. */
-    minHorizontalFov: 44,
+    minHorizontalFov: 41,
     baseVerticalFov: 62,
     /** Qué tanto sube la cámara cuando corrés por arriba de un camión (fracción de la altura del piso). */
     floorFollow: 0.85,

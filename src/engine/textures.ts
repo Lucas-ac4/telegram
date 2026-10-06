@@ -31,16 +31,40 @@ export function pitchTexture(lanes: number, laneWidth: number, halfWidth: number
   const [c, g] = canvas(W, H);
   const pxPerM = W / (halfWidth * 2);
   const mY = H / 24; // px por metro a lo largo
-  // Franjas de cortadora (4 m) con degradé suave y "veteado".
+  // Franjas de cortadora (4 m): contraste claro/oscuro con transición suave + veteado en direcciones alternas.
   const bands = 6;
   for (let i = 0; i < bands; i++) {
     const y0 = (i * H) / bands;
-    const grad = g.createLinearGradient(0, y0, 0, y0 + H / bands);
     const light = i % 2 === 0;
-    grad.addColorStop(0, light ? '#3d8a44' : '#33773a');
-    grad.addColorStop(1, light ? '#38813f' : '#2f7036');
+    const grad = g.createLinearGradient(0, y0, 0, y0 + H / bands);
+    grad.addColorStop(0, light ? '#3c9a3f' : '#27782f');
+    grad.addColorStop(0.5, light ? '#368f3a' : '#236c2a');
+    grad.addColorStop(1, light ? '#318535' : '#1f6326');
     g.fillStyle = grad;
     g.fillRect(0, y0, W, H / bands);
+    // Hebras inclinadas hacia un lado u otro según la franja (así se ve el "peinado" del césped).
+    g.strokeStyle = light ? 'rgba(210,255,170,0.07)' : 'rgba(0,40,10,0.09)';
+    g.lineWidth = 1;
+    for (let k = 0; k < 700; k++) {
+      const x = Math.random() * W;
+      const y = y0 + Math.random() * (H / bands);
+      g.beginPath();
+      g.moveTo(x, y);
+      g.lineTo(x + (light ? 3 : -3), y + 7);
+      g.stroke();
+    }
+  }
+  // Desgaste del césped: manchas más claras/amarillentas.
+  for (let i = 0; i < 14; i++) {
+    const gr = g.createRadialGradient(0, 0, 0, 0, 0, 60);
+    gr.addColorStop(0, 'rgba(190,200,90,0.12)');
+    gr.addColorStop(1, 'rgba(190,200,90,0)');
+    g.save();
+    g.translate(Math.random() * W, Math.random() * H);
+    g.scale(1 + Math.random(), 0.6 + Math.random() * 0.6);
+    g.fillStyle = gr;
+    g.fillRect(-60, -60, 120, 120);
+    g.restore();
   }
   // Pasto: brizna corta + manchas suaves de color.
   for (let i = 0; i < 5000; i++) {
@@ -435,4 +459,98 @@ export function truckDecalTexture(variant: 0 | 1): THREE.CanvasTexture {
     g.fillText('⚽', 914, 60);
   }
   return toTexture(c);
+}
+
+/** Personas por repetición de la textura del público (el shader usa el mismo número). */
+export const CROWD_COLS = 22;
+/** ¿Esta persona está festejando (brazos arriba y salta)? Misma fórmula que en el shader. */
+export const crowdActive = (col: number) => (col * 0.618034) % 1 > 0.6;
+
+/**
+ * Hinchada pintada: una fila de bustos (cabeza, hombros, camiseta, bufanda, brazos arriba) con
+ * fondo transparente. Se usa en tarjetas sobre las tribunas = estadio lleno sin miles de modelos.
+ */
+export function crowdTexture(): THREE.CanvasTexture {
+  const W = 1024;
+  const H = 160;
+  const [c, g] = canvas(W, H);
+  const cw = W / CROWD_COLS;
+  const shirts = ['#78b4e0', '#eef2f7', '#78b4e0', '#d9d4c4', '#b8404b', '#2b3550', '#5d6b7a', '#d8a63a', '#eef2f7', '#3d6fb5'];
+  const skins = ['#e3b08d', '#c88a64', '#9a6444', '#eec4a0', '#6d4430', '#d9a07a'];
+  const hairs = ['#17120f', '#2a1c14', '#4a3222', '#7a5a38', '#c9a45a', '#8a8a8a', '#0e0e12'];
+  const rnd = (a: number, b: number) => a + Math.random() * (b - a);
+  const pick = <T,>(a: T[]) => a[Math.floor(Math.random() * a.length)];
+  for (let col = 0; col < CROWD_COLS; col++) {
+    const cx = col * cw + cw / 2 + rnd(-2, 2);
+    const shirt = pick(shirts);
+    const skin = pick(skins);
+    const hair = pick(hairs);
+    const active = crowdActive(col);
+    const top = active ? 52 : 46; // y de la cabeza
+    const hy = top + rnd(-3, 3);
+    // Brazos arriba.
+    if (active) {
+      g.strokeStyle = skin;
+      g.lineCap = 'round';
+      g.lineWidth = 7;
+      for (const s of [-1, 1]) {
+        g.beginPath();
+        g.moveTo(cx + s * 14, 112);
+        g.lineTo(cx + s * 22, 34);
+        g.stroke();
+        g.fillStyle = skin;
+        g.beginPath();
+        g.arc(cx + s * 22, 30, 5, 0, Math.PI * 2);
+        g.fill();
+      }
+      g.strokeStyle = shirt;
+      g.lineWidth = 9;
+      for (const s of [-1, 1]) {
+        g.beginPath();
+        g.moveTo(cx + s * 14, 118);
+        g.lineTo(cx + s * 19, 82);
+        g.stroke();
+      }
+    }
+    // Torso / hombros con sombreado.
+    const grad = g.createLinearGradient(0, hy + 24, 0, H);
+    grad.addColorStop(0, shirt);
+    grad.addColorStop(1, '#0003');
+    g.fillStyle = shirt;
+    g.beginPath();
+    g.moveTo(cx - 20, H);
+    g.quadraticCurveTo(cx - 22, hy + 30, cx - 9, hy + 24);
+    g.lineTo(cx + 9, hy + 24);
+    g.quadraticCurveTo(cx + 22, hy + 30, cx + 20, H);
+    g.closePath();
+    g.fill();
+    g.fillStyle = 'rgba(0,0,0,0.18)';
+    g.fillRect(cx - 21, H - 34, 42, 34);
+    // Bufanda en algunos.
+    if (col % 3 === 0) {
+      g.fillStyle = '#fff';
+      g.fillRect(cx - 12, hy + 26, 24, 5);
+      g.fillStyle = '#6fb6e8';
+      g.fillRect(cx - 12, hy + 31, 24, 5);
+    }
+    // Cuello y cabeza.
+    g.fillStyle = skin;
+    g.fillRect(cx - 4, hy + 14, 8, 14);
+    g.beginPath();
+    g.ellipse(cx, hy, 11, 13, 0, 0, Math.PI * 2);
+    g.fill();
+    // Sombra bajo el mentón + pelo.
+    g.fillStyle = 'rgba(0,0,0,0.12)';
+    g.beginPath();
+    g.ellipse(cx, hy + 11, 9, 4, 0, 0, Math.PI);
+    g.fill();
+    g.fillStyle = hair;
+    g.beginPath();
+    g.ellipse(cx, hy - 5, 11.5, 9, 0, Math.PI, Math.PI * 2);
+    g.fill();
+    if (Math.random() < 0.3) g.fillRect(cx - 11.5, hy - 5, 4, 12);
+  }
+  const t = toTexture(c, true);
+  t.anisotropy = 2;
+  return t;
 }

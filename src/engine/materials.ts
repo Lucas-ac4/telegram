@@ -79,6 +79,27 @@ export function pbrVertexColors(opts: THREE.MeshStandardMaterialParameters = {})
   return curved(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.65, metalness: 0, ...opts }));
 }
 
+/**
+ * Luz de borde (rim light) barata: un halo fresnel en los contornos del objeto.
+ * Separa al jugador del fondo sin gastar una luz dinámica más.
+ */
+export function withRim<T extends THREE.MeshStandardMaterial>(mat: T, color: THREE.ColorRepresentation = 0xcfe8ff, strength = 0.5, power = 2.4): T {
+  const c = new THREE.Color(color);
+  const prev = mat.onBeforeCompile;
+  const key = mat.customProgramCacheKey();
+  mat.onBeforeCompile = (shader, renderer) => {
+    prev.call(mat, shader, renderer);
+    shader.fragmentShader = shader.fragmentShader.replace(
+      '#include <opaque_fragment>',
+      `float rimF = pow(1.0 - saturate(dot(normalize(vNormal), normalize(vViewPosition))), ${power.toFixed(1)});
+      outgoingLight += vec3(${c.r.toFixed(3)}, ${c.g.toFixed(3)}, ${c.b.toFixed(3)}) * rimF * ${strength.toFixed(2)};
+      #include <opaque_fragment>`,
+    );
+  };
+  mat.customProgramCacheKey = () => key + '-rim';
+  return mat;
+}
+
 export function basic(opts: THREE.MeshBasicMaterialParameters): THREE.MeshBasicMaterial {
   return curved(new THREE.MeshBasicMaterial(opts));
 }

@@ -1,11 +1,24 @@
 import * as THREE from 'three';
 import { buildRig, type Rig } from '../engine/athlete';
 import type { Palette } from '../engine/body';
-import { pbr, pbrVertexColors, shadowed } from '../engine/materials';
+import { pbr, pbrVertexColors, shadowed, withRim } from '../engine/materials';
 import { jerseyTexture } from '../engine/textures';
 import { HAIR_COLORS, KITS, type Kit, type Look } from '../config/cosmetics';
 
-export type Pose = 'idle' | 'run' | 'jump' | 'slide' | 'dead';
+export type Pose = 'idle' | 'run' | 'jump' | 'fall' | 'slide' | 'dead';
+/** Acciones que se superponen a la pose base. */
+export type Action = 'kick' | 'cheer' | 'reach';
+const ACTION_DURATION: Record<Action, number> = { kick: 0.5, cheer: 1.1, reach: 0.35 };
+/** Contexto de movimiento para la animación: lat = velocidad lateral (-1..1), vy = velocidad vertical. */
+export interface Ctx {
+  lat: number;
+  vy: number;
+}
+const SPRING_K = 260;
+const SPRING_C = 16;
+
+/** Escalas de estilo: cabeza y extremidades más contundentes para que la silueta se lea en pantalla chica. */
+const STYLE = { head: 1.26, limbXZ: 1.16, torsoXZ: 1.06 };
 
 /** Tono de piel base (se puede ofrecer más tonos en el vestuario). */
 export const SKIN_TONE = '#dfa981';
@@ -68,12 +81,28 @@ export class Character {
   private stars: THREE.Group;
   private time = 0;
   private target = new Map<THREE.Object3D, [number, number, number]>();
+  private phase = 0;
+  private spring = 0;
+  private springV = 0;
+  private deadT = 0;
+  private overlay: { kind: Action; t: number; dur: number } | null = null;
 
   constructor() {
     this.rig = buildRig('hi', { jerseyMaterial: this.jerseyMat });
     ({ body: this.body, torso: this.torso, head: this.head, legs: this.legs, arms: this.arms } = this.rig);
     this.root.add(this.rig.root);
     shadowed(this.root, true, false);
+    // Luz de borde en todos los materiales del jugador (separa la silueta del escenario).
+    const mats = new Set<THREE.Material>();
+    this.root.traverse((o) => {
+      const m = (o as THREE.Mesh).material as THREE.Material | undefined;
+      if (m && (m as THREE.MeshStandardMaterial).isMeshStandardMaterial) mats.add(m);
+    });
+    for (const m of mats) withRim(m as THREE.MeshStandardMaterial, 0xd6ecff, 0.42);
+    this.head.scale.setScalar(STYLE.head);
+    for (const l of this.legs) l.hip.scale.set(STYLE.limbXZ, 1, STYLE.limbXZ);
+    for (const a of this.arms) a.shoulder.scale.set(STYLE.limbXZ, 1, STYLE.limbXZ);
+    this.torso.scale.set(STYLE.torsoXZ, 1, STYLE.torsoXZ);
 
     // Estrellitas de "mareado" al chocar.
     this.stars = new THREE.Group();
@@ -117,11 +146,21 @@ export class Character {
     this.body.visible = !on || Math.floor(this.time * 12) % 2 === 0;
   }
 
+  /** Dispara una acción superpuesta a la pose base (se mezcla con fundido de entrada y salida). */
+  action(kind: Action): void {
+    this.overlay = { kind, t: 0, dur: ACTION_DURATION[kind] };
+  }
+
+  /** Impulso de "resorte" (squash & stretch): negativo = aplastar, positivo = estirar. */
+  punch(amount: number): void {
+    this.springV += amount;
+  }
+
   /** Anima el personaje. `cycle` = velocidad de zancada (1 = normal). */
-  update(dt: number, pose: Pose, cycle: number): void {
+  update(dt: number, pose: Pose, cycle: number, ctx: Ctx = { lat: 0, vy: 0 }): void {
     this.time += dt;
     const t = this.time;
-    const p = t * 12 * cycle;
+    const p = (this.phase += dt * 12 * cycle);
     const target = this.target;
     target.clear();
     const set = (o: THREE.Object3D, x: number, y = 0, z = 0) => target.set(o, [x, y, z]);
@@ -137,33 +176,49 @@ export class Character {
 
     switch (pose) {
       case 'run': {
-        // Zancada de atleta: rodilla alta, brazos a 90° y torso levemente inclinado.
+        // Zancada de atleta: rodilla alta, brazos a 90°, torso inclinado y cabeza estable.
         const s = Math.sin(p);
-        bodyY = Math.abs(Math.cos(p)) * 0.055;
-        torsoRotX = -0.16;
-        torsoRotY = -s * 0.12;
-        set(L.hip, s * 0.78);
-        set(R.hip, -s * 0.78);
-        set(L.knee, -(0.25 + 1.35 * Math.max(0, Math.cos(p))));
-        set(R.knee, -(0.25 + 1.35 * Math.max(0, -Math.cos(p))));
-        set(AL.shoulder, -s * 0.85, 0, -0.08);
-        set(AR.shoulder, s * 0.85, 0, 0.08);
-        set(AL.elbow, 1.45);
-        set(AR.elbow, 1.45);
-        headRotX = 0.1;
+        const c = Math.cos(p);
+        bodyY = Math.abs(c) * 0.06;
+        torsoRotX = -0.17;
+        torsoRotY = -s * 0.14;
+        set(L.hip, s * 0.8);
+        set(R.hip, -s * 0.8);
+        set(L.knee, -(0.25 + 1.35 * Math.max(0, c)));
+        set(R.knee, -(0.25 + 1.35 * Math.max(0, -c)));
+        set(AL.shoulder, -s * 0.9, 0, -0.08);
+        set(AR.shoulder, s * 0.9, 0, 0.08);
+        set(AL.elbow, 1.4 + Math.max(0, s) * 0.25);
+        set(AR.elbow, 1.4 + Math.max(0, -s) * 0.25);
+        headRotX = 0.1 + c * 0.025;
         break;
       }
       case 'jump': {
-        torsoRotX = -0.08;
-        set(L.hip, 1.15);
-        set(L.knee, -1.55);
-        set(R.hip, -0.3);
-        set(R.knee, -0.9);
-        set(AL.shoulder, 2.4, 0, -0.45);
-        set(AR.shoulder, 2.4, 0, 0.45);
-        set(AL.elbow, 0.35);
-        set(AR.elbow, 0.35);
-        headRotX = -0.12;
+        // Subida: rodilla al pecho, brazos arriba.
+        torsoRotX = -0.1;
+        set(L.hip, 1.2);
+        set(L.knee, -1.6);
+        set(R.hip, -0.35);
+        set(R.knee, -0.95);
+        set(AL.shoulder, 2.5, 0, -0.5);
+        set(AR.shoulder, 2.5, 0, 0.5);
+        set(AL.elbow, 0.3);
+        set(AR.elbow, 0.3);
+        headRotX = -0.14;
+        break;
+      }
+      case 'fall': {
+        // Bajada: piernas buscan el piso, brazos abiertos para el equilibrio.
+        torsoRotX = -0.04;
+        set(L.hip, 0.55);
+        set(L.knee, -0.55);
+        set(R.hip, -0.2);
+        set(R.knee, -0.35);
+        set(AL.shoulder, 1.0, 0, -1.0);
+        set(AR.shoulder, 1.0, 0, 1.0);
+        set(AL.elbow, 0.3);
+        set(AR.elbow, 0.3);
+        headRotX = 0.05;
         break;
       }
       case 'slide': {
@@ -182,14 +237,16 @@ export class Character {
         break;
       }
       case 'dead': {
-        bodyRotX = -1.45;
-        bodyY = 0.25;
+        // Choque: primero se va para atrás con los brazos abiertos y después cae.
+        const fall = Math.min(1, this.deadT / 0.45);
+        bodyRotX = -1.45 * fall;
+        bodyY = 0.25 * fall;
         set(L.hip, -0.5);
         set(R.hip, 0.3);
         set(L.knee, -0.9);
         set(R.knee, -0.4);
-        set(AL.shoulder, 2.8, 0, -0.9);
-        set(AR.shoulder, 2.8, 0, 0.9);
+        set(AL.shoulder, 2.8, 0, -0.9 - (1 - fall));
+        set(AR.shoulder, 2.8, 0, 0.9 + (1 - fall));
         headRotX = 0.5;
         break;
       }
@@ -211,22 +268,86 @@ export class Character {
         break;
       }
     }
+    this.deadT = pose === 'dead' ? this.deadT + dt : 0;
 
-    // Suavizado entre poses (evita "saltos" de animación).
-    const k = pose === 'run' || pose === 'idle' ? 1 - Math.exp(-dt * 30) : 1 - Math.exp(-dt * 16);
-    for (const limb of [...this.legs.flatMap((l) => [l.hip, l.knee]), ...this.arms.flatMap((a) => [a.shoulder, a.elbow])]) {
+    // Mirada y torsión hacia donde te movés (anticipa el cambio de carril).
+    if (pose === 'run' || pose === 'jump' || pose === 'fall') {
+      headRotY += ctx.lat * 0.45;
+      torsoRotY += ctx.lat * 0.3;
+    }
+
+    // ---- Acción superpuesta (patada / festejo / agarrar), mezclada con una envolvente suave ----
+    let w = 0;
+    const ov = this.overlay;
+    if (ov) {
+      ov.t += dt;
+      const u = ov.t / ov.dur;
+      if (u >= 1) this.overlay = null;
+      else w = Math.sin(Math.min(1, u * 1.15) * Math.PI) ** 0.6;
+    }
+    if (ov && w > 0) {
+      const blend = (o: THREE.Object3D, x: number, y = 0, z = 0) => {
+        const cur = target.get(o) ?? [o.rotation.x, o.rotation.y, o.rotation.z];
+        target.set(o, [cur[0] + (x - cur[0]) * w, cur[1] + (y - cur[1]) * w, cur[2] + (z - cur[2]) * w]);
+      };
+      const u = ov.t / ov.dur;
+      switch (ov.kind) {
+        case 'kick': {
+          // Patada: se cuelga la pierna hacia atrás (u<.35) y el latigazo hacia adelante.
+          const swing = u < 0.3 ? -0.9 * (u / 0.3) : -0.9 + 2.9 * Math.min(1, (u - 0.3) / 0.2);
+          blend(R.hip, swing);
+          blend(R.knee, u < 0.3 ? -1.3 : -0.1);
+          blend(AL.shoulder, 0.9, 0, -0.9);
+          blend(AR.shoulder, -0.5, 0, 0.9);
+          torsoRotX += 0.25 * w;
+          break;
+        }
+        case 'cheer': {
+          // Festejo: puños arriba y torso erguido.
+          blend(AL.shoulder, 2.9, 0, -0.35);
+          blend(AR.shoulder, 2.9, 0, 0.35);
+          blend(AL.elbow, 0.6);
+          blend(AR.elbow, 0.6);
+          headRotX -= 0.22 * w;
+          torsoRotX *= 1 - w * 0.7;
+          bodyY += Math.abs(Math.sin(t * 16)) * 0.05 * w;
+          break;
+        }
+        case 'reach': {
+          // Agarrar un potenciador: brazo derecho adelante y arriba.
+          blend(AR.shoulder, 2.2, 0, 0.35);
+          blend(AR.elbow, 0.2);
+          torsoRotY -= 0.25 * w;
+          break;
+        }
+      }
+    }
+
+    // Suavizado entre poses (evita "saltos"): los antebrazos van un poco más lentos = follow-through.
+    const kFast = pose === 'run' || pose === 'idle' ? 1 - Math.exp(-dt * 30) : 1 - Math.exp(-dt * 18);
+    const kSlow = 1 - Math.exp(-dt * 20);
+    const joints = [...this.legs.flatMap((l) => [l.hip, l.knee]), ...this.arms.flatMap((a) => [a.shoulder, a.elbow])];
+    for (const limb of joints) {
       const [x, y, z] = target.get(limb) ?? [0, 0, 0];
+      const k = limb === AL.elbow || limb === AR.elbow || limb === L.knee || limb === R.knee ? kSlow : kFast;
       limb.rotation.x += (x - limb.rotation.x) * k;
       limb.rotation.y += (y - limb.rotation.y) * k;
       limb.rotation.z += (z - limb.rotation.z) * k;
     }
     const kb = 1 - Math.exp(-dt * 14);
+    const kh = 1 - Math.exp(-dt * 9); // la cabeza llega un poco después que el torso
     this.body.position.y += (bodyY - this.body.position.y) * kb;
     this.body.rotation.x += (bodyRotX - this.body.rotation.x) * kb;
     this.torso.rotation.x += (torsoRotX - this.torso.rotation.x) * kb;
     this.torso.rotation.y += (torsoRotY - this.torso.rotation.y) * kb;
-    this.head.rotation.x += (headRotX - this.head.rotation.x) * kb;
-    this.head.rotation.y += (headRotY - this.head.rotation.y) * kb;
+    this.head.rotation.x += (headRotX - this.head.rotation.x) * kh;
+    this.head.rotation.y += (headRotY - this.head.rotation.y) * kh;
+
+    // Squash & stretch con resorte: estira al subir/caer rápido, aplasta al aterrizar.
+    const stretch = pose === 'jump' || pose === 'fall' ? THREE.MathUtils.clamp(Math.abs(ctx.vy) * 0.007, 0, 0.1) : 0;
+    this.springV += (-SPRING_K * (this.spring - stretch) - SPRING_C * this.springV) * dt;
+    this.spring += this.springV * dt;
+    this.body.scale.set(1 - this.spring * 0.55, 1 + this.spring, 1 - this.spring * 0.55);
 
     this.stars.visible = pose === 'dead';
     if (this.stars.visible) {
@@ -239,6 +360,9 @@ export class Character {
     this.body.rotation.set(0, 0, 0);
     this.body.position.set(0, 0, 0);
     this.torso.rotation.set(0, 0, 0);
+    this.body.scale.set(1, 1, 1);
+    this.spring = this.springV = this.deadT = 0;
+    this.overlay = null;
     this.stars.visible = false;
   }
 }

@@ -104,6 +104,19 @@ export class Coins {
     return collected;
   }
 
+  /** Una moneda visible al azar (para destellos de brillo). */
+  sample(out: THREE.Vector3): boolean {
+    const start = Math.floor(Math.random() * MAX);
+    for (let k = 0; k < MAX; k++) {
+      const i = (start + k) % MAX;
+      if (this.active[i] && this.z[i] < -3 && this.z[i] > -38) {
+        out.set(this.x[i], this.y[i] + 0.15, this.z[i]);
+        return true;
+      }
+    }
+    return false;
+  }
+
   clear(): void {
     this.active.fill(0);
     this.update(0, 0, null);

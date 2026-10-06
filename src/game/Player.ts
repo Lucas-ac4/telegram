@@ -15,6 +15,11 @@ export class Player {
   readonly ball = createBall(0.16);
   readonly group = new THREE.Group();
   private shadow: THREE.Mesh;
+  private ballShadow: THREE.Mesh;
+  /** Patada en curso: la pelota vuela hacia adelante y vuelve al pie. */
+  private kickT = 0;
+  private kickVy = 0;
+  ballFlying = false;
   private bubble: THREE.Mesh;
   private jumpBuffer = 0;
 
@@ -39,7 +44,7 @@ export class Player {
   constructor(scene: THREE.Scene) {
     this.group.add(this.character.root);
     // Escala visual (la caja de colisión no cambia): un atleta real se ve chico a la distancia de la cámara.
-    this.character.root.scale.setScalar(1.14);
+    this.character.root.scale.setScalar(1.2);
     scene.add(this.group, this.ball);
 
     this.shadow = new THREE.Mesh(
@@ -49,6 +54,12 @@ export class Player {
     this.shadow.rotation.x = -Math.PI / 2;
     this.shadow.position.y = 0.02;
     scene.add(this.shadow);
+    this.ballShadow = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.55, 0.55),
+      basic({ map: blobTexture(), transparent: true, depthWrite: false, opacity: 0.8 }),
+    );
+    this.ballShadow.rotation.x = -Math.PI / 2;
+    scene.add(this.ballShadow);
 
     // Burbuja del escudo.
     this.bubble = new THREE.Mesh(
@@ -91,6 +102,9 @@ export class Player {
     this.floor = 0;
     this.superJump = 0;
     this.flip = 0;
+    this.kickT = 0;
+    this.ballFlying = false;
+    this.ball.scale.setScalar(1);
     this.character.reset();
     this.group.rotation.set(0, 0, 0);
   }
@@ -112,6 +126,7 @@ export class Player {
     this.jumpBuffer = 0;
     this.slideTimer = 0;
     this.vy = P.jumpVelocity * (this.superJump > 0 ? 1.38 : 1);
+    this.character.punch(this.superJump > 0 ? 2.6 : 1.6); // estira al despegar
     if (this.superJump > 0) this.flip = 1; // mortal en el súper salto
     this.onJump?.();
   }
@@ -122,6 +137,7 @@ export class Player {
       this.vy = Math.min(this.vy, P.fastFallVelocity);
     }
     this.slideTimer = P.slideDuration;
+    this.character.punch(-1.4);
     this.onSlide?.();
   }
 
@@ -138,6 +154,7 @@ export class Player {
         this.vy -= P.gravity * dt;
         this.y += this.vy * dt;
         if (this.y <= this.floor) {
+          this.character.punch(Math.max(-4.2, this.vy * 0.13)); // aplasta al aterrizar
           this.y = this.floor;
           this.vy = 0;
           this.flip = 0;
@@ -164,7 +181,9 @@ export class Player {
       : !playing
         ? 'idle'
         : !this.grounded
-          ? 'jump'
+          ? this.vy > 0
+            ? 'jump'
+            : 'fall'
           : this.sliding
             ? 'slide'
             : 'run';
@@ -173,7 +192,8 @@ export class Player {
     const a = this.flip > 0 ? -(1 - this.flip) * Math.PI * 2 : 0;
     this.character.root.rotation.x = a;
     this.character.root.position.set(0, 0.9 - 0.9 * Math.cos(a), -0.9 * Math.sin(a));
-    this.character.update(dt, pose, 0.75 + (speed / CONFIG.speed.max) * 0.45);
+    const lat = playing ? THREE.MathUtils.clamp((laneX(this.lane) - this.x) / CONFIG.lanes.width, -1, 1) : 0;
+    this.character.update(dt, pose, 0.75 + (speed / CONFIG.speed.max) * 0.45, { lat, vy: this.vy });
 
     // Inclinación al cambiar de carril.
     // (en el menú el jugador está parado en el centro: sin inclinación)
@@ -188,10 +208,43 @@ export class Player {
     this.shadow.scale.setScalar(s);
 
     this.updateBall(dt, speed, playing, pose);
+    // Sombra de la pelota sobre el piso.
+    const bh = Math.max(0, this.ball.position.y - this.floor);
+    this.ballShadow.visible = this.ball.visible;
+    this.ballShadow.position.set(this.ball.position.x, this.floor + 0.02, this.ball.position.z);
+    this.ballShadow.scale.setScalar(Math.max(0.35, 1 - bh * 0.35));
+  }
+
+  /** Patada: el jugador pega con el pie derecho y la pelota sale disparada hacia adelante. */
+  kick(): void {
+    if (this.kickT > 0) return;
+    this.character.action('kick');
+    this.kickT = 0.5;
+    this.kickVy = 5;
+    this.ballFlying = true;
   }
 
   private updateBall(dt: number, speed: number, playing: boolean, pose: Pose): void {
     const b = this.ball;
+    if (this.kickT > 0) {
+      this.kickT -= dt;
+      // Arranca el golpe a mitad del swing (el pie llega a la pelota) y vuela hacia adelante.
+      if (this.kickT > 0.38) {
+        b.position.set(this.x + 0.46, this.y + 0.25, -0.5);
+      } else {
+        this.kickVy -= 14 * dt;
+        b.position.z -= 38 * dt;
+        b.position.y = Math.max(0.25, b.position.y + this.kickVy * dt);
+        b.rotation.x -= dt * 30;
+      }
+      b.scale.setScalar(this.kickT > 0.08 ? 1 : Math.max(0.001, this.kickT / 0.08));
+      if (this.kickT <= 0) {
+        this.ballFlying = false;
+        b.scale.setScalar(1);
+        b.position.set(this.x + 0.46, this.y + 0.3, -0.4);
+      }
+      return;
+    }
     if (!playing) {
       // Jueguito en el menú: la pelota rebota sobre el pie.
       this.dribble += dt;

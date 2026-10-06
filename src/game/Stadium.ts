@@ -6,7 +6,9 @@ import { basic, curved, toon, toonVertexColors } from '../engine/materials';
 import {
   BANNER_DESIGNS,
   bannersTexture,
+  CROWD_COLS,
   cloudTexture,
+  crowdTexture,
   glowTexture,
   ledTexture,
   pitchTexture,
@@ -15,6 +17,7 @@ import {
   trackTexture,
 } from '../engine/textures';
 import type { Theme } from '../config/themes';
+import type { Quality } from '../config/quality';
 
 const L = CONFIG.world.segmentLength;
 const LANES = CONFIG.lanes.count;
@@ -25,7 +28,6 @@ const WALL_X = PITCH_HALF + TRACK_W + 0.2;
 const STEP_W = 1.1;
 const STEP0 = WALL_X + 0.75;
 const STEPS = 6;
-const PEOPLE_PER_STEP = 7;
 const TOWER_X = STEP0 + STEPS * STEP_W + 1.8;
 
 interface Segment {
@@ -47,6 +49,8 @@ export class Stadium {
   private disc!: THREE.Mesh;
   private discMat!: THREE.MeshBasicMaterial;
   private glowMat: THREE.MeshBasicMaterial;
+  private crowdFx = { value: 1 };
+  private crowdMat = crowdCardMaterial(this.crowdFx);
 
   constructor(scene: THREE.Scene) {
     this.pitchMats = ([0, 1, 2] as const).map((v) => toon(0xffffff, { map: pitchTexture(LANES, CONFIG.lanes.width, PITCH_HALF, v) }));
@@ -106,10 +110,9 @@ export class Stadium {
     });
     const glowGeo = new THREE.PlaneGeometry(5.5, 5.5);
 
-    const { bodyDown, bodyUp, head } = buildPerson();
-    const matStill = crowdMaterial(false);
-    const matJump = crowdMaterial(true);
-    const count = STEPS * PEOPLE_PER_STEP * 2;
+    // Público: tarjetas con una hinchada pintada (1 draw call por tramo).
+    const crowdGeo = buildCrowdCards();
+    const crowdMat = this.crowdMat;
 
     for (let i = 0; i < CONFIG.world.segmentCount; i++) {
       const seg = new THREE.Group();
@@ -134,14 +137,7 @@ export class Stadium {
         seg.add(glow);
       }
 
-      const crowd: CrowdMeshes = {
-        bodiesDown: new THREE.InstancedMesh(bodyDown, matStill, count),
-        headsDown: new THREE.InstancedMesh(head, matStill, count),
-        bodiesUp: new THREE.InstancedMesh(bodyUp, matJump, count),
-        headsUp: new THREE.InstancedMesh(head, matJump, count),
-      };
-      fillCrowd(crowd);
-      seg.add(crowd.bodiesDown, crowd.headsDown, crowd.bodiesUp, crowd.headsUp);
+      seg.add(new THREE.Mesh(crowdGeo, crowdMat));
 
       seg.position.z = -i * L + L / 2;
       scene.add(seg);
@@ -190,6 +186,11 @@ export class Stadium {
     scene.add(this.disc);
   }
 
+  /** Calidad: en LOW el público no salta ni hay flashes de cámara. */
+  setQuality(q: Quality): void {
+    this.crowdFx.value = q.ambientFx ? 1 : 0;
+  }
+
   applyTheme(theme: Theme): void {
     this.cloudMat.color.setHex(theme.cloudColor);
     this.cloudMat.opacity = theme.cloudOpacity;
@@ -224,83 +225,57 @@ export class Stadium {
   }
 }
 
-/** Material del público: opcionalmente cada persona salta a su ritmo (en el shader, costo ~0). */
-function crowdMaterial(jump: boolean): THREE.MeshLambertMaterial {
-  const mat = new THREE.MeshLambertMaterial({ color: 0xffffff });
-  return curved(mat, {
-    key: jump ? 'crowd-jump' : 'crowd',
-    afterBegin: jump
-      ? `
-      #ifdef USE_INSTANCING
-        float ph = float(gl_InstanceID) * 1.37;
-        transformed.y += max(0.0, sin(uTime * 6.0 + ph)) * 0.16;
-      #endif`
-      : '',
-  });
+/** Material del público: tarjetas con recorte, salto por persona y flashes de cámara (todo en el shader). */
+function crowdCardMaterial(fx: { value: number }): THREE.MeshLambertMaterial {
+  const mat = curved(new THREE.MeshLambertMaterial({ map: crowdTexture(), alphaTest: 0.5, side: THREE.DoubleSide }), { key: 'crowdcard' });
+  const base = mat.onBeforeCompile;
+  mat.onBeforeCompile = (shader, renderer) => {
+    base(shader, renderer);
+    shader.uniforms.uFx = fx;
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', `#include <common>\nuniform float uTime;\nuniform float uFx;\nfloat h1(float n){return fract(sin(n*12.9898)*43758.5453);}`)
+      .replace(
+        '#include <map_fragment>',
+        `
+        vec2 cuv = vMapUv;
+        float colId = floor(cuv.x * ${CROWD_COLS}.0);
+        float cell = fract(cuv.x * ${CROWD_COLS}.0) - 0.5;
+        float isAct = step(0.6, fract(colId * 0.618034));
+        float ph = h1(colId) * 6.2831;
+        cuv.y -= uFx * isAct * max(0.0, sin(uTime * 7.0 + ph)) * 0.07;
+        vec4 sampledDiffuseColor = texture2D(map, cuv);
+        diffuseColor *= sampledDiffuseColor;`,
+      )
+      .replace(
+        '#include <opaque_fragment>',
+        `#include <opaque_fragment>
+        // Flash de cámara: un destello corto y brillante sobre la cabeza de algunas personas.
+        float cam = step(0.86, h1(colId + 7.0));
+        float fl = pow(max(0.0, sin(uTime * (1.5 + h1(colId) * 2.5) + h1(colId + 3.0) * 40.0)), 120.0);
+        float dd = length(vec2(cell * 46.0, (vMapUv.y - 0.64) * 160.0));
+        gl_FragColor.rgb += uFx * cam * fl * smoothstep(9.0, 0.0, dd) * vec3(3.0, 3.0, 2.6);`,
+      );
+  };
+  mat.customProgramCacheKey = () => 'crowdcard';
+  return mat;
 }
 
-/** Persona de la hinchada con pocos polígonos: sentada (brazos abajo) o festejando (brazos en alto). */
-function buildPerson(): { bodyDown: THREE.BufferGeometry; bodyUp: THREE.BufferGeometry; head: THREE.BufferGeometry } {
-  const head = new THREE.IcosahedronGeometry(0.16, 0);
-  head.translate(0, 0.8, 0);
-  const torso = new THREE.CylinderGeometry(0.17, 0.21, 0.6, 5);
-  const down = new ModelBuilder()
-    .add(torso, 0xffffff, [0, 0.33, 0])
-    .add(new THREE.BoxGeometry(0.08, 0.34, 0.09), 0xffffff, [-0.24, 0.42, 0], [0, 0, 0.08])
-    .add(new THREE.BoxGeometry(0.08, 0.34, 0.09), 0xffffff, [0.24, 0.42, 0], [0, 0, -0.08])
-    .build();
-  const up = new ModelBuilder()
-    .add(torso, 0xffffff, [0, 0.33, 0])
-    .add(new THREE.BoxGeometry(0.09, 0.4, 0.09), 0xffffff, [-0.25, 0.82, 0], [0, 0, 0.4])
-    .add(new THREE.BoxGeometry(0.09, 0.4, 0.09), 0xffffff, [0.25, 0.82, 0], [0, 0, -0.4])
-    .build();
-  down.deleteAttribute('color');
-  up.deleteAttribute('color');
-  return { bodyDown: down, bodyUp: up, head };
-}
-
-// Colores más naturales (menos saturados): local (celeste y blanco), visitante y neutros.
-const SHIRTS = [0x7fb3d9, 0xe8edf3, 0x7fb3d9, 0xd9d4c4, 0xb3414a, 0x2b3550, 0x7fb3d9, 0xe8edf3, 0x5d6b7a, 0xcfa23a];
-const SKINS = [0xe3b08d, 0xc88a64, 0x9a6444, 0xeec4a0, 0x6d4430];
-
-interface CrowdMeshes {
-  bodiesDown: THREE.InstancedMesh;
-  headsDown: THREE.InstancedMesh;
-  bodiesUp: THREE.InstancedMesh;
-  headsUp: THREE.InstancedMesh;
-}
-
-function fillCrowd(c: CrowdMeshes): void {
-  const m = new THREE.Matrix4();
-  const col = new THREE.Color();
-  let nDown = 0;
-  let nUp = 0;
+/** Una tarjeta de público por escalón y lado, con 8 cortes en Z (el mundo curvo las dobla bien). */
+function buildCrowdCards(): THREE.BufferGeometry {
+  const parts: THREE.BufferGeometry[] = [];
   for (const side of [-1, 1]) {
-    for (let step = 0; step < STEPS; step++) {
-      for (let k = 0; k < PEOPLE_PER_STEP; k++) {
-        const x = side * (STEP0 + 0.15 + step * STEP_W + Math.random() * 0.2);
-        const y = 1.0 + step * 0.7;
-        const z = -((k + 0.5 + (Math.random() - 0.5) * 0.5) * L) / PEOPLE_PER_STEP;
-        m.makeRotationY(side * -Math.PI / 2 + (Math.random() - 0.5) * 0.5);
-        m.setPosition(x, y, z);
-        const up = Math.random() < 0.22;
-        const bodies = up ? c.bodiesUp : c.bodiesDown;
-        const heads = up ? c.headsUp : c.headsDown;
-        const i = up ? nUp++ : nDown++;
-        bodies.setMatrixAt(i, m);
-        heads.setMatrixAt(i, m);
-        bodies.setColorAt(i, col.setHex(SHIRTS[Math.floor(Math.random() * SHIRTS.length)]));
-        heads.setColorAt(i, col.setHex(SKINS[Math.floor(Math.random() * SKINS.length)]));
-      }
+    for (let st = 0; st < STEPS; st++) {
+      const g = new THREE.PlaneGeometry(L, 0.95, 8, 1);
+      g.rotateY(side * -Math.PI / 2);
+      g.translate(side * (STEP0 + st * STEP_W + 0.12), 1.0 + st * 0.7 + 0.45, -L / 2);
+      // Cada fila arranca en otro punto de la textura (no se repiten patrones entre escalones).
+      const uv = g.attributes.uv;
+      const off = (st * 0.37 + (side > 0 ? 0.5 : 0)) % 1;
+      for (let i = 0; i < uv.count; i++) uv.setX(i, uv.getX(i) * 2 + off);
+      parts.push(g);
     }
   }
-  c.bodiesDown.count = c.headsDown.count = nDown;
-  c.bodiesUp.count = c.headsUp.count = nUp;
-  for (const mesh of Object.values(c)) {
-    mesh.frustumCulled = false;
-    mesh.instanceMatrix.needsUpdate = true;
-    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
-  }
+  return mergeGeometries(parts, false)!;
 }
 
 /** Mapeo UV "de caja": cada cara usa su plano; la textura se repite cada `tile` metros. */

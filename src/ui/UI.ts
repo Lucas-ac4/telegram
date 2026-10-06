@@ -5,6 +5,7 @@ import { secondsToResetAR, type Profile } from '../save/save';
 import { fmt, getLang, t, type Lang } from '../i18n';
 import { hairIcon } from './hairIcons';
 import { hairColorIcon, kitIcon } from './icons';
+import type { QualityId } from '../config/quality';
 
 export type View = 'home' | 'shop' | 'locker';
 
@@ -38,6 +39,7 @@ export interface UIHandlers {
   onRevive(): void;
   onClaim(tier: number): void;
   onRedeem(): void;
+  onQuality(q: QualityId): void;
 }
 
 type LockerTab = 'color' | 'style' | 'kit';
@@ -58,6 +60,10 @@ export class UI {
   }
   private profile!: Profile;
   private muted = false;
+  private quality: QualityId = 'medium';
+  private lastCombo = 0;
+  private gainSum = 0;
+  private gainTimer = 0;
   private lastHint = '';
   private lastBoosts = '';
   private lastReset = Infinity;
@@ -76,6 +82,9 @@ export class UI {
   /** Arma todo el HTML (también al cambiar de idioma). */
   rebuild(): void {
     this.root.innerHTML = `
+      <div class="fx vignette"></div>
+      <div class="fx speedfx" data-speedfx></div>
+      <div class="fx flash" data-flash></div>
       <div class="vignette"></div>
       <header class="topbar" hidden>
         <div class="chip">🏆 <span data-best>0 m</span></div>
@@ -125,11 +134,14 @@ export class UI {
         <div class="distance">
           <div class="num"><span data-distance>0</span><small>m</small></div>
           <div class="best" data-best-hud></div>
+          <div class="speedbar" aria-hidden="true"><i data-speedbar></i></div>
         </div>
         <div class="hud-right">
           <div class="coins"><span class="coin-ico"></span><span data-coins>0</span></div>
+          <div class="gain" data-gain></div>
           <div class="active-boosts" data-active></div>
         </div>
+        <div class="combo" data-combo hidden><b data-combo-n>x3</b><small>COMBO</small></div>
         <div class="hint" hidden></div>
       </section>
 
@@ -185,6 +197,14 @@ export class UI {
               <button data-action="lang" data-lang="en" class="${getLang() === 'en' ? 'on' : ''}">EN</button>
             </div>
           </div>
+          <div class="setting">
+            <span>✨ ${t('settings.quality')}</span>
+            <div class="seg">
+              ${(['low', 'medium', 'high'] as const)
+                .map((q) => `<button data-action="quality" data-q="${q}" class="${this.quality === q ? 'on' : ''}">${t('quality.' + q)}</button>`)
+                .join('')}
+            </div>
+          </div>
           <button class="btn" data-action="close">${t('close')}</button>
         </div>
       </div>
@@ -210,6 +230,7 @@ export class UI {
       case 'nav': return this.h.onNavigate(d.viewTarget as View);
       case 'mute': return this.h.onToggleMute();
       case 'lang': return this.h.onLang(d.lang as Lang);
+      case 'quality': return this.h.onQuality(d.q as QualityId);
       case 'buy': return this.h.onBuy(d.id as ItemId);
       case 'arm': return this.h.onToggleArmed(d.id as ItemId);
       case 'revive': return this.h.onRevive();
@@ -412,18 +433,74 @@ export class UI {
   }
 
   setBoosts(b: BoostStatus): void {
+    const chip = (cls: string, icon: string, label: string, p = 1) =>
+      `<span class="ab ${cls}" style="--p:${Math.max(0, Math.min(1, p))}"><i>${icon}</i><em>${label}</em></span>`;
     const parts: string[] = [];
-    if (b.shield) parts.push('<span class="ab">🛡️</span>');
-    if (b.magnet > 0) parts.push(`<span class="ab">🧲 ${Math.ceil(b.magnet)}s</span>`);
-    if (b.jump > 0) parts.push(`<span class="ab">👟 ${Math.ceil(b.jump)}s</span>`);
-    if (b.x2 > 0) parts.push(`<span class="ab">✖2 ${Math.ceil(b.x2)}s</span>`);
-    if (b.doubler) parts.push('<span class="ab">💰 x2</span>');
-    if (b.turbo > 0) parts.push(`<span class="ab">⚡ ${Math.ceil(b.turbo)} m</span>`);
+    if (b.shield) parts.push(chip('shield', '🛡️', ''));
+    if (b.magnet > 0) parts.push(chip('magnet', '🧲', `${Math.ceil(b.magnet)}s`, b.magnet / 12));
+    if (b.jump > 0) parts.push(chip('jump', '👟', `${Math.ceil(b.jump)}s`, b.jump / 10));
+    if (b.x2 > 0) parts.push(chip('x2', '✖2', `${Math.ceil(b.x2)}s`, b.x2 / 15));
+    if (b.doubler) parts.push(chip('x2', '💰', 'x2'));
+    if (b.turbo > 0) parts.push(chip('turbo', '⚡', `${Math.ceil(b.turbo)} m`));
     const html = parts.join('');
     if (html !== this.lastBoosts) {
       this.lastBoosts = html;
       this.$('[data-active]').innerHTML = html;
     }
+  }
+
+  /** Efectos de pantalla: líneas de velocidad (0..1) y viñeta. */
+  setSpeedFx(level: number): void {
+    const el = this.$('[data-speedfx]');
+    el.style.opacity = level < 0.02 ? '0' : level.toFixed(2);
+  }
+
+  /** Barra de velocidad bajo la distancia (0..1). */
+  setSpeedBar(frac: number): void {
+    this.$('[data-speedbar]').style.width = `${Math.round(Math.max(0, Math.min(1, frac)) * 100)}%`;
+  }
+
+  /** Destello de pantalla (golpe / potenciador). */
+  flash(kind: 'hit' | 'good' | 'gold'): void {
+    const el = this.$('[data-flash]');
+    el.className = `fx flash ${kind}`;
+    void el.offsetWidth;
+    el.classList.add('go');
+  }
+
+  /** Racha de monedas. Se muestra desde x3. */
+  setCombo(n: number): void {
+    const el = this.$('[data-combo]');
+    if (n < 3) {
+      el.hidden = true;
+      this.lastCombo = 0;
+      return;
+    }
+    el.hidden = false;
+    this.$('[data-combo-n]').textContent = `x${n}`;
+    if (n !== this.lastCombo) {
+      el.classList.remove('pop');
+      void el.offsetWidth;
+      el.classList.add('pop');
+    }
+    this.lastCombo = n;
+  }
+
+  /** "+N" flotante junto a las monedas (acumula lo recogido en el último instante). */
+  gain(n: number): void {
+    const now = performance.now();
+    this.gainSum = now - this.gainTimer < 700 ? this.gainSum + n : n;
+    this.gainTimer = now;
+    const el = this.$('[data-gain]');
+    el.textContent = `+${this.gainSum}`;
+    el.classList.remove('go');
+    void el.offsetWidth;
+    el.classList.add('go');
+  }
+
+  setQuality(q: QualityId): void {
+    this.quality = q;
+    for (const b of this.root.querySelectorAll<HTMLElement>('[data-action="quality"]')) b.classList.toggle('on', b.dataset.q === q);
   }
 
   showHint(text: string | null): void {

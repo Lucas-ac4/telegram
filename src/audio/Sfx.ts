@@ -6,6 +6,7 @@ export class Sfx {
   private ctx: AudioContext | null = null;
   private master: GainNode | null = null;
   private crowd: GainNode | null = null;
+  private wind: GainNode | null = null;
   muted = false;
 
   /** Llamar en el primer gesto del usuario. */
@@ -49,6 +50,19 @@ export class Sfx {
     this.crowd.gain.value = 0.12;
     src.connect(filter).connect(this.crowd).connect(this.master!);
     src.start();
+
+    // Viento de velocidad: ruido agudo con el volumen controlado por el juego.
+    const w = ctx.createBufferSource();
+    w.buffer = buf;
+    w.loop = true;
+    w.playbackRate.value = 1.7;
+    const hp = ctx.createBiquadFilter();
+    hp.type = 'highpass';
+    hp.frequency.value = 1400;
+    this.wind = ctx.createGain();
+    this.wind.gain.value = 0;
+    w.connect(hp).connect(this.wind).connect(this.master!);
+    w.start();
   }
 
   /** Ovación (sube el murmullo un momento). */
@@ -92,9 +106,28 @@ export class Sfx {
     src.start();
   }
 
-  coin(): void {
-    this.tone(1320, 0.08, 'square', 0.06);
-    this.tone(1980, 0.16, 'square', 0.05, undefined, 0.06);
+  /** Moneda: campanita que sube de tono con la racha (escala pentatónica) = satisfacción creciente. */
+  coin(combo = 0): void {
+    const scale = [0, 2, 4, 7, 9, 12, 14, 16];
+    const semi = scale[Math.min(combo, scale.length - 1)];
+    const f = 1175 * 2 ** (semi / 12);
+    this.tone(f, 0.09, 'triangle', 0.14);
+    this.tone(f * 1.5, 0.2, 'sine', 0.1, undefined, 0.05);
+    this.tone(f * 3, 0.1, 'sine', 0.03, undefined, 0.05);
+  }
+  /** Patada: golpe seco + soplido. */
+  kick(): void {
+    this.tone(150, 0.14, 'sine', 0.5, 55);
+    this.noise(0.12, 0.3, 2400);
+  }
+  /** Potenciador: arpegio brillante ascendente. */
+  powerup(): void {
+    [0, 4, 7, 12].forEach((s, i) => this.tone(660 * 2 ** (s / 12), 0.18, 'triangle', 0.14, undefined, i * 0.06));
+  }
+  /** Viento: sube con la velocidad (0..1). */
+  setWind(level: number): void {
+    if (!this.ctx || !this.wind) return;
+    this.wind.gain.setTargetAtTime(Math.max(0, level) * 0.16, this.ctx.currentTime, 0.2);
   }
   jump(): void {
     this.tone(330, 0.18, 'triangle', 0.25, 760);
