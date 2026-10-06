@@ -4,6 +4,7 @@ import type { Palette } from '../engine/body';
 import { pbr, pbrVertexColors, shadowed, withRim } from '../engine/materials';
 import { jerseyTexture } from '../engine/textures';
 import { HAIR_COLORS, KITS, type Kit, type Look } from '../config/cosmetics';
+import type { Avatar } from './Avatar';
 
 export type Pose = 'idle' | 'run' | 'jump' | 'fall' | 'slide' | 'dead';
 /** Acciones que se superponen a la pose base. */
@@ -69,7 +70,7 @@ export function makePalette(hairHex: string, kit: Kit): Palette {
  * Futbolista semirrealista (proporciones de atleta, cara adulta) animado por código:
  * sin archivos de animación = carga instantánea. Mira hacia -Z (hacia adelante en la pista).
  */
-export class Character {
+export class Character implements Avatar {
   readonly root = new THREE.Group();
   private rig: Rig;
   private jerseyMat = pbr(0xffffff, { map: jerseyTexture(KITS[2]), roughness: 0.82 });

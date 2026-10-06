@@ -57,6 +57,6 @@ export function detectQuality(gpu: string): QualityId {
   const weakGpu = /mali-4|mali-t|adreno \(tm\) ?[2-5]\d\d|powervr|sgx|adreno 3|adreno 4/.test(g);
   if (software || weakGpu || cores <= 4 || mem <= 2) return 'low';
   const strong = /apple gpu|adreno \(tm\) ?[7-9]\d\d|mali-g7\d|mali-g[89]|immortalis|nvidia|radeon|intel\(r\) (iris|arc)/.test(g);
-  if (strong && cores >= 8 && mem >= 6) return 'high';
+  if (strong && cores >= 6 && mem >= 4) return 'high';
   return 'medium';
 }

@@ -19,6 +19,7 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { Pickups, PICKUP_SECONDS, type PickupKind } from './Pickups';
 import { TRUCK } from '../config/gameConfig';
 import { detectLang, setLang, t, type Lang } from '../i18n';
+import { loadModel } from '../engine/assets';
 import { QUALITIES, detectQuality, saveQuality, type Quality, type QualityId } from '../config/quality';
 
 /** Nombre de la GPU (para estimar la potencia del dispositivo). */
@@ -85,6 +86,7 @@ export class Game {
   private quality: Quality;
   private noAdapt = new URLSearchParams(location.search).has('noadapt');
   private perfEl: HTMLElement | null = null;
+  private texMBCache = { q: '', v: 0 };
   private perfAcc = 0;
   private perfFrames = 0;
   perf = { fps: 0, ms: 0 };
@@ -238,6 +240,7 @@ export class Game {
     this.camera.position.copy(this.camBase);
     this.camLook.set(0, 1.15, 0);
 
+    this.loadOptionalAssets();
     this.renderer.setAnimationLoop((t) => this.frame(t));
   }
 
@@ -392,6 +395,10 @@ export class Game {
       newGame: this.saved.newGame,
     });
     this.saved = { meters, coins: this.coinCount, newGame: false };
+    if (isRecord) {
+      this.effects.confetti(this.player.x);
+      this.sfx.cheer();
+    }
     const p = Save.profile;
     this.ui.showGameOver({
       meters,
@@ -418,7 +425,7 @@ export class Game {
       this.perfFrames = 0;
       if (this.perfEl) {
         const s = this.stats;
-        this.perfEl.textContent = `${s.fps} fps  ${s.ms} ms  [${s.quality} x${s.pixelRatio}]\ncalls ${s.calls}  tris ${(s.tris / 1000).toFixed(0)}k  pts ${s.points}\ngeo ${s.geometries}  tex ${s.textures}  heap ${s.heapMB}MB`;
+        this.perfEl.textContent = `${s.fps} fps  ${s.ms} ms  [${s.quality} x${s.pixelRatio}]\ncalls ${s.calls}  tris ${(s.tris / 1000).toFixed(0)}k  pts ${s.points}\ngeo ${s.geometries}  tex ${s.textures} (${s.texMB}MB)  heap ${s.heapMB}MB`;
       }
     }
     if (this.paused) {
@@ -579,6 +586,16 @@ export class Game {
     this.ui.toast(t(kind === 'shield' ? 'toast.shieldOn' : `toast.${kind}`));
   }
 
+  /** Si hay arte definitivo (.glb) en public/assets, lo usa; si no, sigue con el procedural. */
+  private loadOptionalAssets(): void {
+    void loadModel('player').then(async (m) => {
+      if (!m) return;
+      const { GlbAvatar } = await import('./Avatar'); // se descarga solo si hay modelo
+      this.player.useAvatar(new GlbAvatar(m));
+      console.info('[assets] jugador .glb cargado');
+    });
+  }
+
   /** Aplica un nivel gráfico (también al cambiarlo en Ajustes). */
   private setQuality(id: QualityId, resize = true): void {
     this.quality = QUALITIES[id];
@@ -606,6 +623,26 @@ export class Game {
     this.perfEl = el;
   }
 
+  /** Memoria de texturas estimada (MB, con mipmaps). Se calcula una vez por nivel gráfico. */
+  private texMB(): number {
+    if (this.texMBCache.q === this.quality.id) return this.texMBCache.v;
+    const seen = new Set<THREE.Texture>();
+    let bytes = 0;
+    const count = (t: THREE.Texture | null | undefined) => {
+      const img = t?.image as { width?: number; height?: number } | undefined;
+      if (!t || seen.has(t) || !img?.width || !img.height) return;
+      seen.add(t);
+      bytes += img.width * img.height * 4 * (t.generateMipmaps ? 1.33 : 1);
+    };
+    this.scene.traverse((o) => {
+      const m = (o as THREE.Mesh).material as THREE.Material | THREE.Material[] | undefined;
+      for (const mat of Array.isArray(m) ? m : m ? [m] : []) for (const v of Object.values(mat)) if (v && (v as THREE.Texture).isTexture) count(v as THREE.Texture);
+    });
+    count(this.scene.background as THREE.Texture);
+    this.texMBCache = { q: this.quality.id, v: Math.round((bytes / 1048576) * 10) / 10 };
+    return this.texMBCache.v;
+  }
+
   get stats() {
     const r = this.renderer.info;
     const mem = (performance as unknown as { memory?: { usedJSHeapSize: number } }).memory;
@@ -617,6 +654,7 @@ export class Game {
       points: r.render.points,
       geometries: r.memory.geometries,
       textures: r.memory.textures,
+      texMB: this.texMB(),
       quality: this.quality.id,
       pixelRatio: this.pixelRatio,
       heapMB: mem ? Math.round(mem.usedJSHeapSize / 1048576) : 0,

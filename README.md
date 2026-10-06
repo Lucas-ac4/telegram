@@ -5,9 +5,21 @@ Three.js + TypeScript + Vite.
 
 📄 Análisis completo (tecnología, arquitectura, economía, riesgos, fases): [`docs/ANALISIS.md`](docs/ANALISIS.md)
 
-## Estado: v0.7 — Estilo realista ✅
+## Estado: v0.8 — Overhaul visual y de feedback ✅
 
-v0.7: pasamos del estilo "dibujito" a un estilo **semirrealista**:
+v0.8 (de prototipo a producto):
+- **Calidad LOW / MEDIUM / HIGH:** se elige sola según el dispositivo (núcleos, RAM, GPU) y se puede cambiar en ⚙️ Ajustes. Si el celu no llega a ~48 fps, baja resolución y después de nivel. `?q=low|medium|high` para probar, `?perf=1` muestra fps / draw calls / triángulos / memoria de texturas.
+- **Rendimiento medido:** draw calls **157 → ~75** (estadio instanciado), triángulos **132 k → ~80 k** (público por tarjetas con atlas procedural), 0 KB de assets, JS ~209 KB comprimido, texturas ≈ 7 MB.
+- **Personaje:** silueta más contundente (cabeza y extremidades), luz de borde, animación con anticipación, squash & stretch con resorte, follow-through, mira hacia donde se mueve; fases de salto/caída; acciones superpuestas: patada (al romper el escudo), festejo (cada 100 m), agarrar potenciador. Pelota con sombra propia y estela al patear.
+- **VFX en 1 draw call** (`Particles.ts`): polvo al correr, pasto al aterrizar, abanico de barrida, chispas de moneda y destellos sobre monedas lejanas, impacto, aro de potenciador, confeti por hitos y récord.
+- **Estadio:** césped con franjas de cortadora y desgaste, hinchada llena (decenas de personas por tramo, algunas saltan y sacan flashes de cámara).
+- **Cámara:** más cerca y con seguimiento lateral, inclinación al cambiar de carril, "peso" al aterrizar, pulso de FOV al saltar/recoger, temblor por trauma al chocar, vibración sutil a alta velocidad.
+- **Feedback:** monedas con tono ascendente por racha (combo ×N), "+N" flotante, líneas de velocidad y viento según la velocidad, viñeta, destellos de pantalla (golpe / potenciador), barra de velocidad, chips de potenciadores con cuenta regresiva.
+- **Listo para arte definitivo:** `docs/ASSETS.md` (qué pedir, formatos, polígonos, animaciones) + ranuras `.glb` (`src/engine/assets.ts`, `GlbAvatar`).
+
+### v0.7 — Estilo realista
+
+Pasamos del estilo "dibujito" a un estilo **semirrealista**:
 - **Jugadores** con proporciones de atleta (1,86 m), cuerpo con músculos suaves, cara adulta (ojos, párpados, cejas, nariz, labios, orejas), camiseta con tela y número, short, medias y botines. Mismos atletas para los defensores rivales.
 - **5 peinados nuevos** que siguen la forma de la cabeza: corto clásico, rapado con degradé, melena larga, cresta y rulos. Íconos ilustrados de cada uno, y el vestuario hace zoom a la cara al elegir pelo o peinado.
 - **Luz y materiales reales:** materiales PBR con reflejos suaves, tono de película, **sombras reales** del jugador y los obstáculos, monedas de oro metálico, camiones con pintura brillante.
@@ -89,7 +101,9 @@ src/
   game/Obstacles.ts       obstáculos + colisiones
   game/Coins.ts           monedas (instanciadas)
   game/Spawner.ts         generación procedural + tutorial
-  game/Effects.ts         partículas
+  game/Particles.ts       partículas en 1 draw call · Effects.ts: efectos del juego
+  config/quality.ts       niveles LOW / MEDIUM / HIGH
+  engine/assets.ts        ranuras para .glb definitivos (docs/ASSETS.md)
   game/Input.ts           gestos táctiles y teclado
   audio/Sfx.ts            sonidos sintetizados
   ui/                     menú, HUD y pantallas (HTML/CSS)

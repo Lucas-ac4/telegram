@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { CONFIG, laneX } from '../config/gameConfig';
 import { Character, createBall, type Pose } from './Character';
+import type { Avatar } from './Avatar';
 import { basic } from '../engine/materials';
 import { blobTexture } from '../engine/textures';
 
@@ -11,7 +12,7 @@ const P = CONFIG.player;
  * El jugador se queda en z = 0; el mundo se mueve hacia él.
  */
 export class Player {
-  readonly character = new Character();
+  character: Avatar = new Character();
   readonly ball = createBall(0.16);
   readonly group = new THREE.Group();
   private shadow: THREE.Mesh;
@@ -87,6 +88,14 @@ export class Player {
 
   get height(): number {
     return this.sliding ? P.slideHeight : P.standHeight;
+  }
+
+  /** Cambia el modelo del jugador (por ejemplo, al llegar el .glb definitivo). */
+  useAvatar(avatar: Avatar): void {
+    this.group.remove(this.character.root);
+    this.character = avatar;
+    avatar.root.scale.setScalar(1.2);
+    this.group.add(avatar.root);
   }
 
   reset(): void {

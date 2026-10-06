@@ -114,36 +114,56 @@ export class Stadium {
     const crowdGeo = buildCrowdCards();
     const crowdMat = this.crowdMat;
 
-    for (let i = 0; i < CONFIG.world.segmentCount; i++) {
+    // Piezas repetidas en todos los tramos = InstancedMesh (1 draw call por pieza, no por tramo).
+    const N = CONFIG.world.segmentCount;
+    const sides = [-1, 1] as const;
+    const trackGeo = mergeGeometries(
+      sides.map((side) => outerGeo.clone().translate(side * (PITCH_HALF + TRACK_W / 2), 0.005, -L / 2)),
+      false,
+    )!;
+    const glowGeos = sides.map((side) => glowGeo.clone().translate(side * (TOWER_X - 0.2), 15.6, -1.4));
+    this.piece(scene, trackGeo, trackMat, N);
+    this.piece(scene, mergeGeometries(ledGeos, false)!, ledMat, N);
+    this.piece(scene, mergeGeometries(screenGeos, false)!, screenMat, N);
+    this.piece(scene, standsGeo, standsMat, N);
+    this.piece(scene, lightsGeo, lightsMat, N);
+    this.piece(scene, bannersGeo, bannersMat, N);
+    this.piece(scene, flagsGeo, flagsMat, N);
+    this.piece(scene, mergeGeometries(glowGeos, false)!, this.glowMat, N).renderOrder = 2;
+    this.piece(scene, crowdGeo, crowdMat, N);
+
+    for (let i = 0; i < N; i++) {
       const seg = new THREE.Group();
       const pitch = new THREE.Mesh(pitchGeo, this.pitchMats[0]);
       pitch.receiveShadow = true;
       seg.add(pitch);
-      for (const side of [-1, 1]) {
-        const track = new THREE.Mesh(outerGeo, trackMat);
-        track.position.set(side * (PITCH_HALF + TRACK_W / 2), 0.005, -L / 2);
-        seg.add(track);
-        seg.add(new THREE.Mesh(ledGeos[side === -1 ? 0 : 1], ledMat));
-        seg.add(new THREE.Mesh(screenGeos[side === -1 ? 0 : 1], screenMat));
-      }
-      seg.add(new THREE.Mesh(standsGeo, standsMat));
-      seg.add(new THREE.Mesh(lightsGeo, lightsMat));
-      seg.add(new THREE.Mesh(bannersGeo, bannersMat));
-      seg.add(new THREE.Mesh(flagsGeo, flagsMat));
-      for (const side of [-1, 1]) {
-        const glow = new THREE.Mesh(glowGeo, this.glowMat);
-        glow.position.set(side * (TOWER_X - 0.2), 15.6, -1.4);
-        glow.renderOrder = 2;
-        seg.add(glow);
-      }
-
-      seg.add(new THREE.Mesh(crowdGeo, crowdMat));
-
       seg.position.z = -i * L + L / 2;
       scene.add(seg);
       this.segments.push({ group: seg, pitch });
     }
+    this.sync();
     this.addClouds(scene);
+  }
+
+  private pieces: THREE.InstancedMesh[] = [];
+
+  private piece(scene: THREE.Scene, geo: THREE.BufferGeometry, mat: THREE.Material, n: number): THREE.InstancedMesh {
+    const m = new THREE.InstancedMesh(geo, mat, n);
+    m.frustumCulled = false;
+    m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    scene.add(m);
+    this.pieces.push(m);
+    return m;
+  }
+
+  /** Copia la posición de cada tramo a las instancias. */
+  private sync(): void {
+    const m = new THREE.Matrix4();
+    this.segments.forEach((seg, i) => {
+      m.makeTranslation(0, 0, seg.group.position.z);
+      for (const piece of this.pieces) piece.setMatrixAt(i, m);
+    });
+    for (const piece of this.pieces) piece.instanceMatrix.needsUpdate = true;
   }
 
   /** Nubes de fondo: fijas, sin curvatura ni niebla (son parte del cielo). */
@@ -208,6 +228,7 @@ export class Stadium {
       seg.group.position.z = -i * L + L / 2;
       seg.pitch.material = this.pitchMats[0];
     });
+    this.sync();
   }
 
   update(dt: number, speed: number): void {
@@ -221,6 +242,7 @@ export class Stadium {
         seg.pitch.material = this.pitchMats[r < 0.55 ? 0 : r < 0.78 ? 1 : 2];
       }
     }
+    this.sync();
     this.led.offset.x = (this.led.offset.x + dt * 0.08) % 1;
   }
 }
