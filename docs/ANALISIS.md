@@ -19,7 +19,7 @@
 **Decisión:** Three.js + TypeScript + Vite, con:
 
 - **Gráficos 100 % generados por código** (personaje, estadio, público, obstáculos, texturas en canvas, sonido sintetizado) → **0 KB de assets** y carga en ~1 segundo.
-- **Toon shading + contorno negro** → look cartoon tipo Subway Surfers / Pou.
+- **Materiales PBR + sombras reales + tono de película** → look semirrealista (v0.7). Antes: toon con contorno negro.
 - **Mundo curvo** (shader) → el horizonte "cae", firma visual de los runners modernos.
 - **Rendimiento móvil:** geometrías fusionadas e instanciadas (≈200 draw calls, ≈170 k triángulos), sombras "blob" en vez de sombras reales, pixel ratio limitado a 2.
 - **UI en HTML/CSS** sobre el canvas: nítida en cualquier pantalla y fácil de iterar.

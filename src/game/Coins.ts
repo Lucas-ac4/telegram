@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { ModelBuilder, cylinder } from '../engine/geometry';
-import { toonVertexColors } from '../engine/materials';
+import { pbrVertexColors } from '../engine/materials';
 import type { Player } from './Player';
 
 const MAX = 160;
@@ -16,7 +16,7 @@ export class Coins {
   private z = new Float32Array(MAX);
   private active = new Uint8Array(MAX);
   private spin = 0;
-  private material: THREE.MeshToonMaterial;
+  private material: THREE.MeshStandardMaterial;
   private m = new THREE.Matrix4();
   private q = new THREE.Quaternion();
   private s = new THREE.Vector3();
@@ -41,7 +41,7 @@ export class Coins {
       .add(starGeo, 0xfff3b0, [0, 0, 0.05])
       .add(starGeo, 0xfff3b0, [0, 0, -0.05], [0, Math.PI, 0])
       .build();
-    this.material = toonVertexColors({ emissive: 0x7a4a00, emissiveIntensity: 0.7 }, true);
+    this.material = pbrVertexColors({ metalness: 0.95, roughness: 0.28, emissive: 0x7a4a00, emissiveIntensity: 0.35, envMapIntensity: 1.4 });
     this.mesh = new THREE.InstancedMesh(geo, this.material, MAX);
     for (const mesh of [this.mesh]) {
       mesh.frustumCulled = false;
@@ -64,7 +64,7 @@ export class Coins {
   update(dt: number, speed: number, player: Player | null, magnetRadius = 0): THREE.Vector3[] {
     this.spin += dt * 4;
     // Brillo que "respira": las monedas destellan.
-    this.material.emissiveIntensity = 0.55 + 0.35 * Math.sin(this.spin * 1.6);
+    this.material.emissiveIntensity = 0.3 + 0.25 * Math.sin(this.spin * 1.6);
     const collected: THREE.Vector3[] = [];
     // Las monedas activas se escriben al principio y `count` limita lo que se dibuja.
     let n = 0;

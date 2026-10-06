@@ -51,6 +51,11 @@ export class UI {
   private $ = <T extends HTMLElement = HTMLElement>(sel: string) => this.root.querySelector(sel) as T;
   private view: View | null = null;
   private tab: LockerTab = 'kit';
+
+  /** Pestaña actual del vestuario (la cámara hace zoom a la cara con pelo / peinado). */
+  get lockerTab(): LockerTab {
+    return this.tab;
+  }
   private profile!: Profile;
   private muted = false;
   private lastHint = '';

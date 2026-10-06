@@ -40,7 +40,7 @@ interface Segment {
  */
 export class Stadium {
   private segments: Segment[] = [];
-  private pitchMats: THREE.MeshToonMaterial[];
+  private pitchMats: THREE.MeshLambertMaterial[];
   private led: THREE.CanvasTexture;
   private cloudMat!: THREE.MeshBasicMaterial;
   private stars!: THREE.Points;
@@ -91,7 +91,7 @@ export class Stadium {
     const bannersGeo = buildBanners();
     const bannersMat = toon(0xffffff, { map: bannerTex, side: THREE.DoubleSide });
     const flagsGeo = buildFlags();
-    const flagsMat = curved(new THREE.MeshToonMaterial({ map: bannerTex, side: THREE.DoubleSide }), {
+    const flagsMat = curved(new THREE.MeshLambertMaterial({ map: bannerTex, side: THREE.DoubleSide }), {
       key: 'flag',
       header: 'attribute float flagT;',
       afterBegin: 'transformed.x += sin(uTime * 7.0 + position.z * 2.5 + position.y) * 0.22 * flagT;',
@@ -106,14 +106,15 @@ export class Stadium {
     });
     const glowGeo = new THREE.PlaneGeometry(5.5, 5.5);
 
-    const { body, head } = buildPerson();
-    const crowdBodyMat = crowdMaterial();
-    const crowdHeadMat = crowdMaterial();
+    const { bodyDown, bodyUp, head } = buildPerson();
+    const matStill = crowdMaterial(false);
+    const matJump = crowdMaterial(true);
     const count = STEPS * PEOPLE_PER_STEP * 2;
 
     for (let i = 0; i < CONFIG.world.segmentCount; i++) {
       const seg = new THREE.Group();
       const pitch = new THREE.Mesh(pitchGeo, this.pitchMats[0]);
+      pitch.receiveShadow = true;
       seg.add(pitch);
       for (const side of [-1, 1]) {
         const track = new THREE.Mesh(outerGeo, trackMat);
@@ -133,10 +134,14 @@ export class Stadium {
         seg.add(glow);
       }
 
-      const bodies = new THREE.InstancedMesh(body, crowdBodyMat, count);
-      const heads = new THREE.InstancedMesh(head, crowdHeadMat, count);
-      fillCrowd(bodies, heads);
-      seg.add(bodies, heads);
+      const crowd: CrowdMeshes = {
+        bodiesDown: new THREE.InstancedMesh(bodyDown, matStill, count),
+        headsDown: new THREE.InstancedMesh(head, matStill, count),
+        bodiesUp: new THREE.InstancedMesh(bodyUp, matJump, count),
+        headsUp: new THREE.InstancedMesh(head, matJump, count),
+      };
+      fillCrowd(crowd);
+      seg.add(crowd.bodiesDown, crowd.headsDown, crowd.bodiesUp, crowd.headsUp);
 
       seg.position.z = -i * L + L / 2;
       scene.add(seg);
@@ -219,58 +224,79 @@ export class Stadium {
   }
 }
 
-/** Material del público: cada persona salta a su ritmo (en el shader, costo ~0). */
-function crowdMaterial(): THREE.MeshToonMaterial {
-  const mat = new THREE.MeshToonMaterial({ color: 0xffffff });
+/** Material del público: opcionalmente cada persona salta a su ritmo (en el shader, costo ~0). */
+function crowdMaterial(jump: boolean): THREE.MeshLambertMaterial {
+  const mat = new THREE.MeshLambertMaterial({ color: 0xffffff });
   return curved(mat, {
-    key: 'crowd',
-    afterBegin: `
+    key: jump ? 'crowd-jump' : 'crowd',
+    afterBegin: jump
+      ? `
       #ifdef USE_INSTANCING
         float ph = float(gl_InstanceID) * 1.37;
-        float jumper = step(0.45, fract(ph * 0.61));
-        transformed.y += max(0.0, sin(uTime * 7.0 + ph)) * 0.22 * jumper;
-      #endif`,
+        transformed.y += max(0.0, sin(uTime * 6.0 + ph)) * 0.16;
+      #endif`
+      : '',
   });
 }
 
-function buildPerson(): { body: THREE.BufferGeometry; head: THREE.BufferGeometry } {
-  // Muy pocos polígonos: se dibujan cientos de personas.
-  const head = new THREE.IcosahedronGeometry(0.17, 0);
-  head.translate(0, 0.82, 0);
-  // Cuerpo + brazos en alto (hinchada alentando).
-  const body = new ModelBuilder()
-    .add(new THREE.CylinderGeometry(0.17, 0.22, 0.62, 5), 0xffffff, [0, 0.33, 0])
-    .add(new THREE.BoxGeometry(0.1, 0.38, 0.1), 0xffffff, [-0.25, 0.82, 0], [0, 0, 0.4])
-    .add(new THREE.BoxGeometry(0.1, 0.38, 0.1), 0xffffff, [0.25, 0.82, 0], [0, 0, -0.4])
+/** Persona de la hinchada con pocos polígonos: sentada (brazos abajo) o festejando (brazos en alto). */
+function buildPerson(): { bodyDown: THREE.BufferGeometry; bodyUp: THREE.BufferGeometry; head: THREE.BufferGeometry } {
+  const head = new THREE.IcosahedronGeometry(0.16, 0);
+  head.translate(0, 0.8, 0);
+  const torso = new THREE.CylinderGeometry(0.17, 0.21, 0.6, 5);
+  const down = new ModelBuilder()
+    .add(torso, 0xffffff, [0, 0.33, 0])
+    .add(new THREE.BoxGeometry(0.08, 0.34, 0.09), 0xffffff, [-0.24, 0.42, 0], [0, 0, 0.08])
+    .add(new THREE.BoxGeometry(0.08, 0.34, 0.09), 0xffffff, [0.24, 0.42, 0], [0, 0, -0.08])
     .build();
-  body.deleteAttribute('color');
-  return { body, head };
+  const up = new ModelBuilder()
+    .add(torso, 0xffffff, [0, 0.33, 0])
+    .add(new THREE.BoxGeometry(0.09, 0.4, 0.09), 0xffffff, [-0.25, 0.82, 0], [0, 0, 0.4])
+    .add(new THREE.BoxGeometry(0.09, 0.4, 0.09), 0xffffff, [0.25, 0.82, 0], [0, 0, -0.4])
+    .build();
+  down.deleteAttribute('color');
+  up.deleteAttribute('color');
+  return { bodyDown: down, bodyUp: up, head };
 }
 
-const SHIRTS = [0x6cc3f5, 0xffffff, 0x6cc3f5, 0xffd23f, 0xe63946, 0x14213d, 0x6cc3f5, 0xffffff, 0x7cf29c];
-const SKINS = [0xf2b98b, 0xd9956b, 0xa86b45, 0xf5cfa8, 0x7a4a2e];
+// Colores más naturales (menos saturados): local (celeste y blanco), visitante y neutros.
+const SHIRTS = [0x7fb3d9, 0xe8edf3, 0x7fb3d9, 0xd9d4c4, 0xb3414a, 0x2b3550, 0x7fb3d9, 0xe8edf3, 0x5d6b7a, 0xcfa23a];
+const SKINS = [0xe3b08d, 0xc88a64, 0x9a6444, 0xeec4a0, 0x6d4430];
 
-function fillCrowd(bodies: THREE.InstancedMesh, heads: THREE.InstancedMesh): void {
+interface CrowdMeshes {
+  bodiesDown: THREE.InstancedMesh;
+  headsDown: THREE.InstancedMesh;
+  bodiesUp: THREE.InstancedMesh;
+  headsUp: THREE.InstancedMesh;
+}
+
+function fillCrowd(c: CrowdMeshes): void {
   const m = new THREE.Matrix4();
-  const c = new THREE.Color();
-  let i = 0;
+  const col = new THREE.Color();
+  let nDown = 0;
+  let nUp = 0;
   for (const side of [-1, 1]) {
     for (let step = 0; step < STEPS; step++) {
       for (let k = 0; k < PEOPLE_PER_STEP; k++) {
         const x = side * (STEP0 + 0.15 + step * STEP_W + Math.random() * 0.2);
         const y = 1.0 + step * 0.7;
         const z = -((k + 0.5 + (Math.random() - 0.5) * 0.5) * L) / PEOPLE_PER_STEP;
-        m.makeRotationY(side * -Math.PI / 2 + (Math.random() - 0.5) * 0.6);
+        m.makeRotationY(side * -Math.PI / 2 + (Math.random() - 0.5) * 0.5);
         m.setPosition(x, y, z);
+        const up = Math.random() < 0.22;
+        const bodies = up ? c.bodiesUp : c.bodiesDown;
+        const heads = up ? c.headsUp : c.headsDown;
+        const i = up ? nUp++ : nDown++;
         bodies.setMatrixAt(i, m);
         heads.setMatrixAt(i, m);
-        bodies.setColorAt(i, c.setHex(SHIRTS[Math.floor(Math.random() * SHIRTS.length)]));
-        heads.setColorAt(i, c.setHex(SKINS[Math.floor(Math.random() * SKINS.length)]));
-        i++;
+        bodies.setColorAt(i, col.setHex(SHIRTS[Math.floor(Math.random() * SHIRTS.length)]));
+        heads.setColorAt(i, col.setHex(SKINS[Math.floor(Math.random() * SKINS.length)]));
       }
     }
   }
-  for (const mesh of [bodies, heads]) {
+  c.bodiesDown.count = c.headsDown.count = nDown;
+  c.bodiesUp.count = c.headsUp.count = nUp;
+  for (const mesh of Object.values(c)) {
     mesh.frustumCulled = false;
     mesh.instanceMatrix.needsUpdate = true;
     if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;

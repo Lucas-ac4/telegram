@@ -2,29 +2,24 @@ import * as THREE from 'three';
 import { CONFIG } from '../config/gameConfig';
 
 /**
- * Materiales con look "cartoon" (toon shading + contorno negro) y
- * mundo curvo estilo Subway Surfers, aplicado a TODOS los materiales.
+ * Materiales semirrealistas con mundo curvo estilo Subway Surfers.
+ *
+ * - `lit*`  → Lambert (barato): ambiente, tribunas, césped.
+ * - `pbr*`  → Standard (PBR con reflejos): jugadores, obstáculos, monedas, camiones.
+ * El "mundo curvo" se inyecta en TODOS los materiales (el horizonte cae).
  */
+
+/** Opciones de estilo que se pueden cambiar en vivo (por ejemplo para bajar calidad). */
+export const STYLE = {
+  /** Contorno negro tipo dibujito. Apagado = look realista. */
+  outlines: false,
+};
 
 /** Uniforms compartidos por todos los shaders. */
 export const sharedUniforms = {
   uCurve: { value: CONFIG.world.curvature },
   uTime: { value: 0 },
-  /** Luz de borde (rim light): da volumen a personajes y objetos. Se tiñe según el ambiente. */
-  uRimColor: { value: new THREE.Color(0xfff2d8) },
-  uRimStrength: { value: 0.35 },
 };
-
-/** Gradiente de 3 tonos para el toon shading. */
-const gradientMap = (() => {
-  const data = new Uint8Array([120, 192, 255]);
-  const tex = new THREE.DataTexture(data, data.length, 1, THREE.RedFormat);
-  tex.minFilter = THREE.NearestFilter;
-  tex.magFilter = THREE.NearestFilter;
-  tex.generateMipmaps = false;
-  tex.needsUpdate = true;
-  return tex;
-})();
 
 interface VertexPatch {
   key: string;
@@ -41,18 +36,6 @@ export function curved<T extends THREE.Material>(material: T, patch?: VertexPatc
     shader.uniforms.uCurve = sharedUniforms.uCurve;
     shader.uniforms.uTime = sharedUniforms.uTime;
     Object.assign(shader.uniforms, patch?.uniforms);
-    if (material.userData.rim) {
-      shader.uniforms.uRimColor = sharedUniforms.uRimColor;
-      shader.uniforms.uRimStrength = sharedUniforms.uRimStrength;
-      shader.fragmentShader = shader.fragmentShader
-        .replace('#include <common>', '#include <common>\nuniform vec3 uRimColor;\nuniform float uRimStrength;')
-        .replace(
-          '#include <dithering_fragment>',
-          `#include <dithering_fragment>
-          float rimF = 1.0 - max(dot(normalize(vNormal), normalize(vViewPosition)), 0.0);
-          gl_FragColor.rgb += uRimColor * smoothstep(0.6, 1.0, rimF) * uRimStrength;`,
-        );
-    }
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>', '#include <common>\nuniform float uCurve;\nuniform float uTime;\n' + uniformDecls(patch) + (patch?.header ?? ''))
       .replace('#include <begin_vertex>', '#include <begin_vertex>\n' + (patch?.afterBegin ?? ''))
@@ -64,7 +47,7 @@ export function curved<T extends THREE.Material>(material: T, patch?: VertexPatc
         gl_Position = projectionMatrix * mvPosition;`,
       );
   };
-  material.customProgramCacheKey = () => 'curved-' + (patch?.key ?? '') + (material.userData.rim ? '-rim' : '');
+  material.customProgramCacheKey = () => 'curved-' + (patch?.key ?? '');
   return material;
 }
 
@@ -75,29 +58,40 @@ function uniformDecls(patch?: VertexPatch): string {
     .join('\n');
 }
 
-export function toon(color: THREE.ColorRepresentation, opts: THREE.MeshToonMaterialParameters = {}): THREE.MeshToonMaterial {
-  return curved(new THREE.MeshToonMaterial({ color, gradientMap, ...opts }));
+// ---------- Lambert: ambiente ----------
+
+export function lit(color: THREE.ColorRepresentation, opts: THREE.MeshLambertMaterialParameters = {}): THREE.MeshLambertMaterial {
+  return curved(new THREE.MeshLambertMaterial({ color, ...opts }));
 }
 
-/** Toon con luz de borde (personajes, obstáculos, monedas). */
-export function toonRim(color: THREE.ColorRepresentation, opts: THREE.MeshToonMaterialParameters = {}): THREE.MeshToonMaterial {
-  const m = new THREE.MeshToonMaterial({ color, gradientMap, ...opts });
-  m.userData.rim = true;
-  return curved(m);
+/** Toma el color de cada vértice (geometrías fusionadas). */
+export function litVertexColors(opts: THREE.MeshLambertMaterialParameters = {}): THREE.MeshLambertMaterial {
+  return curved(new THREE.MeshLambertMaterial({ vertexColors: true, ...opts }));
 }
 
-/** Toon que toma el color de cada vértice (para geometrías fusionadas). */
-export function toonVertexColors(opts: THREE.MeshToonMaterialParameters = {}, rim = false): THREE.MeshToonMaterial {
-  const m = new THREE.MeshToonMaterial({ vertexColors: true, gradientMap, ...opts });
-  m.userData.rim = rim;
-  return curved(m);
+// ---------- Standard (PBR): jugadores, obstáculos, monedas ----------
+
+export function pbr(color: THREE.ColorRepresentation, opts: THREE.MeshStandardMaterialParameters = {}): THREE.MeshStandardMaterial {
+  return curved(new THREE.MeshStandardMaterial({ color, roughness: 0.7, metalness: 0, ...opts }));
+}
+
+export function pbrVertexColors(opts: THREE.MeshStandardMaterialParameters = {}): THREE.MeshStandardMaterial {
+  return curved(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.65, metalness: 0, ...opts }));
 }
 
 export function basic(opts: THREE.MeshBasicMaterialParameters): THREE.MeshBasicMaterial {
   return curved(new THREE.MeshBasicMaterial(opts));
 }
 
-/** Contorno negro por "casco invertido": se infla la malla sobre su normal y se dibuja la cara de atrás. */
+// ---------- Nombres anteriores (se mantienen para no tocar todo el código) ----------
+export const toon = lit;
+export const toonRim = pbr;
+export const toonVertexColors = (opts: THREE.MeshStandardMaterialParameters = {}, rim = false) =>
+  rim ? pbrVertexColors(opts) : litVertexColors(opts as THREE.MeshLambertMaterialParameters);
+
+// ---------- Contorno opcional (estilo dibujito) ----------
+
+/** Contorno por "casco invertido": se infla la malla sobre su normal y se dibuja la cara de atrás. */
 export function outlineMaterial(thickness = 0.035): THREE.MeshBasicMaterial {
   return curved(new THREE.MeshBasicMaterial({ color: 0x1a1030, side: THREE.BackSide }), {
     key: 'outline-' + thickness,
@@ -114,13 +108,25 @@ const outlineOf = (t: number) => {
 };
 
 /**
- * Agrega el contorno a una malla (como hijo, comparte geometría).
- * `thickness`: true = fino, false = normal, o un grosor en metros (personajes: 0.014).
+ * Agrega el contorno a una malla (sólo si `STYLE.outlines` está activo; por defecto no).
+ * `thickness`: true = fino, false = normal, o un grosor en metros.
  */
 export function withOutline<T extends THREE.Mesh>(mesh: T, thickness: boolean | number = false): T {
+  if (!STYLE.outlines) return mesh;
   const t = typeof thickness === 'number' ? thickness : thickness ? 0.022 : 0.035;
   const outline = new THREE.Mesh(mesh.geometry, outlineOf(t));
   outline.name = 'outline';
   mesh.add(outline);
   return mesh;
+}
+
+/** Marca una malla (y sus hijas) para proyectar / recibir sombras. */
+export function shadowed<T extends THREE.Object3D>(obj: T, cast = true, receive = false): T {
+  obj.traverse((o) => {
+    if ((o as THREE.Mesh).isMesh && o.name !== 'outline') {
+      o.castShadow = cast;
+      o.receiveShadow = receive;
+    }
+  });
+  return obj;
 }

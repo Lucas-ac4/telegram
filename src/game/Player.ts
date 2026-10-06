@@ -12,7 +12,7 @@ const P = CONFIG.player;
  */
 export class Player {
   readonly character = new Character();
-  readonly ball = createBall();
+  readonly ball = createBall(0.16);
   readonly group = new THREE.Group();
   private shadow: THREE.Mesh;
   private bubble: THREE.Mesh;
@@ -38,6 +38,8 @@ export class Player {
 
   constructor(scene: THREE.Scene) {
     this.group.add(this.character.root);
+    // Escala visual (la caja de colisión no cambia): un atleta real se ve chico a la distancia de la cámara.
+    this.character.root.scale.setScalar(1.14);
     scene.add(this.group, this.ball);
 
     this.shadow = new THREE.Mesh(
@@ -174,7 +176,8 @@ export class Player {
     this.character.update(dt, pose, 0.75 + (speed / CONFIG.speed.max) * 0.45);
 
     // Inclinación al cambiar de carril.
-    const lean = THREE.MathUtils.clamp((laneX(this.lane) - this.x) * -0.25, -0.35, 0.35);
+    // (en el menú el jugador está parado en el centro: sin inclinación)
+    const lean = playing ? THREE.MathUtils.clamp((laneX(this.lane) - this.x) * -0.25, -0.35, 0.35) : 0;
     this.group.rotation.z += (lean - this.group.rotation.z) * Math.min(1, dt * 12);
     this.group.position.set(this.x, this.y, 0);
 

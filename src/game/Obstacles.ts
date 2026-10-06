@@ -1,8 +1,11 @@
 import * as THREE from 'three';
 import { CONFIG, MOVER_SPEED, OBSTACLE_BOXES, TRUCK, laneX, type ObstacleKind } from '../config/gameConfig';
-import { ModelBuilder, box, capsule, cylinder, sphere } from '../engine/geometry';
-import { basic, toon, toonVertexColors, withOutline } from '../engine/materials';
-import { EYE_LO, bootGeometries, hairCap, headGeometry, natural, pelvisGeometry, shortLegGeometry, torsoGeometry } from '../engine/person';
+import { ModelBuilder, box, cylinder, sphere } from '../engine/geometry';
+import { basic, lit, pbrVertexColors, shadowed, withOutline } from '../engine/materials';
+import { bakeRig, buildRig, type Rig } from '../engine/athlete';
+import { KITS } from '../config/cosmetics';
+import { makePalette } from './Character';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { blobTexture, truckDecalTexture } from '../engine/textures';
 import { createBall } from './Character';
 import type { Player } from './Player';
@@ -46,7 +49,7 @@ export class Obstacles {
   private shadowGeo = new THREE.PlaneGeometry(2.2, 1.2);
   private shadowMat = basic({ map: blobTexture(), transparent: true, depthWrite: false });
   private rampGeo: THREE.BufferGeometry;
-  private mat = toonVertexColors({}, true);
+  private mat = pbrVertexColors({ roughness: 0.55, metalness: 0.08 });
   private time = 0;
 
   constructor(private scene: THREE.Scene) {
@@ -56,7 +59,7 @@ export class Obstacles {
     const wallGeo = buildWall();
     const runnerGeo = buildRunner();
     const truckGeos = [buildTruck(0), buildTruck(1)];
-    const decalMats = [0, 1].map((v) => toon(0xffffff, { map: truckDecalTexture(v as 0 | 1) }));
+    const decalMats = [0, 1].map((v) => lit(0xffffff, { map: truckDecalTexture(v as 0 | 1) }));
     const decalGeo = new THREE.PlaneGeometry(TRUCK.length - 1.7, 0.66);
     /** Camión = carrocería (con contorno) + carteles laterales con textura. */
     const makeTruck = (v: 0 | 1) => () => {
@@ -106,9 +109,11 @@ export class Obstacles {
         shadow.position.z = -TRUCK.length / 2;
       }
       group.add(shadow, model);
+      shadowed(model, true, true);
       let ramp: THREE.Object3D | null = null;
       if (kind === 'truck') {
         ramp = withOutline(new THREE.Mesh(this.rampGeo, this.mat));
+        shadowed(ramp, true, true);
         group.add(ramp);
       }
       this.scene.add(group);
@@ -297,88 +302,61 @@ function buildBarFrame(): THREE.BufferGeometry {
   return b.build();
 }
 
-/** Barrera de 3 defensores rivales mirando al jugador, con las manos adelante (mismo estilo que el jugador). */
-function buildWall(): THREE.BufferGeometry {
-  const b = new ModelBuilder();
-  [-0.62, 0, 0.62].forEach((x, i) => addDefender(b, x, i, false));
-  return b.build();
-}
+const DEF_SKINS = ['#d39a73', '#e6b48d', '#8d5b3c'];
+const DEF_HAIRS = ['#1c1616', '#6b3a1a', '#2a1a10'];
 
-/** Defensor que viene corriendo hacia el jugador (brazos y piernas en zancada). */
-function buildRunner(): THREE.BufferGeometry {
-  const b = new ModelBuilder();
-  addDefender(b, 0, 1, true);
-  return b.build();
-}
-
-function addDefender(b: ModelBuilder, x: number, i: number, running: boolean): void {
-  const skins = [0xd9956b, 0xf0b48a, 0x8a5a3c];
-  const hairs = [0x1c1616, 0x6b3a1a, 0x2a1a10];
-  const SK = skins[i % 3];
-  const HR = hairs[i % 3];
-  const RED = 0xd7263d;
-  const s = 0.94;
-  const sc: [number, number, number] = [s, s, s];
-  const at = (px: number, py: number, pz: number): [number, number, number] => [x + px * s, py * s, pz * s];
-  // Detalle bajo: los defensores pasan rápido y hay varios en pantalla.
-  const torso = torsoGeometry(12);
-  const pelvis = pelvisGeometry(12);
-  const shortLeg = shortLegGeometry(8);
-  const boots = bootGeometries(6);
+/** Defensor rival: el mismo atleta realista (con menos detalle), camiseta roja, congelado en una pose. */
+function defender(i: number, x: number, pose: (r: Rig) => void): THREE.BufferGeometry {
+  const rig = buildRig('lo');
+  pose(rig);
   // Los defensores miran hacia +z (hacia el jugador).
-  const face = Math.PI;
+  rig.root.rotation.y = Math.PI;
+  rig.root.position.x = x;
+  const kit = KITS.find((k) => k.id === 'pincha')!;
+  const pal = makePalette(DEF_HAIRS[i % 3], { ...kit, base: '#d7263d', accent: '#ffffff', sleeve: '#d7263d', shorts: '#ffffff', socks: '#d7263d', pattern: 'band' });
+  const skin = new THREE.Color(DEF_SKINS[i % 3]);
+  pal.skin = skin;
+  pal.skinShade = skin.clone().multiplyScalar(0.8);
+  pal.skinLight = skin.clone().lerp(new THREE.Color('#ffffff'), 0.12);
+  pal.stubLo = skin.clone().lerp(new THREE.Color(DEF_HAIRS[i % 3]), 0.4);
+  return bakeRig(rig, pal);
+}
 
-  // Piernas: muslo + short + media con franja + botín. Corriendo: una adelante y otra atrás.
-  for (const side of [-1, 1]) {
-    const sw = running ? side * 0.3 : 0;
-    const hx = side * 0.125;
-    b.add(capsule(0.088, 0.16, 6), SK, at(hx, 0.5, sw * 0.4), [-sw, 0, 0], sc);
-    b.add(shortLeg, 0xffffff, at(hx, 0.58, sw * 0.4), [-sw, 0, 0], sc);
-    b.add(capsule(0.078, 0.2, 6), RED, at(hx, 0.24, sw * 1.1), [-sw * 0.6, 0, 0], sc);
-    b.add(cylinder(0.086, 0.086, 0.045, 8), 0xffffff, at(hx, 0.36, sw * 0.9), [-sw * 0.6, 0, 0], sc);
-    b.add(boots.upper, 0x14213d, at(hx, 0.07, 0.05 + sw * 1.4), [0, face, 0], sc);
-    b.add(boots.sole, 0xffffff, at(hx, 0.07, 0.05 + sw * 1.4), [0, face, 0], sc);
-  }
-  b.add(pelvis, 0xffffff, at(0, 0.8, 0), [0, 0, 0], sc);
-  b.add(torso, RED, at(0, 0.84, 0), [0, face, 0], sc);
-  // Franja blanca, escudo en el pecho, cuello y nuca.
-  b.add(cylinder(0.3, 0.3, 0.06, 12), 0xffffff, at(0, 1.2, 0), [0, 0, 0], [s, s, s * 0.7]);
-  b.add(new THREE.BoxGeometry(0.15, 0.13, 0.02), 0xffffff, at(0, 1.1, 0.205), [0, 0, 0], sc);
-  b.add(new THREE.TorusGeometry(0.1, 0.026, 5, 12), 0xffffff, at(0, 1.405, 0), [Math.PI / 2, 0, 0], [s, s * 0.8, s]);
-  b.add(cylinder(0.072, 0.082, 0.14, 8), SK, at(0, 1.46, 0), [0, 0, 0], sc);
+/** Barrera de 3 defensores con las manos adelante (como en un tiro libre). */
+function buildWall(): THREE.BufferGeometry {
+  const geos = [-0.62, 0, 0.62].map((x, i) =>
+    defender(i, x, (r) => {
+      const [AL, AR] = r.arms;
+      AL.shoulder.rotation.set(0.3, 0, 0.12);
+      AR.shoulder.rotation.set(0.3, 0, -0.12);
+      AL.elbow.rotation.set(1.0, 0, 0.7);
+      AR.elbow.rotation.set(1.0, 0, -0.7);
+      r.legs[0].hip.rotation.z = 0.04;
+      r.legs[1].hip.rotation.z = -0.04;
+      r.head.rotation.x = 0.05;
+    }),
+  );
+  const merged = mergeGeometries(geos, false);
+  if (!merged) throw new Error('No se pudo armar la barrera');
+  return merged;
+}
 
-  for (const side of [-1, 1]) {
-    const sx = side * 0.325;
-    if (running) {
-      // Brazos en zancada (opuestos a las piernas).
-      const sw = -side * 0.7;
-      b.add(capsule(0.092, 0.1, 6), RED, at(sx, 1.2, sw * 0.12), [sw, 0, side * 0.1], sc);
-      b.add(capsule(0.066, 0.17, 6), SK, at(sx, 0.98, sw * 0.4), [sw + 0.9, 0, 0], sc);
-      b.add(sphere(0.075, 8, 6), SK, at(sx, 0.86, sw * 0.62 + 0.1), [0, 0, 0], sc);
-    } else {
-      // Brazos cruzados adelante (pose de barrera).
-      b.add(capsule(0.092, 0.1, 6), RED, at(sx, 1.2, 0.02), [0.25, 0, side * 0.3], sc);
-      b.add(capsule(0.066, 0.17, 6), SK, at(side * 0.17, 0.96, 0.17), [0.95, 0, side * 0.95], sc);
-      b.add(sphere(0.075, 8, 6), SK, at(side * 0.06, 0.88, 0.26), [0, 0, 0], sc);
-    }
-  }
-
-  // Cabeza: cráneo + mandíbula, pelo corto con línea de nacimiento, ojos y cejas enojadas.
-  const hy = 1.77;
-  const hs: [number, number, number] = [0.93 * s, 1.05 * s, 0.97 * s];
-  // (la cabeza mira a +z: se gira media vuelta para que el mentón quede hacia adelante)
-  b.add(headGeometry(12, 9), SK, at(0, hy, 0), [0, face, 0], hs);
-  // Pelo: casquete rotado hacia el frente del defensor (+z).
-  b.add(hairCap(0.322, natural(0), 14, 7), HR, at(0, hy, 0), [0, face, 0], hs);
-  for (const side of [-1, 1]) {
-    b.add(sphere(0.062, 6, 6), SK, at(side * 0.285, hy - 0.02, 0), [0, 0, 0], [0.5 * s, s, 0.85 * s]);
-    b.add(EYE_LO.sclera(), 0xffffff, at(side * 0.1 * 0.93, hy + 0.035, 0.265), [0, 0, 0], sc);
-    b.add(EYE_LO.iris(), 0x3d2a1a, at(side * 0.096 * 0.93, hy + 0.035, 0.279), [0, 0, 0], sc);
-    // Cejas inclinadas hacia adentro: cara de enojo.
-    b.add(new THREE.BoxGeometry(0.1, 0.026, 0.03), HR, at(side * 0.1 * 0.93, hy + 0.115, 0.265), [0, 0, side * 0.38], sc);
-  }
-  b.add(sphere(0.034, 6, 5), 0xc98a5e, at(0, hy - 0.03, 0.29), [0, 0, 0], sc);
-  b.add(new THREE.BoxGeometry(0.1, 0.022, 0.03), 0x7a2a2a, at(0, hy - 0.095, 0.262), [0, 0, 0], sc);
+/** Defensor que viene corriendo hacia el jugador (zancada y brazos en movimiento). */
+function buildRunner(): THREE.BufferGeometry {
+  return defender(1, 0, (r) => {
+    const [L, R] = r.legs;
+    const [AL, AR] = r.arms;
+    L.hip.rotation.x = 0.75;
+    L.knee.rotation.x = -1.25;
+    R.hip.rotation.x = -0.6;
+    R.knee.rotation.x = -0.35;
+    AL.shoulder.rotation.x = -0.8;
+    AR.shoulder.rotation.x = 0.8;
+    AL.elbow.rotation.x = 1.5;
+    AR.elbow.rotation.x = 1.5;
+    r.torso.rotation.x = -0.2;
+    r.head.rotation.x = 0.1;
+  });
 }
 
 /** Camión de TV / micro de la hinchada. Origen en la trompa; se extiende hacia -z. Techo plano (se corre por arriba). */

@@ -5,7 +5,17 @@ Three.js + TypeScript + Vite.
 
 📄 Análisis completo (tecnología, arquitectura, economía, riesgos, fases): [`docs/ANALISIS.md`](docs/ANALISIS.md)
 
-## Estado: v0.6 — Gráficos pro, 4 carriles y canje ✅
+## Estado: v0.7 — Estilo realista ✅
+
+v0.7: pasamos del estilo "dibujito" a un estilo **semirrealista**:
+- **Jugadores** con proporciones de atleta (1,86 m), cuerpo con músculos suaves, cara adulta (ojos, párpados, cejas, nariz, labios, orejas), camiseta con tela y número, short, medias y botines. Mismos atletas para los defensores rivales.
+- **5 peinados nuevos** que siguen la forma de la cabeza: corto clásico, rapado con degradé, melena larga, cresta y rulos. Íconos ilustrados de cada uno, y el vestuario hace zoom a la cara al elegir pelo o peinado.
+- **Luz y materiales reales:** materiales PBR con reflejos suaves, tono de película, **sombras reales** del jugador y los obstáculos, monedas de oro metálico, camiones con pintura brillante.
+- **Ambiente:** césped natural, nubes volumétricas, hinchada más sobria (casi toda sentada), cielo y luz distintos de día, atardecer y noche.
+- Sin contornos negros (se pueden volver a prender en `engine/materials.ts → STYLE.outlines`).
+- Calidad adaptativa: si el celu no llega a ~50 fps baja la resolución y, si hace falta, apaga las sombras reales.
+
+### v0.6 — Gráficos pro, 4 carriles y canje
 
 v0.6: **4 carriles** (configurable en `gameConfig.ts → lanes.count`), estadio más angosto y detallado (asientos por sectores, pantalla gigante, túneles, techo con cercha, pista de atletismo, marcas de cancha que cambian), personaje y defensores rediseñados (atleta con cara adulta, pelo que abraza la cabeza, 5 peinados nuevos), monedas con relieve, camiones rediseñados (parabrisas, parrilla, faros, carteles laterales, techo antideslizante) y sin el "hongo", pelota gigante que rueda (se salta), sin pelota cohete, potenciadores más espaciados, control táctil menos sensible, cámara que sube al correr sobre un camión, íconos dibujados en el vestuario, **ícono de canje (200.000 monedas = US$ 1, queda en revisión)** y arreglo del imán que quedaba activo.
 
@@ -71,7 +81,7 @@ npm run preview
 src/
   main.ts                 arranque
   config/gameConfig.ts    valores ajustables
-  engine/                 materiales toon + mundo curvo, geometrías, texturas procedurales
+  engine/                 materiales PBR + mundo curvo, cuerpos (body.ts, athlete.ts), texturas procedurales
   game/Game.ts            loop, estados y cámara
   game/Character.ts       modelo y animación del futbolista
   game/Player.ts          carriles, salto, barrida, pelota

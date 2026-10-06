@@ -15,6 +15,7 @@ import { Sfx } from '../audio/Sfx';
 import { UI, type View } from '../ui/UI';
 import { Save } from '../save/save';
 import { Telegram } from '../telegram/telegram';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { Pickups, PICKUP_SECONDS, type PickupKind } from './Pickups';
 import { TRUCK } from '../config/gameConfig';
 import { detectLang, setLang, t, type Lang } from '../i18n';
@@ -32,6 +33,7 @@ export class Game {
   private timer = new THREE.Timer();
   private hemi = new THREE.HemisphereLight();
   private sun = new THREE.DirectionalLight();
+  private sunTarget = new THREE.Object3D();
 
   private player: Player;
   private stadium: Stadium;
@@ -74,8 +76,33 @@ export class Game {
     this.renderer.setPixelRatio(this.pixelRatio);
     container.appendChild(this.renderer.domElement);
 
+    // Look realista: tonos de película, reflejos suaves (mapa de entorno) y sombras reales.
+    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    this.renderer.toneMappingExposure = 1;
+    this.renderer.shadowMap.enabled = true;
+    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    const pmrem = new THREE.PMREMGenerator(this.renderer);
+    this.scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    this.scene.environmentIntensity = 0.5;
+    pmrem.dispose();
+
     this.scene.fog = new THREE.Fog(0xffffff, CONFIG.world.fogNear, CONFIG.world.fogFar);
-    this.scene.add(this.hemi, this.sun);
+    // La luz del sol proyecta la sombra del jugador y los obstáculos cercanos (la cámara de sombra es fija).
+    this.sunTarget.position.set(0, 0, -14);
+    this.sun.target = this.sunTarget;
+    this.sun.castShadow = true;
+    this.sun.shadow.mapSize.set(1024, 1024);
+    const sc = this.sun.shadow.camera;
+    sc.left = -7;
+    sc.right = 7;
+    sc.top = 26;
+    sc.bottom = -26;
+    sc.near = 1;
+    sc.far = 90;
+    this.sun.shadow.bias = -0.0006;
+    this.sun.shadow.normalBias = 0.03;
+    this.sun.shadow.radius = 3;
+    this.scene.add(this.hemi, this.sun, this.sunTarget);
 
     this.stadium = new Stadium(this.scene);
     this.player = new Player(this.scene);
@@ -177,10 +204,12 @@ export class Game {
     this.hemi.intensity = theme.hemiIntensity;
     this.sun.color.setHex(theme.sunColor);
     this.sun.intensity = theme.sunIntensity;
-    this.sun.position.set(...theme.sunPosition);
+    // La posición del tema es la dirección del sol; se aleja 45 m del punto que ilumina.
+    const dir = new THREE.Vector3(...theme.sunPosition).normalize().multiplyScalar(45);
+    this.sun.position.copy(this.sunTarget.position).add(dir);
+    this.renderer.toneMappingExposure = theme.exposure;
+    this.scene.environmentIntensity = theme.envIntensity;
     this.stadium.applyTheme(theme);
-    sharedUniforms.uRimColor.value.setHex(theme.sunColor);
-    sharedUniforms.uRimStrength.value = theme.rim;
   }
 
   private enterMenu(view: View): void {
@@ -462,10 +491,15 @@ export class Game {
     const avg = this.frameAcc / this.frameCount;
     this.frameAcc = 0;
     this.frameCount = 0;
-    if (avg > 1 / 48 && this.pixelRatio > CONFIG.render.minPixelRatio) {
-      this.pixelRatio = Math.max(CONFIG.render.minPixelRatio, this.pixelRatio - 0.25);
-      this.renderer.setPixelRatio(this.pixelRatio);
-      this.resize();
+    if (avg > 1 / 48) {
+      if (this.pixelRatio > CONFIG.render.minPixelRatio) {
+        this.pixelRatio = Math.max(CONFIG.render.minPixelRatio, this.pixelRatio - 0.25);
+        this.renderer.setPixelRatio(this.pixelRatio);
+        this.resize();
+      } else if (this.sun.castShadow) {
+        // Último recurso: se apagan las sombras reales (quedan las sombras suaves bajo los pies).
+        this.sun.castShadow = false;
+      }
     }
   }
 
@@ -477,9 +511,15 @@ export class Game {
     if (this.state === 'menu') {
       const t = this.stateTime;
       if (this.view === 'locker') {
-        // Personaje más grande y arriba (el panel ocupa la parte de abajo).
-        pos.set(0, 1.25, 5.6);
-        look.set(0, 0.3, 0);
+        if (this.ui.lockerTab === 'kit') {
+          // Cuerpo entero, arriba (el panel ocupa la parte de abajo).
+          pos.set(0, 1.25, 5.6);
+          look.set(0, 0.3, 0);
+        } else {
+          // Pelo / peinado: primer plano de la cabeza.
+          pos.set(0.25, 2.05, 1.9);
+          look.set(0, 1.78, 0);
+        }
       } else if (this.view === 'shop') {
         pos.set(1.6, 2.4, 6.5);
         look.set(0.4, 1.6, 0);
@@ -514,7 +554,8 @@ export class Game {
     const minV = THREE.MathUtils.radToDeg(2 * Math.atan(Math.tan(THREE.MathUtils.degToRad(C.minHorizontalFov / 2)) / aspect));
     const speedT = (this.speed - CONFIG.speed.start) / (CONFIG.speed.max - CONFIG.speed.start);
     const boost = this.state === 'playing' ? speedT * C.speedFovBoost + (turbo ? 10 : 0) : 0;
-    const fov = (this.state === 'menu' ? Math.max(48, minV * 0.8) : Math.max(C.baseVerticalFov, minV)) + boost;
+    const closeUp = this.state === 'menu' && this.view === 'locker' && this.ui.lockerTab !== 'kit';
+    const fov = closeUp ? 34 : (this.state === 'menu' ? Math.max(48, minV * 0.8) : Math.max(C.baseVerticalFov, minV)) + boost;
     if (Math.abs(fov - this.camera.fov) > 0.01) {
       this.camera.fov += (fov - this.camera.fov) * k;
       this.camera.updateProjectionMatrix();

@@ -37,8 +37,8 @@ export function pitchTexture(lanes: number, laneWidth: number, halfWidth: number
     const y0 = (i * H) / bands;
     const grad = g.createLinearGradient(0, y0, 0, y0 + H / bands);
     const light = i % 2 === 0;
-    grad.addColorStop(0, light ? '#4eaa54' : '#3f9547');
-    grad.addColorStop(1, light ? '#47a04d' : '#3a8c42');
+    grad.addColorStop(0, light ? '#3d8a44' : '#33773a');
+    grad.addColorStop(1, light ? '#38813f' : '#2f7036');
     g.fillStyle = grad;
     g.fillRect(0, y0, W, H / bands);
   }
@@ -265,19 +265,35 @@ export function skyTexture(colors: [string, string, string]): THREE.CanvasTextur
 
 /** Nube cartoon (círculos superpuestos). */
 export function cloudTexture(): THREE.CanvasTexture {
-  const [c, g] = canvas(256, 128);
-  g.fillStyle = 'rgba(255,255,255,0.95)';
-  const puffs: [number, number, number][] = [
-    [70, 80, 38], [115, 60, 48], [165, 70, 40], [200, 86, 30], [45, 92, 26], [130, 92, 36],
-  ];
-  for (const [x, y, r] of puffs) {
+  // Nube volumétrica: muchas "bolas" suaves con degradé radial, luz arriba y base gris azulada.
+  const [c, g] = canvas(512, 256);
+  const puffs: [number, number, number][] = [];
+  for (let i = 0; i < 46; i++) {
+    const t = i / 45;
+    const x = 70 + t * 372 + (Math.random() - 0.5) * 30;
+    const body = Math.sin(t * Math.PI);
+    const r = 24 + body * 52 * (0.55 + Math.random() * 0.6);
+    const y = 168 - body * 40 - r * 0.35 + (Math.random() - 0.5) * 16;
+    puffs.push([x, y, r]);
+  }
+  for (const [x, y, r] of puffs.sort((a, b) => b[1] - a[1])) {
+    const grad = g.createRadialGradient(x - r * 0.25, y - r * 0.35, r * 0.1, x, y, r);
+    grad.addColorStop(0, 'rgba(255,255,255,0.95)');
+    grad.addColorStop(0.55, 'rgba(244,247,252,0.85)');
+    grad.addColorStop(0.85, 'rgba(196,208,226,0.45)');
+    grad.addColorStop(1, 'rgba(180,196,220,0)');
+    g.fillStyle = grad;
     g.beginPath();
     g.arc(x, y, r, 0, Math.PI * 2);
     g.fill();
   }
+  // Base plana y levemente más oscura.
   g.globalCompositeOperation = 'source-atop';
-  g.fillStyle = 'rgba(160,200,235,0.35)';
-  g.fillRect(0, 96, 256, 32);
+  const base = g.createLinearGradient(0, 120, 0, 190);
+  base.addColorStop(0, 'rgba(150,170,200,0)');
+  base.addColorStop(1, 'rgba(140,160,196,0.55)');
+  g.fillStyle = base;
+  g.fillRect(0, 100, 512, 120);
   return toTexture(c);
 }
 
