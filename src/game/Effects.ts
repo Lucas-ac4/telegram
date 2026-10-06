@@ -52,6 +52,15 @@ export class Effects {
     this.glow.emit({ x: pos.x + rnd(-0.2, 0.2), y: pos.y + rnd(0, 0.2), z: pos.z, life: 0.35, size: 38, grow: 0.8, color: 0xfff2b0, alpha: 0.95, world: true });
   }
 
+  /** Motitas de luz que suben lento alrededor del jugador (inicio / vestuario). */
+  mote(x: number): void {
+    this.glow.emit({
+      x: x + rnd(-1.6, 1.6), y: rnd(0.1, 1.2), z: rnd(-0.8, 1.2),
+      vx: rnd(-0.1, 0.1), vy: rnd(0.25, 0.6), vz: rnd(-0.1, 0.1),
+      life: rnd(2.2, 3.6), size: rnd(7, 13), grow: -0.3, color: 0xffe9a8, alpha: 0.75,
+    });
+  }
+
   /** Aterrizaje: anillo de polvo + pasto. */
   dust(x: number, y = 0): void {
     for (let i = 0; i < 8; i++) {

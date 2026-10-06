@@ -84,21 +84,21 @@ function headParts(R: number, detail: Detail): Part[] {
 
   const ey = 0.15;
   for (const side of [-1, 1]) {
-    const ex = side * 0.0375;
+    const ex = side * 0.04;
     const ez = frontZ(ey);
     // Ojo: esclerótica, iris, pupila, brillo y párpado.
-    parts.push({ geo: ellipsoid(0.0155, 0.0112, 0.009, 10, 8, [ex, ey, ez + 0.002]), key: 'eyeWhite' });
-    parts.push({ geo: ellipsoid(0.0098, 0.0098, 0.004, 10, 8, [ex - side * 0.0012, ey - 0.0004, ez - 0.0058]), key: 'iris' });
-    parts.push({ geo: ellipsoid(0.0045, 0.0045, 0.003, 8, 6, [ex - side * 0.0012, ey - 0.0004, ez - 0.0092]), key: 'pupil' });
-    parts.push({ geo: ellipsoid(0.0018, 0.0018, 0.0012, 5, 4, [ex + 0.0028, ey + 0.003, ez - 0.0112]), key: 'shine' });
+    parts.push({ geo: ellipsoid(0.0215, 0.0165, 0.01, 12, 8, [ex, ey, ez + 0.002]), key: 'eyeWhite' });
+    parts.push({ geo: ellipsoid(0.0142, 0.0142, 0.0045, 12, 8, [ex - side * 0.0015, ey - 0.0006, ez - 0.0068]), key: 'iris' });
+    parts.push({ geo: ellipsoid(0.0066, 0.0066, 0.003, 8, 6, [ex - side * 0.0015, ey - 0.0006, ez - 0.0104]), key: 'pupil' });
+    parts.push({ geo: ellipsoid(0.0034, 0.0034, 0.0016, 6, 5, [ex + 0.0045, ey + 0.0055, ez - 0.0128]), key: 'shine' });
     // Párpado superior (piel) + línea de pestañas.
-    const lid = new THREE.SphereGeometry(0.0155, 12, 6, 0, Math.PI * 2, 0, Math.PI * 0.46);
+    const lid = new THREE.SphereGeometry(0.0215, 12, 6, 0, Math.PI * 2, 0, Math.PI * 0.3);
     lid.scale(1.05, 0.9, 0.85);
-    parts.push({ geo: xf(lid, [ex, ey + 0.0015, ez + 0.0012], [-0.35, 0, 0]), key: 'skin' });
-    parts.push({ geo: xf(new THREE.TorusGeometry(0.0125, 0.0013, 4, 10, Math.PI * 0.95), [ex, ey + 0.0015, ez - 0.0055], [0, 0, 0.0], [1.15, 0.9, 1]), key: 'lash' });
+    parts.push({ geo: xf(lid, [ex, ey + 0.0035, ez + 0.0012], [-0.35, 0, 0]), key: 'skin' });
+    parts.push({ geo: xf(new THREE.TorusGeometry(0.0172, 0.0013, 4, 10, Math.PI * 0.95), [ex, ey + 0.0035, ez - 0.0065], [0, 0, 0.0], [1.15, 0.9, 1]), key: 'lash' });
     // Ceja.
     parts.push({
-      geo: xf(new THREE.CapsuleGeometry(0.0042, 0.04, 2, 6), [ex + side * 0.003, 0.178, frontZ(0.178) + 0.0005], [0, 0, Math.PI / 2 - side * 0.12]),
+      geo: xf(new THREE.CapsuleGeometry(0.0058, 0.044, 2, 6), [ex + side * 0.003, 0.18, frontZ(0.18) + 0.0005], [0, 0, Math.PI / 2 - side * 0.16]),
       key: 'brow',
     });
     // Oreja.
@@ -116,6 +116,11 @@ function headParts(R: number, detail: Detail): Part[] {
   parts.push({ geo: ellipsoid(0.0215, 0.0048, 0.008, 10, 5, [0, 0.0825, mz + 0.002]), key: 'lip' });
   parts.push({ geo: ellipsoid(0.019, 0.0056, 0.0085, 10, 5, [0, 0.0685, mz + 0.0035]), key: 'lipLower' });
   parts.push({ geo: xf(new THREE.TorusGeometry(0.02, 0.0011, 3, 10, Math.PI * 0.65), [0, 0.0765, mz - 0.0002], [0, 0, Math.PI * 1.175], [1, 0.45, 1]), key: 'lashDark' });
+  // Sonrisa leve en las comisuras y rubor en las mejillas (rostro más amable).
+  for (const side of [-1, 1]) {
+    parts.push({ geo: ellipsoid(0.0028, 0.0042, 0.003, 5, 4, [side * 0.0215, 0.0775, mz - 0.0005]), key: 'lashDark' });
+    parts.push({ geo: xf(ellipsoid(0.019, 0.012, 0.004, 10, 6), [side * 0.052, 0.105, frontZ(0.105) + 0.009], [0, side * 0.5, 0]), key: 'blush' });
+  }
   return parts;
 }
 

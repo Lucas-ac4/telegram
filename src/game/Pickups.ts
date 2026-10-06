@@ -92,6 +92,7 @@ export class Pickups {
       m.position.z += speed * dt;
       m.position.y = m.userData.baseY + Math.sin(this.time * 4 + m.position.z) * 0.12;
       m.scale.setScalar(1 + Math.sin(this.time * 8) * 0.06);
+      m.rotation.y = Math.sin(this.time * 2.2 + m.position.x) * 0.45; // vaivén 3D
       if (
         player &&
         Math.abs(m.position.z) < 0.9 &&
@@ -108,6 +109,17 @@ export class Pickups {
       }
     }
     return got;
+  }
+
+  /** Posición de un potenciador visible (para chispas de brillo). */
+  sample(out: THREE.Vector3): boolean {
+    for (const it of this.items) {
+      if (it.active && it.mesh.position.z < -3 && it.mesh.position.z > -45) {
+        out.copy(it.mesh.position);
+        return true;
+      }
+    }
+    return false;
   }
 
   clear(): void {

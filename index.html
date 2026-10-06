@@ -29,9 +29,37 @@
         width: 100%;
         height: 100%;
       }
+      /* Pantalla de carga: aparece al instante y se va con la primera imagen del juego. */
+      #splash {
+        position: fixed;
+        inset: 0;
+        z-index: 100;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 18px;
+        background: radial-gradient(circle at 50% 40%, #3b7fe0, #1d1a4f 75%);
+        font-family: 'Arial Black', system-ui, sans-serif;
+        color: #ffd23f;
+        transition: opacity 0.5s;
+      }
+      #splash.done { opacity: 0; pointer-events: none; }
+      #splash b { font-size: 46px; letter-spacing: 2px; text-shadow: 0 4px 0 #1d1a4f, 0 0 24px rgba(255, 210, 63, 0.5); }
+      #splash small { color: #fff; opacity: 0.8; letter-spacing: 6px; font-size: 13px; }
+      #splash i {
+        width: 46px;
+        height: 46px;
+        border-radius: 50%;
+        background: radial-gradient(circle at 35% 30%, #fff 0 30%, #ddd 31% 100%);
+        box-shadow: inset -6px -6px 0 rgba(0, 0, 0, 0.25), 0 20px 12px -10px rgba(0, 0, 0, 0.5);
+        animation: splash-bounce 0.7s cubic-bezier(0.3, 0, 0.7, 1) infinite alternate;
+      }
+      @keyframes splash-bounce { from { transform: translateY(-26px) rotate(0deg); } to { transform: translateY(8px) rotate(180deg); } }
     </style>
   </head>
   <body>
+    <div id="splash"><small>PROJECT</small><b>GOLAZO</b><i></i></div>
     <div id="game"></div>
     <script type="module" src="/src/main.ts"></script>
   </body>

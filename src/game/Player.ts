@@ -45,7 +45,7 @@ export class Player {
   constructor(scene: THREE.Scene) {
     this.group.add(this.character.root);
     // Escala visual (la caja de colisión no cambia): un atleta real se ve chico a la distancia de la cámara.
-    this.character.root.scale.setScalar(1.2);
+    this.character.root.scale.set(1.28, 1.18, 1.28);
     scene.add(this.group, this.ball);
 
     this.shadow = new THREE.Mesh(
@@ -63,9 +63,24 @@ export class Player {
     scene.add(this.ballShadow);
 
     // Burbuja del escudo.
+    // Escudo: esfera con brillo de borde (fresnel) — transparente al centro, luminosa en el contorno.
     this.bubble = new THREE.Mesh(
-      new THREE.SphereGeometry(1.15, 24, 16),
-      basic({ color: 0x7fe3ff, transparent: true, opacity: 0.28, depthWrite: false }),
+      new THREE.SphereGeometry(1.2, 28, 18),
+      new THREE.ShaderMaterial({
+        transparent: true,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+        uniforms: { uTime: { value: 0 } },
+        vertexShader: `varying vec3 vN; varying vec3 vV; varying vec3 vP;
+          void main(){ vec4 mv = modelViewMatrix * vec4(position,1.0); vN = normalize(normalMatrix * normal); vV = normalize(-mv.xyz); vP = position; gl_Position = projectionMatrix * mv; }`,
+        fragmentShader: `varying vec3 vN; varying vec3 vV; varying vec3 vP; uniform float uTime;
+          void main(){
+            float f = pow(1.0 - abs(dot(normalize(vN), normalize(vV))), 2.2);
+            float hex = 0.5 + 0.5 * sin(vP.y * 14.0 + uTime * 3.0) * sin(vP.x * 14.0 - uTime * 2.0);
+            vec3 col = mix(vec3(0.25,0.75,1.0), vec3(0.8,0.97,1.0), f);
+            gl_FragColor = vec4(col, f * 0.85 + 0.06 + hex * 0.05);
+          }`,
+      }),
     );
     this.bubble.position.y = 0.95;
     this.bubble.visible = false;
@@ -182,7 +197,10 @@ export class Player {
     }
 
     this.bubble.visible = this.shielded;
-    if (this.shielded) this.bubble.scale.setScalar(1 + Math.sin(performance.now() / 120) * 0.04);
+    if (this.shielded) {
+      this.bubble.scale.setScalar(1 + Math.sin(performance.now() / 120) * 0.04);
+      (this.bubble.material as THREE.ShaderMaterial).uniforms.uTime.value = performance.now() / 1000;
+    }
     this.character.setBlink(this.grace > 0 && !this.dead);
 
     const pose: Pose = this.dead

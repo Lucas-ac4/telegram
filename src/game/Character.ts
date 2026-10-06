@@ -19,7 +19,7 @@ const SPRING_K = 260;
 const SPRING_C = 16;
 
 /** Escalas de estilo: cabeza y extremidades más contundentes para que la silueta se lea en pantalla chica. */
-const STYLE = { head: 1.26, limbXZ: 1.16, torsoXZ: 1.06 };
+const STYLE = { head: 1.3, limbXZ: 1.3, torsoXZ: 1.13 };
 
 /** Tono de piel base (se puede ofrecer más tonos en el vestuario). */
 export const SKIN_TONE = '#dfa981';
@@ -37,6 +37,7 @@ export function makePalette(hairHex: string, kit: Kit): Palette {
     skin,
     skinShade: mix(skin, c('#7a3f2a'), 0.22),
     skinLight: mix(skin, c('#ffd9bd'), 0.22),
+    blush: mix(skin, c('#ee7f6c'), 0.32),
     lip: mix(skin, c('#a8453f'), 0.5),
     lipLower: mix(skin, c('#b24f48'), 0.45),
     eyeWhite: c('#f1eee9'),

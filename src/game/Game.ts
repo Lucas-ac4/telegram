@@ -3,7 +3,7 @@ import { CONFIG } from '../config/gameConfig';
 import { DAILY, ECONOMY, SHOP_ITEMS, type ItemId } from '../config/economy';
 import { THEMES, argentinaHour, themeForHour, type Theme } from '../config/themes';
 import { sharedUniforms } from '../engine/materials';
-import { skyTexture } from '../engine/textures';
+import { skyTexture, softSpotTexture } from '../engine/textures';
 import { Player } from './Player';
 import { Stadium } from './Stadium';
 import { Obstacles } from './Obstacles';
@@ -20,6 +20,7 @@ import { Pickups, PICKUP_SECONDS, type PickupKind } from './Pickups';
 import { TRUCK } from '../config/gameConfig';
 import { detectLang, setLang, t, type Lang } from '../i18n';
 import { loadModel } from '../engine/assets';
+import { PostFX } from '../engine/postfx';
 import { QUALITIES, detectQuality, saveQuality, type Quality, type QualityId } from '../config/quality';
 
 /** Nombre de la GPU (para estimar la potencia del dispositivo). */
@@ -45,6 +46,11 @@ export class Game {
   private camLook = new THREE.Vector3(0, 1, 0);
   private camBase = new THREE.Vector3();
   private tmp = new THREE.Vector3();
+  private spot!: THREE.Mesh;
+  private post: PostFX | null = null;
+  private postWanted = false;
+  private postTune: [number, number, number, number] = [0.35, 1.1, 1.05, 0.95];
+  private moteAcc = 0;
   private camPosTarget = new THREE.Vector3();
   private camLookTarget = new THREE.Vector3();
   private timer = new THREE.Timer();
@@ -114,8 +120,9 @@ export class Game {
     // Look realista: tonos de película, reflejos suaves (mapa de entorno) y sombras reales.
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1;
+    this.renderer.info.autoReset = false;
     this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    this.renderer.shadowMap.type = THREE.PCFShadowMap;
     const pmrem = new THREE.PMREMGenerator(this.renderer);
     this.scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
     this.scene.environmentIntensity = 0.5;
@@ -141,6 +148,14 @@ export class Game {
 
     this.stadium = new Stadium(this.scene);
     this.player = new Player(this.scene);
+    // Foco de luz en el piso: realza al jugador en el inicio y el vestuario.
+    this.spot = new THREE.Mesh(
+      new THREE.PlaneGeometry(6.4, 6.4),
+      new THREE.MeshBasicMaterial({ map: softSpotTexture(), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }),
+    );
+    this.spot.rotation.x = -Math.PI / 2;
+    this.spot.position.set(0, 0.03, 0);
+    this.scene.add(this.spot);
     this.obstacles = new Obstacles(this.scene);
     this.coins = new Coins(this.scene);
     this.effects = new Effects(this.scene);
@@ -180,6 +195,7 @@ export class Game {
         this.ui.refresh(Save.profile);
       },
       onRevive: () => this.revive(),
+      onPause: () => this.state === 'playing' && this.setPaused(true),
       onQuality: (q) => {
         saveQuality(q);
         this.setQuality(q);
@@ -236,6 +252,7 @@ export class Game {
     this.resize();
     this.applyTheme();
     this.enterMenu('home');
+    this.player.group.rotation.y = Math.PI; // arranca de frente a cámara
     this.camBase.set(0.35, 1.9, 4.6);
     this.camera.position.copy(this.camBase);
     this.camLook.set(0, 1.15, 0);
@@ -259,7 +276,9 @@ export class Game {
     const dir = new THREE.Vector3(...theme.sunPosition).normalize().multiplyScalar(45);
     this.sun.position.copy(this.sunTarget.position).add(dir);
     this.renderer.toneMappingExposure = theme.exposure;
+    this.postTune = theme.id === 'noche' ? [0.55, 1.06, 1.06, 0.8] : theme.id === 'atardecer' ? [0.45, 1.05, 1.05, 0.85] : [0.32, 1.03, 1.04, 0.95];
     this.scene.environmentIntensity = theme.envIntensity;
+    this.post?.tune(...this.postTune);
     this.stadium.applyTheme(theme);
   }
 
@@ -411,6 +430,8 @@ export class Game {
     });
   }
 
+  private firstFrame = true;
+
   private frame(timestamp: number): void {
     this.timer.update(timestamp);
     const rawDt = this.timer.getDelta();
@@ -429,7 +450,7 @@ export class Game {
       }
     }
     if (this.paused) {
-      this.renderer.render(this.scene, this.camera);
+      this.draw();
       return;
     }
     this.stateTime += dt;
@@ -477,6 +498,15 @@ export class Game {
     const collected = this.coins.update(dt, worldSpeed, this.state === 'playing' ? this.player : null, magnet);
     for (const kind of this.pickups.update(dt, worldSpeed, this.state === 'playing' ? this.player : null)) this.activate(kind);
     this.effects.update(dt, worldSpeed);
+    this.spot.visible = this.state === 'menu';
+    if (this.state === 'menu' && this.quality.ambientFx) {
+      this.spot.scale.setScalar(1 + Math.sin(this.stateTime * 1.6) * 0.04);
+      this.moteAcc += dt * 9;
+      while (this.moteAcc >= 1) {
+        this.moteAcc -= 1;
+        this.effects.mote(this.player.x);
+      }
+    }
     {
       const speedT = this.state === 'playing' ? THREE.MathUtils.clamp((this.speed - CONFIG.speed.start) / (CONFIG.speed.max - CONFIG.speed.start), 0, 1) : 0;
       this.ui.setSpeedFx(this.state === 'playing' ? Math.max(0, speedT - 0.28) * 0.9 + (turbo ? 0.35 : 0) : 0);
@@ -504,6 +534,7 @@ export class Game {
       }
       if (this.player.grounded && !this.player.sliding) this.effects.run(dt, this.player.x, this.player.floor, this.speed);
       if (this.quality.ambientFx && Math.random() < dt * 7 && this.coins.sample(this.tmp)) this.effects.glint(this.tmp);
+      if (this.quality.ambientFx && Math.random() < dt * 10 && this.pickups.sample(this.tmp)) this.effects.glint(this.tmp);
       if (this.player.ballFlying) this.effects.trail(this.player.ball.position);
       const meters = Math.floor(this.distance);
       this.ui.setDistance(meters);
@@ -557,7 +588,13 @@ export class Game {
     }
 
     this.updateCamera(dt, turbo);
-    this.renderer.render(this.scene, this.camera);
+    this.draw();
+    if (this.firstFrame) {
+      this.firstFrame = false;
+      const splash = document.getElementById('splash');
+      splash?.classList.add('done');
+      window.setTimeout(() => splash?.remove(), 600);
+    }
   }
 
   /** Potenciador recogido en la pista. */
@@ -610,6 +647,17 @@ export class Game {
     }
     this.effects.setQuality(q);
     this.stadium.setQuality(q);
+    // Post-proceso (bloom + color grading): solo en HIGH y si el dispositivo lo soporta.
+    this.postWanted = q.id === 'high' && PostFX.supported(this.renderer) && !new URLSearchParams(location.search).has('nopost');
+    if (this.postWanted && !this.post) {
+      this.post = new PostFX();
+      this.post.setSize(Math.round(window.innerWidth * this.pixelRatio), Math.round(window.innerHeight * this.pixelRatio));
+    }
+    this.post?.tune(...this.postTune);
+    if (!this.postWanted && this.post) {
+      this.post.dispose();
+      this.post = null;
+    }
     document.body.classList.toggle('no-screenfx', !q.screenFx);
     this.ui?.setQuality(id);
     if (resize) this.resize();
@@ -774,6 +822,18 @@ export class Game {
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
     this.effects.setViewport(h * this.pixelRatio, this.camera.fov);
+    this.post?.setSize(Math.round(w * this.pixelRatio), Math.round(h * this.pixelRatio));
+  }
+
+  /** Dibuja la escena (con post-proceso si está activo). */
+  private draw(): void {
+    this.renderer.info.reset(); // las métricas suman todos los pasos del post-proceso
+    if (this.post) {
+      this.post.render(this.renderer, this.scene, this.camera);
+      this.renderer.setRenderTarget(null);
+    } else {
+      this.renderer.render(this.scene, this.camera);
+    }
   }
 
   /** Para tests automáticos / debugging. */

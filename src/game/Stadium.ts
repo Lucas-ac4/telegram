@@ -9,6 +9,7 @@ import {
   CROWD_COLS,
   cloudTexture,
   crowdTexture,
+  grassDetailTexture,
   glowTexture,
   ledTexture,
   pitchTexture,
@@ -49,11 +50,14 @@ export class Stadium {
   private disc!: THREE.Mesh;
   private discMat!: THREE.MeshBasicMaterial;
   private glowMat: THREE.MeshBasicMaterial;
+  private blimp!: THREE.Group;
+  private blimpMat!: THREE.MeshBasicMaterial;
   private crowdFx = { value: 1 };
   private crowdMat = crowdCardMaterial(this.crowdFx);
 
   constructor(scene: THREE.Scene) {
-    this.pitchMats = ([0, 1, 2] as const).map((v) => toon(0xffffff, { map: pitchTexture(LANES, CONFIG.lanes.width, PITCH_HALF, v) }));
+    const detail = grassDetailTexture();
+    this.pitchMats = ([0, 1, 2] as const).map((v) => pitchMaterial(pitchTexture(LANES, CONFIG.lanes.width, PITCH_HALF, v), detail));
     const pitchGeo = new THREE.PlaneGeometry(PITCH_HALF * 2, L, 1, 16);
     pitchGeo.rotateX(-Math.PI / 2);
     pitchGeo.translate(0, 0, -L / 2);
@@ -132,6 +136,7 @@ export class Stadium {
     this.piece(scene, mergeGeometries(glowGeos, false)!, this.glowMat, N).renderOrder = 2;
     this.piece(scene, crowdGeo, crowdMat, N);
 
+
     for (let i = 0; i < N; i++) {
       const seg = new THREE.Group();
       const pitch = new THREE.Mesh(pitchGeo, this.pitchMats[0]);
@@ -199,6 +204,25 @@ export class Stadium {
     this.stars.visible = false;
     scene.add(this.stars);
 
+    // Dirigible publicitario que cruza el cielo muy despacio (da vida al fondo).
+    this.blimp = new THREE.Group();
+    const bodyMat = (this.blimpMat = new THREE.MeshBasicMaterial({ color: 0xf2f4f8, fog: false }));
+    const hull = new THREE.Mesh(new THREE.SphereGeometry(1, 20, 12), bodyMat);
+    hull.scale.set(5.2, 1.7, 1.7);
+    const stripe = new THREE.Mesh(new THREE.SphereGeometry(1.02, 20, 12, 0, Math.PI * 2, 1.25, 0.5), new THREE.MeshBasicMaterial({ color: 0x2f5fb5, fog: false }));
+    stripe.scale.set(5.2, 1.7, 1.7);
+    const finMat = new THREE.MeshBasicMaterial({ color: 0x2f5fb5, fog: false });
+    for (const r of [0, Math.PI / 2]) {
+      const fin = new THREE.Mesh(new THREE.BoxGeometry(1.4, 1.9, 0.12), finMat);
+      fin.position.set(-4.7, 0, 0);
+      fin.rotation.x = r;
+      this.blimp.add(fin);
+    }
+    this.blimp.add(hull, stripe);
+    this.blimp.position.set(-70, 40, -220);
+    this.blimp.scale.setScalar(2.2);
+    scene.add(this.blimp);
+
     // Sol / luna.
     this.discMat = new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, fog: false });
     this.disc = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), this.discMat);
@@ -221,6 +245,7 @@ export class Stadium {
     this.disc.position.set(...theme.disc.pos);
     this.disc.scale.setScalar(theme.disc.size);
     this.glowMat.visible = theme.floodlights;
+    this.blimpMat.color.setHex(theme.id === 'noche' ? 0x8f9bb8 : theme.id === 'atardecer' ? 0xf0c9a8 : 0xf2f4f8);
   }
 
   reset(): void {
@@ -243,8 +268,31 @@ export class Stadium {
       }
     }
     this.sync();
+    this.blimp.position.x += dt * 3;
+    if (this.blimp.position.x > 90) this.blimp.position.x = -90;
     this.led.offset.x = (this.led.offset.x + dt * 0.08) % 1;
   }
+}
+
+/** Césped: mapa de marcas + grano de hebras que se desvanece con la distancia (nítido cerca, limpio lejos). */
+function pitchMaterial(map: THREE.Texture, detail: THREE.Texture): THREE.MeshLambertMaterial {
+  const mat = toon(0xffffff, { map });
+  const base = mat.onBeforeCompile;
+  mat.onBeforeCompile = (shader, renderer) => {
+    base.call(mat, shader, renderer);
+    shader.uniforms.uDetail = { value: detail };
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', '#include <common>\nuniform sampler2D uDetail;')
+      .replace(
+        '#include <map_fragment>',
+        `#include <map_fragment>
+        float gd = texture2D(uDetail, vMapUv * vec2(${((PITCH_HALF * 2) / 0.5).toFixed(1)}, ${(L / 0.5).toFixed(1)})).r;
+        float gfade = 1.0 - smoothstep(14.0, 55.0, length(vViewPosition));
+        diffuseColor.rgb *= 1.0 + (gd - 0.5) * 0.9 * gfade;`,
+      );
+  };
+  mat.customProgramCacheKey = () => 'pitch-detail';
+  return mat;
 }
 
 /** Material del público: tarjetas con recorte, salto por persona y flashes de cámara (todo en el shader). */

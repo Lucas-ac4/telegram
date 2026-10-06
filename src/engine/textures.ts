@@ -554,3 +554,46 @@ export function crowdTexture(): THREE.CanvasTexture {
   t.anisotropy = 2;
   return t;
 }
+
+/** Grano de césped que se repite (128², sin costuras): hebras cortas en varios tonos. Da nitidez al piso cerca de la cámara. */
+export function grassDetailTexture(): THREE.CanvasTexture {
+  const N = 128;
+  const [c, g] = canvas(N, N);
+  g.fillStyle = '#808080';
+  g.fillRect(0, 0, N, N);
+  const blade = (x: number, y: number, len: number, col: string, lean: number) => {
+    // se dibuja 4 veces desplazada para que no haya costura al repetir
+    for (const ox of [-N, 0, N]) {
+      for (const oy of [-N, 0, N]) {
+        g.strokeStyle = col;
+        g.lineWidth = 1.4;
+        g.beginPath();
+        g.moveTo(x + ox, y + oy);
+        g.lineTo(x + ox + lean, y + oy - len);
+        g.stroke();
+      }
+    }
+  };
+  for (let i = 0; i < 520; i++) {
+    const light = Math.random() > 0.5;
+    blade(Math.random() * N, Math.random() * N, 5 + Math.random() * 9, light ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.35)', (Math.random() - 0.5) * 5);
+  }
+  const t = toTexture(c, true);
+  t.colorSpace = THREE.NoColorSpace;
+  t.anisotropy = 4;
+  return t;
+}
+
+/** Mancha de luz suave (caída gradual, sin borde duro). */
+export function softSpotTexture(rgb = '255,238,196'): THREE.CanvasTexture {
+  const [c, g] = canvas(128, 128);
+  const grad = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+  grad.addColorStop(0, `rgba(${rgb},0.7)`);
+  grad.addColorStop(0.45, `rgba(${rgb},0.22)`);
+  grad.addColorStop(0.8, `rgba(${rgb},0.05)`);
+  grad.addColorStop(1, `rgba(${rgb},0)`);
+  g.fillStyle = grad;
+  g.fillRect(0, 0, 128, 128);
+  return toTexture(c);
+}
+

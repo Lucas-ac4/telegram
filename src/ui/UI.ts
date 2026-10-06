@@ -40,6 +40,7 @@ export interface UIHandlers {
   onClaim(tier: number): void;
   onRedeem(): void;
   onQuality(q: QualityId): void;
+  onPause(): void;
 }
 
 type LockerTab = 'color' | 'style' | 'kit';
@@ -135,6 +136,7 @@ export class UI {
           <div class="num"><span data-distance>0</span><small>m</small></div>
           <div class="best" data-best-hud></div>
           <div class="speedbar" aria-hidden="true"><i data-speedbar></i></div>
+          <button class="pause-btn" data-action="pause" aria-label="${t('pause')}"><i></i><i></i></button>
         </div>
         <div class="hud-right">
           <div class="coins"><span class="coin-ico"></span><span data-coins>0</span></div>
@@ -230,6 +232,7 @@ export class UI {
       case 'nav': return this.h.onNavigate(d.viewTarget as View);
       case 'mute': return this.h.onToggleMute();
       case 'lang': return this.h.onLang(d.lang as Lang);
+      case 'pause': return this.h.onPause();
       case 'quality': return this.h.onQuality(d.q as QualityId);
       case 'buy': return this.h.onBuy(d.id as ItemId);
       case 'arm': return this.h.onToggleArmed(d.id as ItemId);

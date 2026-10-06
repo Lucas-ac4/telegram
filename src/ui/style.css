@@ -1350,3 +1350,24 @@ body {
 .ab.turbo { --c: #a259ff; }
 
 body.no-screenfx .speedfx { display: none; }
+
+.pause-btn {
+  margin-top: 10px;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  background: linear-gradient(rgba(52, 46, 130, 0.9), rgba(29, 26, 79, 0.9));
+  border: 3px solid rgba(255, 255, 255, 0.35) !important;
+  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.25);
+}
+.pause-btn i {
+  width: 5px;
+  height: 16px;
+  border-radius: 2px;
+  background: #fff;
+}
+.pause-btn:active { transform: scale(0.92); }
