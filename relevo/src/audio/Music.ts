@@ -60,6 +60,37 @@ const THEMES: Theme[] = [
   T(55, 'mixo', [0, 6, 3, 0], 108, 'square', 2000), // Ciudad de faroles
   T(64, 'lydian', [0, 1, 4, 5], 110, 'sine'), // Vía Láctea
   T(60, 'major', [0, 4, 5, 3], 116, 'triangle', 3200), // Corazón de la luz
+  // Mundos 21 a 50: el tempo ya no sube tanto (la dificultad también hace meseta)
+  T(57, 'dorian', [0, 3, 4, 0], 104, 'triangle'), // Bosque de otoño
+  T(64, 'minor', [0, 5, 6, 4], 100, 'sine'), // Glaciar azul
+  T(62, 'mixo', [0, 3, 6, 0], 102, 'triangle'), // Bosque de bambú
+  T(58, 'minor', [0, 2, 5, 4], 98, 'sine', 2000), // Eclipse
+  T(65, 'lydian', [0, 1, 4, 0], 104, 'triangle'), // Jardín de coral
+  T(60, 'dorian', [0, 6, 3, 4], 106, 'square', 2000), // Valle de las pirámides
+  T(67, 'major', [0, 3, 4, 5], 108, 'triangle', 3000), // Puente del arcoíris
+  T(56, 'minor', [0, 5, 3, 6], 100, 'sine'), // Luna llena
+  T(59, 'dorian', [0, 3, 0, 4], 98, 'triangle', 2000), // Pantano de luciérnagas
+  T(63, 'lydian', [0, 4, 1, 5], 106, 'sine'), // Castillo de cristal
+  T(62, 'mixo', [0, 6, 3, 4], 108, 'triangle'), // Sabana dorada
+  T(61, 'major', [0, 5, 3, 4], 106, 'sine'), // Templo en las nubes
+  T(57, 'minor', [0, 3, 5, 4], 104, 'triangle'), // Polo norte
+  T(64, 'dorian', [0, 3, 6, 4], 110, 'square', 2200), // Jungla bajo la lluvia
+  T(55, 'lydian', [0, 1, 0, 4], 108, 'sine'), // Nebulosa esmeralda
+  T(60, 'minor', [0, 5, 2, 6], 104, 'triangle'), // Ciudad sumergida
+  T(66, 'major', [0, 3, 4, 0], 112, 'square', 2400), // Festival de faroles
+  T(58, 'minor', [0, 6, 5, 4], 112, 'sawtooth', 1600), // Río de lava
+  T(63, 'lydian', [0, 1, 4, 5], 112, 'triangle'), // Lluvia de cometas
+  T(62, 'major', [0, 5, 3, 4], 102, 'sine'), // Lago espejo
+  T(54, 'minor', [0, 5, 6, 3], 100, 'sine', 1500), // Abismo
+  T(65, 'major', [0, 4, 5, 3], 108, 'triangle', 3000), // Cumbre nevada
+  T(61, 'dorian', [0, 3, 4, 6], 110, 'triangle'), // Oasis
+  T(59, 'lydian', [0, 1, 5, 4], 112, 'sine'), // Galaxia espiral
+  T(57, 'minor', [0, 6, 5, 4], 116, 'square', 1800), // Huracán
+  T(64, 'major', [0, 3, 5, 4], 110, 'triangle'), // Santuario de cerezos
+  T(67, 'lydian', [0, 1, 4, 0], 114, 'sine', 3200), // Prisma
+  T(56, 'minor', [0, 2, 5, 6], 108, 'triangle', 1800), // Noche eterna
+  T(62, 'major', [0, 4, 3, 5], 116, 'triangle', 3000), // Amanecer
+  T(60, 'major', [0, 4, 5, 3], 120, 'triangle', 3400), // Origen de la luz
 ];
 
 const midiHz = (m: number) => 440 * Math.pow(2, (m - 69) / 12);

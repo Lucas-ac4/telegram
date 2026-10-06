@@ -38,15 +38,16 @@ export const CONFIG = {
     /** Variación visible de velocidad entre relevos (nunca dentro del mismo relevo). */
     speedJitter: { startAt: 18, amount: 0.12 },
     /** Cada mundo nuevo: hojas un poco más rápidas y mecha un poco más corta. */
-    zone: { speedPerZone: 0.04, fusePerZone: 0.04, minFuse: 1.5 },
+    zone: { speedPerZone: 0.04, fusePerZone: 0.04, minFuse: 1.5, lateMul: 0.06 },
     /** Hojas frágiles: si la chispa cae en una, la mecha del relevo siguiente es más corta. */
     fragile: { base: 0.12, perRow: 0.005, fuseMul: 0.6, minFuse: 1.2 },
     /** Aro móvil (la chance la decide cada mundo en zones.ts). */
     moving: { ampMin: 22, ampExtra: 18, periodMin: 2.8, periodExtra: 0.8 },
     /** Corrientes cruzadas: pasan por el mismo aro, intercaladas. */
     double: { gap: 30 },
-    /** Poderes sobre hojas válidas: más seguido en cada mundo, hasta `max`. */
-    power: { startAt: 12, chance: 0.08, perZone: 0.012, max: 0.28 },
+    /** Poderes sobre hojas válidas: más seguido en cada mundo, hasta `max` (que sigue subiendo
+     *  un poco después del mundo 20). `cap` = tope absoluto contando la regla de cada mundo. */
+    power: { startAt: 12, chance: 0.08, perZone: 0.012, max: 0.28, latePerZone: 0.003, cap: 0.55 },
   },
 
   timing: {

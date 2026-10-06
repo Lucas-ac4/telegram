@@ -146,6 +146,10 @@ export type AchievementId =
   | 'chain25'
   | 'chain50'
   | 'chain100'
+  | 'chain200'
+  | 'chain400'
+  | 'chain700'
+  | 'chain1000'
   | 'perfect100'
   | 'gold20'
   | 'runs50'
@@ -165,6 +169,10 @@ export const ACHIEVEMENTS: Record<AchievementId, AchievementDef> = {
   chain25: { text: 'Llegá a cadena 25', target: 25, reward: 50, value: (s) => s.bestChain },
   chain50: { text: 'Llegá a cadena 50', target: 50, reward: 'estrella', value: (s) => s.bestChain },
   chain100: { text: 'Llegá al Cosmos (cadena 100)', target: 100, reward: 500, value: (s) => s.bestChain },
+  chain200: { text: 'Llegá a la Tormenta eléctrica (cadena 200)', target: 200, reward: 800, value: (s) => s.bestChain },
+  chain400: { text: 'Llegá al Corazón de la luz (cadena 400)', target: 400, reward: 1500, value: (s) => s.bestChain },
+  chain700: { text: 'Llegá a la Nebulosa esmeralda (cadena 700)', target: 700, reward: 3000, value: (s) => s.bestChain },
+  chain1000: { text: 'Llegá al Origen de la luz (cadena 1.000)', target: 1000, reward: 6000, value: (s) => s.bestChain },
   perfect100: { text: '100 pases perfectos', target: 100, reward: 60, value: (s) => s.perfects },
   gold20: { text: '20 hojas doradas', target: 20, reward: 50, value: (s) => s.golds },
   runs50: { text: 'Jugá 50 partidas', target: 50, reward: 60, value: (s) => s.runs },

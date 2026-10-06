@@ -89,8 +89,17 @@ const decay = (n: number, ramp: number) => Math.exp(-n / ramp);
 export const isValid = (t: LeafType) => t !== 'dry';
 
 /** Cuánto suma cada mundo: fuerte en los primeros cinco y suave después, para que siga siendo jugable. */
+/**
+ * Cuánto suma cada mundo a la dificultad base: fuerte en los primeros 5, suave hasta el
+ * Corazón de la luz (mundo 20) y casi plano después (meseta), para que los mundos altos
+ * cambien por sus mecánicas y no por pura velocidad.
+ */
 function zoneFactor(z: number, perZone: number): number {
-  return Math.min(z, 5) * perZone + Math.max(0, z - 5) * perZone * 0.3;
+  return (
+    Math.min(z, 5) * perZone +
+    Math.min(Math.max(0, z - 5), 14) * perZone * 0.3 +
+    Math.max(0, z - 19) * perZone * D.zone.lateMul
+  );
 }
 
 /** Parámetros de dificultad para el relevo número `n` (sin aleatoriedad). */
@@ -113,7 +122,10 @@ export function difficulty(n: number) {
   const pGold = n < D.gold.startAt ? 0 : D.gold.chance * rules.goldMul;
   // En Cascadas las frágiles aparecen de a poco; después, lo que diga cada mundo.
   const pFragile = z === 1 ? Math.min(rules.fragile, D.fragile.base + (n - 25) * D.fragile.perRow) : rules.fragile;
-  const pPower = n < D.power.startAt ? 0 : Math.min(D.power.max, D.power.chance + D.power.perZone * z) * rules.powerMul;
+  // Pasado el Corazón de la luz, cada mundo trae un poco más de ayuda.
+  const powerMax = D.power.max + Math.max(0, z - 19) * D.power.latePerZone;
+  const pPower =
+    n < D.power.startAt ? 0 : Math.min(D.power.cap, Math.min(powerMax, D.power.chance + D.power.perZone * z) * rules.powerMul);
   return { z, speed, ringR, fuse, interval, firstArrival, amp, pDry, pGold, pFragile, pPower };
 }
 

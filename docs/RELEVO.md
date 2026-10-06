@@ -57,7 +57,7 @@ Métricas en el panel `?stats=1`: revivir ofrecido / aceptado, duplicar aceptado
 
 ## Progresión durante la partida (estilo Sky Jump)
 
-A medida que la cadena crece, el juego sube de mundo: cambia el escenario y la música, todo va más rápido, la mecha se acorta y aparecen mecánicas nuevas. **Pero también aparecen más poderes y beneficios** (trampolines, cohetes, monedas): de 9% de los relevos en Cascadas a casi 30% al final. Al entrar a cada mundo aparece un cartel con lo nuevo.
+A medida que la cadena crece, el juego sube de mundo: cambia el escenario y la música, todo va más rápido, la mecha se acorta y aparecen mecánicas nuevas. **Pero también aparecen más poderes y beneficios** (trampolines, cohetes, monedas): de 9% de los relevos en Cascadas a casi 30% en el mundo 20, y sigue subiendo un poco hasta el 50 (37%, o más en los mundos de "muchos poderes"). Al entrar a cada mundo aparece un cartel con lo nuevo.
 
 | # | Mundo | Desde | Qué trae |
 |---|---|---|---|
@@ -80,7 +80,37 @@ A medida que la cadena crece, el juego sube de mundo: cambia el escenario y la m
 | 17 | Océano de auroras | 340 | Olas grandes, aro móvil y cruces |
 | 18 | Ciudad de faroles | 360 | Mecha más corta · imanes más seguido |
 | 19 | Vía Láctea | 380 | Aro más chico · cohetes |
-| 20 | Corazón de la luz | 400 | El desafío final: todo al máximo (y más poderes) |
+| 20 | Corazón de la luz | 400 | Todo junto (y más poderes) |
+| 21 | Bosque de otoño | 420 | Ondas grandes (hojas al viento) · lluvia de monedas |
+| 22 | Glaciar azul | 440 | El frío acorta la mecha · mecha larga |
+| 23 | Bosque de bambú | 460 | Aro móvil más seguido · trampolines (luna llena) |
+| 24 | Eclipse | 480 | Aro más chico · aro gigante |
+| 25 | Jardín de coral | 500 | Cruces muy seguido · calma |
+| 26 | Valle de las pirámides | 520 | Más secas, pero muchas más doradas |
+| 27 | Puente del arcoíris | 540 | Un poco más rápido, muchos más poderes |
+| 28 | Luna llena | 560 | Aro móvil rápido · escudos |
+| 29 | Pantano de luciérnagas | 580 | Niebla y muchas frágiles · imanes |
+| 30 | Castillo de cristal | 600 | Cruces y aro chico · aro gigante |
+| 31 | Sabana dorada | 620 | Viento fuerte y muchas doradas |
+| 32 | Templo en las nubes | 640 | Más rápido · cohetes |
+| 33 | Polo norte | 660 | Auroras y cruces · mecha más corta |
+| 34 | Jungla bajo la lluvia | 680 | Aro móvil y ondas · trampolines |
+| 35 | Nebulosa esmeralda | 700 | Cruces rápidos · cohetes |
+| 36 | Ciudad sumergida | 720 | Muchísimas frágiles · calma |
+| 37 | Festival de faroles | 740 | Muchos más poderes · imanes |
+| 38 | Río de lava | 760 | Muchas secas · escudos |
+| 39 | Lluvia de cometas | 780 | Más rápido y aro chico · cohetes |
+| 40 | Lago espejo | 800 | Aro móvil y cruces a la vez · calma |
+| 41 | Abismo | 820 | Oscuridad y niebla: seguí las semillas de luz |
+| 42 | Cumbre nevada | 840 | Mecha más corta · mecha larga |
+| 43 | Oasis | 860 | Doradas por todos lados · lluvia de monedas |
+| 44 | Galaxia espiral | 880 | Cruces rápidos y aro chico · cohetes |
+| 45 | Huracán | 900 | Aro móvil muy rápido · escudos |
+| 46 | Santuario de cerezos | 920 | Ondas enormes · trampolines |
+| 47 | Prisma | 940 | Un poco más difícil, lleno de poderes |
+| 48 | Noche eterna | 960 | Aro chico y más frágiles · escudos |
+| 49 | Amanecer | 980 | Todo junto · más poderes |
+| 50 | Origen de la luz | 1000 | El desafío final: todo al máximo |
 
 **Poderes y beneficios** (flotan sobre algunas hojas válidas; si le pasás la chispa a esa hoja, son tuyos):
 
@@ -97,11 +127,11 @@ A medida que la cadena crece, el juego sube de mundo: cambia el escenario y la m
 
 Cada mundo tiene un beneficio "estrella" que aparece 3 veces más.
 
-Garantía de justicia: se simularon 43.100 relevos en los 20 mundos con frágiles, calma, aro gigante y mecha larga. En todos hubo una hoja alcanzable antes de que se apague la mecha y nunca hubo dos hojas dentro del aro a la vez. La velocidad tiene tope en los mundos altos para que siga siendo jugable (ventana de pase mínima ≈ 0,16 s).
+Garantía de justicia: se simularon 49.488 relevos en los 50 mundos (hasta cadena 1.030) con frágiles, calma, aro gigante y mecha larga. En todos hubo una hoja alcanzable antes de que se apague la mecha y nunca hubo dos hojas dentro del aro a la vez. Después del mundo 20 la dificultad hace meseta: los mundos cambian por sus mecánicas y su paisaje, no por pura velocidad (ventana de pase mínima ≈ 0,16 s).
 
 ## Música
 
-Música generada en vivo (WebAudio, 0 KB de archivos): acordes, bajo, arpegio con eco y percusión suave. **Cada mundo tiene su tonalidad, escala, tempo y timbre** (de 84 a 116 BPM). En el menú suena tranquila; al jugar entra la percusión y se intensifica en cadena 25 y 75. Al perder baja y se apaga el brillo. Está en `relevo/src/audio/Music.ts`.
+Música generada en vivo (WebAudio, 0 KB de archivos): acordes, bajo, arpegio con eco y percusión suave. **Cada mundo tiene su tonalidad, escala, tempo y timbre** (de 84 a 120 BPM, 50 temas). En el menú suena tranquila; al jugar entra la percusión y se intensifica en cadena 25 y 75. Al perder baja y se apaga el brillo. Está en `relevo/src/audio/Music.ts`.
 
 ## Personajes con habilidad
 

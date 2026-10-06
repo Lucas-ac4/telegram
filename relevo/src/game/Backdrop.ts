@@ -120,6 +120,54 @@ export class Backdrop {
       ctx.restore();
     }
 
+    // Arcoíris lejano
+    if (pal.rainbow) {
+      const colors = ['255,90,90', '255,170,70', '255,235,90', '110,230,120', '90,180,255', '150,110,255'];
+      const rx = cx;
+      const ry = h * 0.78;
+      const r0 = 300 * u;
+      ctx.lineWidth = 9 * u;
+      colors.forEach((c, i) => {
+        const r = r0 - i * 9 * u;
+        const g = ctx.createLinearGradient(0, ry - r, 0, ry);
+        g.addColorStop(0, `rgba(${c},0.22)`);
+        g.addColorStop(1, `rgba(${c},0)`);
+        ctx.strokeStyle = g;
+        ctx.beginPath();
+        ctx.arc(rx, ry, r, Math.PI, 0);
+        ctx.stroke();
+      });
+    }
+
+    // Eclipse: corona de luz con el disco oscuro adelante
+    if (pal.eclipse) {
+      const ex = cx - 70 * u;
+      const ey = h * 0.17;
+      const er = 38 * u;
+      glowDot(ctx, ex, ey, er * 5, 'rgba(255,200,140,0.28)');
+      glowDot(ctx, ex, ey, er * 2, 'rgba(255,240,210,0.7)');
+      ctx.save();
+      ctx.translate(ex, ey);
+      ctx.fillStyle = 'rgba(255,230,190,0.1)';
+      for (let i = 0; i < 12; i++) {
+        ctx.rotate((Math.PI * 2) / 12);
+        ctx.beginPath();
+        ctx.moveTo(-4 * u, 0);
+        ctx.lineTo(0, -er * (2.6 + (i % 3) * 0.6));
+        ctx.lineTo(4 * u, 0);
+        ctx.closePath();
+        ctx.fill();
+      }
+      ctx.restore();
+      ctx.fillStyle = '#020105';
+      ctx.beginPath();
+      ctx.arc(ex, ey, er, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(255,245,225,0.9)';
+      ctx.lineWidth = 1.6 * u;
+      ctx.stroke();
+    }
+
     // Planetas
     if (pal.planets) {
       const px = cx - 110 * u;
@@ -160,10 +208,25 @@ export class Backdrop {
         m.beginPath();
         m.arc(mx, my, mr, 0, Math.PI * 2);
         m.fill();
-        m.globalCompositeOperation = 'destination-out';
-        m.beginPath();
-        m.arc(mx + mr * 0.47, my - mr * 0.33, mr * 0.87, 0, Math.PI * 2);
-        m.fill();
+        if (pal.fullMoon) {
+          // Luna llena con cráteres suaves
+          m.fillStyle = 'rgba(150,170,210,0.28)';
+          for (const [dx, dy, r] of [
+            [-0.35, -0.2, 0.22],
+            [0.25, 0.3, 0.16],
+            [0.3, -0.35, 0.1],
+            [-0.15, 0.4, 0.12],
+          ]) {
+            m.beginPath();
+            m.arc(mx + dx * mr, my + dy * mr, r * mr, 0, Math.PI * 2);
+            m.fill();
+          }
+        } else {
+          m.globalCompositeOperation = 'destination-out';
+          m.beginPath();
+          m.arc(mx + mr * 0.47, my - mr * 0.33, mr * 0.87, 0, Math.PI * 2);
+          m.fill();
+        }
       });
       ctx.drawImage(moon, 0, 0);
     }
@@ -210,6 +273,59 @@ export class Backdrop {
       gl.addColorStop(1, pal.glow);
       ctx.fillStyle = gl;
       ctx.fillRect(0, h * 0.45, w, h * 0.3);
+    }
+
+    // Pirámides sobre el horizonte (las dunas tapan la base)
+    if (pal.pyramids) {
+      for (const [px, base, half, hgt] of [
+        [0.22, 0.66, 70, 95],
+        [0.62, 0.68, 110, 150],
+        [0.9, 0.67, 55, 72],
+      ] as [number, number, number, number][]) {
+        const x = w * px;
+        const y = h * base;
+        ctx.fillStyle = pal.pyramids;
+        ctx.beginPath();
+        ctx.moveTo(x - half * u, y);
+        ctx.lineTo(x, y - hgt * u);
+        ctx.lineTo(x + half * u, y);
+        ctx.closePath();
+        ctx.fill();
+        // Cara iluminada
+        ctx.fillStyle = 'rgba(255,210,150,0.12)';
+        ctx.beginPath();
+        ctx.moveTo(x, y - hgt * u);
+        ctx.lineTo(x + half * u, y);
+        ctx.lineTo(x + half * 0.25 * u, y);
+        ctx.closePath();
+        ctx.fill();
+        glowDot(ctx, x, y - hgt * u, 10 * u, pal.lights);
+      }
+    }
+
+    // Torres y agujas (castillos, hielo, pagodas) que se pierden en la niebla
+    if (pal.spires) {
+      const base = h * 0.7;
+      for (let i = 0; i < 9; i++) {
+        const x = w * (0.04 + i * 0.115) + (rand() - 0.5) * 20 * u;
+        const tw = (10 + rand() * 14) * u;
+        const th = (80 + rand() * 170) * u;
+        const g = ctx.createLinearGradient(0, base - th, 0, base);
+        g.addColorStop(0, pal.spires);
+        g.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = g;
+        ctx.globalAlpha = 0.55;
+        ctx.beginPath();
+        ctx.moveTo(x - tw / 2, base);
+        ctx.lineTo(x - tw / 2, base - th + tw * 1.6);
+        ctx.lineTo(x, base - th);
+        ctx.lineTo(x + tw / 2, base - th + tw * 1.6);
+        ctx.lineTo(x + tw / 2, base);
+        ctx.closePath();
+        ctx.fill();
+        ctx.globalAlpha = 1;
+        glowDot(ctx, x, base - th + tw * 2.4, 5 * u, pal.lights);
+      }
     }
 
     // Colinas o dunas redondeadas

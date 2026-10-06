@@ -1017,6 +1017,107 @@ function drawPaperLantern(ctx: CanvasRenderingContext2D): void {
   ctx.fillRect(-5, 14, 10, 3);
 }
 
+function drawCoral(ctx: CanvasRenderingContext2D): void {
+  // Coral ramificado que brilla en el agua
+  ctx.save();
+  ctx.shadowColor = '#ff7aa8';
+  ctx.shadowBlur = 12;
+  ctx.lineCap = 'round';
+  const branch = (x: number, y: number, len: number, ang: number, wdt: number, depth: number): void => {
+    const x2 = x + Math.sin(ang) * len;
+    const y2 = y - Math.cos(ang) * len;
+    ctx.lineWidth = wdt;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
+    if (depth > 0) {
+      branch(x2, y2, len * 0.72, ang - 0.5, wdt * 0.72, depth - 1);
+      branch(x2, y2, len * 0.68, ang + 0.45, wdt * 0.72, depth - 1);
+    } else {
+      ctx.fillStyle = '#ffd0e0';
+      ctx.beginPath();
+      ctx.arc(x2, y2, 1.8, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  };
+  const g = ctx.createLinearGradient(0, 30, 0, -30);
+  g.addColorStop(0, '#7a1f4a');
+  g.addColorStop(1, '#ff8ab4');
+  ctx.strokeStyle = g;
+  branch(-6, 32, 18, -0.15, 6, 3);
+  branch(8, 32, 14, 0.25, 5, 2);
+  ctx.restore();
+}
+
+function drawCactus(ctx: CanvasRenderingContext2D): void {
+  // Cactus en silueta con luz de borde
+  ctx.save();
+  const g = ctx.createLinearGradient(-14, 0, 14, 0);
+  g.addColorStop(0, '#0e1a10');
+  g.addColorStop(0.6, '#1e3a20');
+  g.addColorStop(1, '#0a140b');
+  ctx.fillStyle = g;
+  ctx.strokeStyle = 'rgba(255,200,120,0.3)';
+  ctx.lineWidth = 1.2;
+  const pill = (x: number, y: number, w: number, hh: number): void => {
+    ctx.beginPath();
+    ctx.moveTo(x - w / 2, y + hh / 2);
+    ctx.lineTo(x - w / 2, y - hh / 2 + w / 2);
+    ctx.arc(x, y - hh / 2 + w / 2, w / 2, Math.PI, 0);
+    ctx.lineTo(x + w / 2, y + hh / 2);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+  };
+  pill(-13, -4, 8, 26);
+  ctx.fillRect(-13, 6, 10, 6);
+  pill(13, -12, 8, 22);
+  ctx.fillRect(4, -4, 10, 6);
+  pill(0, 4, 12, 70);
+  ctx.fillStyle = '#ff8ab4';
+  ctx.shadowColor = '#ff8ab4';
+  ctx.shadowBlur = 8;
+  ctx.beginPath();
+  ctx.arc(0, -31, 3, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawBamboo(ctx: CanvasRenderingContext2D): void {
+  // Tres cañas de bambú con nudos y hojas finas
+  ctx.save();
+  for (const [x, top, wdt] of [
+    [-12, -60, 7],
+    [2, -52, 8],
+    [14, -40, 6],
+  ] as [number, number, number][]) {
+    const g = ctx.createLinearGradient(x - wdt / 2, 0, x + wdt / 2, 0);
+    g.addColorStop(0, '#0c2a14');
+    g.addColorStop(0.5, '#1f5a2a');
+    g.addColorStop(1, '#0a2010');
+    ctx.fillStyle = g;
+    ctx.fillRect(x - wdt / 2, top, wdt, 60 - top);
+    ctx.fillStyle = 'rgba(160,255,170,0.25)';
+    for (let y = top + 14; y < 58; y += 18) ctx.fillRect(x - wdt / 2 - 1, y, wdt + 2, 2);
+    ctx.fillStyle = '#1a4a22';
+    ctx.strokeStyle = 'rgba(160,255,170,0.2)';
+    ctx.lineWidth = 0.8;
+    for (const [dy, dir] of [
+      [top + 12, 1],
+      [top + 30, -1],
+    ] as [number, number][]) {
+      ctx.beginPath();
+      ctx.moveTo(x, dy);
+      ctx.quadraticCurveTo(x + dir * 10, dy - 6, x + dir * 22, dy - 2);
+      ctx.quadraticCurveTo(x + dir * 10, dy + 2, x, dy);
+      ctx.fill();
+      ctx.stroke();
+    }
+  }
+  ctx.restore();
+}
+
 // ---------------------------------------------------------------- set completo
 
 export interface SpriteSet {
@@ -1030,6 +1131,9 @@ export interface SpriteSet {
   rock: Sprite;
   mushroom: Sprite;
   paperLantern: Sprite;
+  coral: Sprite;
+  cactus: Sprite;
+  bamboo: Sprite;
 }
 
 export function buildSprites(k: number): SpriteSet {
@@ -1046,6 +1150,9 @@ export function buildSprites(k: number): SpriteSet {
     rock: makeSprite(56, 44, k, drawRock),
     mushroom: makeSprite(60, 60, k, drawMushroom),
     paperLantern: makeSprite(50, 90, k, drawPaperLantern),
+    coral: makeSprite(80, 80, k, drawCoral),
+    cactus: makeSprite(50, 90, k, drawCactus),
+    bamboo: makeSprite(70, 130, k, drawBamboo),
   };
 }
 

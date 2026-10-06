@@ -492,6 +492,9 @@ export class View {
         else if (kind === 'crystal') drawSprite(ctx, this.sprites.crystal, x, y, sc, side * 0.2);
         else if (kind === 'mushroom') drawSprite(ctx, this.sprites.mushroom, x, y, sc);
         else if (kind === 'paperLantern') drawSprite(ctx, this.sprites.paperLantern, x + side * -8, y + Math.sin(i) * 6, sc);
+        else if (kind === 'coral') drawSprite(ctx, this.sprites.coral, x, y, sc, side * 0.15, flip);
+        else if (kind === 'cactus') drawSprite(ctx, this.sprites.cactus, x, y, sc, 0, flip);
+        else if (kind === 'bamboo') drawSprite(ctx, this.sprites.bamboo, x + side * -4, y, sc, side * 0.06, flip);
         else drawSprite(ctx, this.sprites.rock, x, y, sc, r() * 3);
       }
     }
@@ -534,6 +537,37 @@ export class View {
         ctx.lineTo(x - 4, y + 16);
       }
       ctx.stroke();
+    } else if (kind === 'leaves') {
+      // Hojas de otoño que caen girando, empujadas por el viento
+      const colors = ['rgba(255,140,60,0.8)', 'rgba(230,80,40,0.75)', 'rgba(255,200,80,0.75)'];
+      for (let i = 0; i < n; i++) {
+        const f = this.fireflies[i];
+        const x = f.x + Math.sin(time * f.sp + f.ph) * 40 + time * 28;
+        const y = (((f.y * H + time * (22 + f.vy * 2)) % H) + H) % H;
+        const xx = ((x % (W + 20)) + W + 20) % (W + 20) - 10;
+        ctx.fillStyle = colors[i % 3];
+        ctx.save();
+        ctx.translate(xx, y);
+        ctx.rotate(time * f.sp * 1.6 + f.ph);
+        ctx.scale(1, Math.abs(Math.sin(time * f.sp * 2 + f.ph)) * 0.8 + 0.2);
+        ctx.beginPath();
+        ctx.moveTo(-5, 0);
+        ctx.quadraticCurveTo(0, -4, 5, 0);
+        ctx.quadraticCurveTo(0, 4, -5, 0);
+        ctx.fill();
+        ctx.restore();
+      }
+    } else if (kind === 'spirits') {
+      // Espíritus de luz que suben despacio, del color del mundo
+      ctx.globalCompositeOperation = 'lighter';
+      const color = ZONES[this.zone].firefly;
+      for (let i = 0; i < n; i++) {
+        const f = this.fireflies[i];
+        const x = (f.x * 1.3 + i * 41) % W + Math.sin(time * f.sp * 0.8 + f.ph) * 26;
+        const y = (((f.y * H - time * (12 + f.vy * 1.5)) % H) + H) % H;
+        drawGlow(ctx, color, x, y, 7 + (i % 3) * 2, 0.25 + 0.25 * Math.sin(time * 1.5 + f.ph));
+      }
+      ctx.globalCompositeOperation = 'source-over';
     } else if (kind === 'snow' || kind === 'petals' || kind === 'bubbles') {
       for (let i = 0; i < n; i++) {
         const f = this.fireflies[i];
