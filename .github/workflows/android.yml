@@ -1,0 +1,62 @@
+# Compila el APK de Android de Relevo de Luz (Capacitor) y lo publica como Release,
+# así se puede bajar directo desde el celular. Los servidores de GitHub ya traen el SDK de Android.
+name: APK Android
+
+on:
+  push:
+    branches: [main, claude/new-session-e4wbuh]
+    paths:
+      - 'relevo/**'
+      - 'android/**'
+      - 'capacitor.config.json'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/android.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: gradle/actions/setup-gradle@v4
+      - run: npm ci
+      - run: npm run build:app
+      - run: npx cap sync android
+      - name: Compilar APK
+        working-directory: android
+        env:
+          VERSION_CODE: ${{ github.run_number }}
+        run: ./gradlew assembleDebug --no-daemon --stacktrace
+      - run: cp android/app/build/outputs/apk/debug/app-debug.apk relevo-de-luz.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: relevo-de-luz-apk
+          path: relevo-de-luz.apk
+      - name: Publicar en Releases
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: apk-v${{ github.run_number }}
+          name: Relevo de Luz para Android · v1.0.${{ github.run_number }}
+          target_commitish: ${{ github.sha }}
+          prerelease: true
+          files: relevo-de-luz.apk
+          body: |
+            APK de prueba de Relevo de Luz (commit ${{ github.sha }}).
+            Para instalar: bajá `relevo-de-luz.apk` desde el celular y aceptá "instalar apps de origen desconocido".
+            Cada versión nueva se instala encima de la anterior sin perder el progreso.

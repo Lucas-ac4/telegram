@@ -1,0 +1,522 @@
+diff --git a/relevo/src/ads.ts b/relevo/src/ads.ts
+index 0d1177b..b594b7f 100644
+--- a/relevo/src/ads.ts
++++ b/relevo/src/ads.ts
+@@ -12,7 +12,7 @@ import { CONFIG } from './config';
+  * La recompensa nunca es dinero ni puntos canjeables (regla de la propuesta).
+  */
+ 
+-export type AdPlacement = 'revive' | 'double' | 'daily' | 'boost' | 'fish' | 'tower' | 'tower_continue';
++export type AdPlacement = 'revive' | 'double' | 'daily' | 'boost' | 'fish' | 'tower' | 'tower_continue' | 'ejemplo';
+ 
+ const ZONE = CONFIG.ads.monetagZone;
+ let sdk: Promise<boolean> | null = null;
+diff --git a/relevo/src/config.ts b/relevo/src/config.ts
+index ba0e5b5..e418365 100644
+--- a/relevo/src/config.ts
++++ b/relevo/src/config.ts
+@@ -171,6 +171,15 @@ export const CONFIG = {
+     stars: [15, 30, 50],
+   },
+ 
++  /** Subjuego Ejemplo. */
++  ejemplo: {
++    freePerDay: 3,
++    adPerDay: 3,
++    roundTime: 30,
++    /** Puntos para 1, 2 y 3 estrellas. */
++    stars: [10, 25, 40],
++  },
++
+   ads: {
+     /** Zona de Monetag (rewarded interstitial). Sin zona se usa un anuncio de prueba. */
+     monetagZone: (import.meta.env.VITE_MONETAG_ZONE as string | undefined) ?? '',
+diff --git a/relevo/src/game/Game.ts b/relevo/src/game/Game.ts
+index 60b9983..1a39d0e 100644
+--- a/relevo/src/game/Game.ts
++++ b/relevo/src/game/Game.ts
+@@ -3,6 +3,7 @@ import { Ads, type AdPlacement } from '../ads';
+ import { Analytics } from '../analytics';
+ import { Fishing, type FishOutcome, type FishResult, type FishTarget } from '../fish/Fishing';
+ import { Tower, type TowerOutcome, type TowerResult } from '../sub/Tower';
++import { Ejemplo, type EjemploOutcome, type EjemploResult } from '../sub/Ejemplo';
+ import { Sfx } from '../audio/Sfx';
+ import {
+   ACHIEVEMENT_ORDER,
+@@ -91,6 +92,7 @@ export class Game {
+   private ui: UI;
+   private fishing: Fishing;
+   private tower: Tower;
++  private ejemplo: Ejemplo;
+   private sfx = new Sfx();
+ 
+   phase: Phase = 'menu';
+@@ -180,7 +182,11 @@ export class Game {
+       onRevive: () => void this.acceptRevive(),
+       onDeclineRevive: () => this.declineRevive(),
+       onDouble: () => void this.doubleCoins(),
+-      onGame: (id) => (id === 'fish' ? this.openFishing() : this.openTower()),
++      onGame: (id) => {
++        if (id === 'fish') this.openFishing();
++        else if (id === 'tower') this.openTower();
++        else if (id === 'ejemplo') this.openEjemplo();
++      },
+     });
+     this.fishing = new Fishing({
+       skin: () => this.skin,
+@@ -205,7 +211,17 @@ export class Game {
+       sound: this.sfx,
+       haptic: Telegram,
+     });
+-    document.getElementById('ui')?.append(this.fishing.el, this.tower.el);
++    this.ejemplo = new Ejemplo({
++      skin: () => this.skin,
++      tickets: () => this.ejemploTickets(),
++      useTicket: () => this.useEjemploTicket(),
++      adTicket: () => this.adEjemploTicket(),
++      finish: (r) => this.finishEjemplo(r),
++      close: () => this.closeSub(),
++      sound: this.sfx,
++      haptic: Telegram,
++    });
++    document.getElementById('ui')?.append(this.fishing.el, this.tower.el, this.ejemplo.el);
+     this.ui.setMuted(save.muted);
+     // La primera partida nunca tiene anuncios; después se precarga el SDK.
+     if (save.runs >= CONFIG.revive.minRunsBefore) Ads.preload();
+@@ -1082,6 +1098,7 @@ export class Game {
+     const fishTarget = this.fishTarget();
+     const fishTickets = this.fishTickets();
+     const towerTickets = this.towerTickets();
++    const ejemploTickets = this.ejemploTickets();
+     return {
+       games: [
+         {
+@@ -1098,6 +1115,13 @@ export class Game {
+           best: save.tower.best ? `Récord: ${save.tower.best} pisos` : 'Todavía sin récord',
+           extra: `Estrellas a los ${CONFIG.tower.stars.join(', ')} pisos`,
+         },
++        {
++          id: 'ejemplo',
++          free: ejemploTickets.free,
++          ad: ejemploTickets.ad,
++          best: save.ejemplo.best ? `Récord: ${save.ejemplo.best} puntos` : 'Todavía sin récord',
++          extra: `Estrellas a los ${CONFIG.ejemplo.stars.join(', ')} puntos`,
++        },
+       ],
+       coins: save.coins,
+       stars: save.stars,
+@@ -1257,7 +1281,7 @@ export class Game {
+   }
+ 
+   private get subOpen(): boolean {
+-    return this.fishing.isOpen || this.tower.isOpen;
++    return this.fishing.isOpen || this.tower.isOpen || this.ejemplo.isOpen;
+   }
+ 
+   /** Al salir de un subjuego se vuelve a la pestaña Juegos. */
+@@ -1321,6 +1345,62 @@ export class Game {
+     return { record, best: save.tower.best, starsTotal: save.stars };
+   }
+ 
++  // ------------------------------------------------------------ ejemplo
++
++  private openEjemplo(): void {
++    this.sfx.unlock();
++    this.sfx.click();
++    this.ui.hide();
++    this.sfx.musicWorld(12);
++    this.sfx.musicIntensity(1);
++    Analytics.track('ejemplo_open', { free: this.ejemploTickets().free });
++    this.ejemplo.show();
++  }
++
++  private ejemploTickets(): { free: number; ad: number } {
++    const e = Save.data.ejemplo;
++    const C = CONFIG.ejemplo;
++    // [Propuesto] Regla "la primera partida nunca muestra anuncios": sin tiradas con anuncio hasta jugar 1 partida.
++    const adsAllowed = Save.data.runs >= CONFIG.revive.minRunsBefore;
++    return { free: Math.max(0, C.freePerDay - e.used), ad: adsAllowed ? Math.max(0, C.adPerDay - e.ads) : 0 };
++  }
++
++  private useEjemploTicket(): boolean {
++    if (this.ejemploTickets().free <= 0) return false;
++    Save.update((d) => d.ejemplo.used++);
++    Analytics.track('ejemplo_start', { ticket: 'free' });
++    return true;
++  }
++
++  private async adEjemploTicket(): Promise<boolean> {
++    if (this.ejemploTickets().ad <= 0 || this.adBusy) return false;
++    Analytics.track('ad_offer_shown', { ad_placement: 'ejemplo', ad_format: Ads.format });
++    const ok = await this.rewarded('ejemplo');
++    if (ok) {
++      Save.update((d) => d.ejemplo.ads++);
++      Analytics.track('ejemplo_start', { ticket: 'ad' });
++    }
++    return ok;
++  }
++
++  /** Único lugar donde el subjuego acredita premios: un solo Save.update por tirada. */
++  private finishEjemplo(r: EjemploResult): EjemploOutcome {
++    let record = false;
++    const save = Save.update((d) => {
++      d.coins += r.coins;
++      d.stars += r.stars;
++      d.ejemplo.rounds++;
++      record = r.score > d.ejemplo.best && d.ejemplo.rounds > 1;
++      d.ejemplo.best = Math.max(d.ejemplo.best, r.score);
++      this.missionEvent(d, 'ejemploRound');
++      if (r.stars) this.missionEvent(d, 'subStars', r.stars);
++    });
++    Analytics.track('ejemplo_round', { score: r.score, coins: r.coins, stars: r.stars });
++    if (r.coins) Analytics.track('currency_earned', { amount: r.coins, source: 'ejemplo' });
++    if (r.stars) Analytics.track('currency_earned', { amount: r.stars, source: 'ejemplo', currency: 'stars' });
++    return { record, best: save.ejemplo.best, starsTotal: save.stars };
++  }
++
+   private fishTickets(): { free: number; ad: number } {
+     const f = Save.data.fish;
+     return { free: Math.max(0, CONFIG.fish.freePerDay - f.used), ad: Math.max(0, CONFIG.fish.adPerDay - f.ads) };
+@@ -1550,6 +1630,8 @@ export class Game {
+       this.fishing.step(dt);
+     } else if (this.tower.isOpen) {
+       this.tower.step(dt);
++    } else if (this.ejemplo.isOpen) {
++      this.ejemplo.step(dt);
+     } else {
+       this.update(dt);
+       this.view.render(this);
+diff --git a/relevo/src/meta/missions.ts b/relevo/src/meta/missions.ts
+index 98f3076..faba840 100644
+--- a/relevo/src/meta/missions.ts
++++ b/relevo/src/meta/missions.ts
+@@ -34,7 +34,8 @@ export type MissionEvent =
+   | 'towerRound'
+   | 'towerFloors'
+   | 'towerPerfects'
+-  | 'subStars';
++  | 'subStars'
++  | 'ejemploRound';
+ 
+ export interface MissionDef {
+   text: string;
+@@ -105,6 +106,7 @@ export const DAILY: Record<string, MissionDef> = {
+   fishRounds2: subEv('Jugá 2 tiradas de Pesca de estrellas', 2, 10, 2, 'fishRound'),
+   towerFloor20: subEv('Llegá al piso 20 en la Torre de faroles', 20, 10, 2, 'towerFloors', 'max'),
+   towerPerfect8: subEv('Hacé 8 faroles perfectos en la Torre', 8, 10, 2, 'towerPerfects'),
++  ejemploRounds2: subEv('Jugá 2 tiradas de Ejemplo', 2, 10, 2, 'ejemploRound'),
+   subStars4: subEv('Ganá 4 ⭐ en los juegos', 4, 15, 3, 'subStars'),
+ };
+ 
+diff --git a/relevo/src/meta/save.ts b/relevo/src/meta/save.ts
+index 7ba07c7..86122e8 100644
+--- a/relevo/src/meta/save.ts
++++ b/relevo/src/meta/save.ts
+@@ -44,6 +44,8 @@ export interface SaveData {
+   };
+   /** Torre de faroles: tiradas usadas hoy y récord de pisos. */
+   tower: { day: string; used: number; ads: number; best: number; rounds: number };
++  /** Subjuego Ejemplo: tiradas usadas hoy y récord. */
++  ejemplo: { day: string; used: number; ads: number; best: number; rounds: number };
+   firstOpen: string | null;
+   lastOpen: string | null;
+   daysPlayed: number;
+@@ -85,6 +87,7 @@ function defaults(): SaveData {
+     boost: { shield: false },
+     fish: { day, used: 0, ads: 0, fragments: {}, target: null, best: 0, rounds: 0 },
+     tower: { day, used: 0, ads: 0, best: 0, rounds: 0 },
++    ejemplo: { day, used: 0, ads: 0, best: 0, rounds: 0 },
+     firstOpen: null,
+     lastOpen: null,
+     daysPlayed: 0,
+@@ -119,6 +122,7 @@ export const Save = {
+     if (cache.reto.day !== day) cache.reto = { day, best: 0, attempts: 0 };
+     if (cache.fish.day !== day) cache.fish = { ...cache.fish, day, used: 0, ads: 0 };
+     if (cache.tower.day !== day) cache.tower = { ...cache.tower, day, used: 0, ads: 0 };
++    if (cache.ejemplo.day !== day) cache.ejemplo = { ...cache.ejemplo, day, used: 0, ads: 0 };
+     return cache;
+   },
+ 
+diff --git a/relevo/src/sub/Ejemplo.ts b/relevo/src/sub/Ejemplo.ts
+new file mode 100644
+index 0000000..1a6e8cc
+--- /dev/null
++++ b/relevo/src/sub/Ejemplo.ts
+@@ -0,0 +1,253 @@
++import { CONFIG } from '../config';
++import { skinPreview, type SkinId } from '../game/sprites';
++import { COIN, playButtons, starsFor, starsRow, ticketText, type SubHaptic, type SubSound, type Tickets } from './common';
++
++/**
++ * Esqueleto de subjuego (mismo patrón que Torre de faroles).
++ * Reemplazá "Ejemplo"/"ejemplo" por el nombre real y la mecánica en tap() y step().
++ */
++
++const W = 400;
++const C = CONFIG.ejemplo;
++const STARS: readonly number[] = C.stars;
++
++export interface EjemploResult {
++  score: number;
++  coins: number;
++  /** Estrellas ⭐ ganadas en la tirada (0 a 3). */
++  stars: number;
++}
++
++export interface EjemploOutcome {
++  record: boolean;
++  best: number;
++  starsTotal: number;
++}
++
++export interface EjemploHost {
++  skin(): SkinId;
++  tickets(): Tickets;
++  useTicket(): boolean;
++  adTicket(): Promise<boolean>;
++  finish(r: EjemploResult): EjemploOutcome;
++  close(): void;
++  sound: SubSound;
++  haptic: SubHaptic;
++}
++
++export class Ejemplo {
++  readonly el = document.createElement('section');
++  private canvas = document.createElement('canvas');
++  private ctx = this.canvas.getContext('2d')!;
++  private k = 1;
++  private H = 700;
++  private open = false;
++  private mode: 'intro' | 'play' | 'result' = 'intro';
++  private time = 0;
++  private left = 0;
++  private score = 0;
++  private coins = 0;
++  /** performance.now() del último step: sirve para juzgar el toque por su marca de tiempo. */
++  private lastStep = 0;
++  private sparkImg = new Image();
++  private sparkSkin: SkinId | null = null;
++
++  constructor(private host: EjemploHost) {
++    this.el.className = 'screen sub ejemplo';
++    this.el.hidden = true;
++    this.el.innerHTML = `
++      <div class="sub-hud" data-e-hud hidden>
++        <button class="round-btn" data-e-quit aria-label="Terminar">✕</button>
++        <div class="coin-pill small">${COIN}<b data-e-coins>0</b></div>
++      </div>
++      <div class="sub-stars" data-e-stars hidden></div>
++      <div class="fish-panel" data-e-panel></div>`;
++    this.canvas.className = 'fish-canvas';
++    this.el.prepend(this.canvas);
++    this.el.addEventListener('pointerdown', (e) => {
++      if ((e.target as Element).closest('button, .fish-panel')) return;
++      this.tap(e.timeStamp);
++    });
++    this.$('[data-e-quit]').addEventListener('click', () => this.endRound());
++    // Escuchas globales: la instancia vive toda la sesión (Game crea una sola). Siempre con guardia `open`.
++    window.addEventListener('keydown', (e) => {
++      if (!this.open || e.repeat || (e.code !== 'Space' && e.code !== 'Enter')) return;
++      e.preventDefault();
++      this.tap(e.timeStamp);
++    });
++    window.addEventListener('resize', () => this.open && this.resize());
++  }
++
++  get isOpen(): boolean {
++    return this.open;
++  }
++
++  private $<T extends HTMLElement = HTMLElement>(sel: string): T {
++    return this.el.querySelector(sel) as T;
++  }
++
++  // ------------------------------------------------------------ pantallas
++
++  show(): void {
++    this.open = true;
++    this.el.hidden = false;
++    this.resize();
++    this.loadSpark();
++    this.showIntro();
++  }
++
++  private close(): void {
++    this.open = false;
++    this.el.hidden = true;
++    this.host.close();
++  }
++
++  private setHud(on: boolean): void {
++    this.$('[data-e-hud]').hidden = !on;
++    this.$('[data-e-stars]').hidden = !on;
++  }
++
++  private showIntro(): void {
++    this.mode = 'intro';
++    this.setHud(false);
++    const t = this.host.tickets();
++    const panel = this.$('[data-e-panel]');
++    panel.hidden = false;
++    panel.innerHTML = `
++      <h2>Ejemplo</h2>
++      <p class="muted">Tocá para jugar. Explicá la regla en una o dos frases.</p>
++      ${starsRow(3, STARS.map((s) => `${s} puntos`))}
++      <p class="fish-tickets">${ticketText(t, C.freePerDay)}</p>
++      ${playButtons(t, 'JUGAR')}
++      <button class="btn ghost wide" data-s-back>Volver</button>`;
++    this.bindPanel(); // una sola vez por cada innerHTML nuevo
++  }
++
++  private showResult(o: EjemploOutcome, stars: number): void {
++    this.mode = 'result';
++    this.setHud(false);
++    const t = this.host.tickets();
++    const panel = this.$('[data-e-panel]');
++    panel.hidden = false;
++    panel.innerHTML = `
++      <h2>${o.record ? '¡Récord!' : 'Terminó la tirada'}</h2>
++      <div class="fish-total">${this.score} <small>puntos</small></div>
++      ${starsRow(stars, STARS)}
++      <p class="muted">Récord: ${o.best} · Tenés ${o.starsTotal} estrellas</p>
++      <p class="fish-tickets">${ticketText(t, C.freePerDay)}</p>
++      ${playButtons(t, 'OTRA TIRADA')}
++      <button class="btn ghost wide" data-s-back>Volver</button>`;
++    this.bindPanel();
++  }
++
++  /** Igual que Tower.bindPanel: los botones se crean de nuevo en cada render, así que no se acumulan escuchas. */
++  private bindPanel(): void {
++    const panel = this.$('[data-e-panel]');
++    panel.querySelector('[data-s-back]')?.addEventListener('click', () => {
++      this.host.sound.click();
++      this.close();
++    });
++    panel.querySelector('[data-s-play]')?.addEventListener('click', () => {
++      if (this.host.useTicket()) this.startRound();
++    });
++    panel.querySelector('[data-s-ad]')?.addEventListener('click', async (e) => {
++      const b = e.currentTarget as HTMLButtonElement;
++      b.disabled = true;
++      const ok = await this.host.adTicket();
++      if (ok && this.open) this.startRound();
++      else b.disabled = false;
++    });
++  }
++
++  // ------------------------------------------------------------ partida
++
++  private startRound(): void {
++    this.host.sound.click();
++    this.loadSpark();
++    this.mode = 'play';
++    this.left = C.roundTime;
++    this.score = 0;
++    this.coins = 0;
++    this.$('[data-e-panel]').hidden = true;
++    this.setHud(true);
++    this.updateHud();
++    this.host.sound.musicIntensity(2);
++  }
++
++  /** `stamp` = e.timeStamp del evento (misma base de tiempo que performance.now()). */
++  private tap(stamp: number): void {
++    if (this.mode !== 'play') return;
++    // Como Game.tap: cuánto después del último frame ocurrió el toque (recortado a ±0,1 s).
++    const late = Math.min(0.1, Math.max(-0.1, (stamp - this.lastStep) / 1000));
++    const t = this.time + late;
++    // Juzgá con una fórmula en función de `t` (ver Course.leafPose / ringXAt), no con la posición del último frame.
++    const hit = Math.abs(Math.sin(t * 2)) < 0.5;
++    if (hit) {
++      this.score++;
++      this.coins++;
++      this.host.sound.pass(this.score);
++      this.host.haptic.tap();
++    } else {
++      this.host.sound.fail();
++      this.host.haptic.fail();
++    }
++    this.updateHud();
++  }
++
++  private updateHud(): void {
++    this.$('[data-e-coins]').textContent = String(this.coins);
++    this.$('[data-e-stars]').innerHTML = starsRow(starsFor(this.score, STARS), STARS);
++  }
++
++  private endRound(): void {
++    // Guardia: finish() se llama una sola vez por tirada (✕, tiempo agotado o doble toque).
++    if (this.mode !== 'play') return;
++    this.mode = 'result';
++    const stars = starsFor(this.score, STARS);
++    const o = this.host.finish({ score: this.score, coins: this.coins, stars });
++    this.host.sound.musicIntensity(1);
++    if (o.record || stars > 0) this.host.haptic.success();
++    this.showResult(o, stars);
++  }
++
++  // ------------------------------------------------------------ loop
++
++  /** Lo llama Game.frame en cada frame mientras el subjuego está abierto. */
++  step(dt: number): void {
++    if (!this.open) return;
++    this.lastStep = performance.now();
++    this.time += dt;
++    if (this.mode === 'play') {
++      this.left -= dt;
++      if (this.left <= 0) this.endRound();
++    }
++    this.draw();
++  }
++
++  // ------------------------------------------------------------ dibujo
++
++  private resize(): void {
++    const r = this.el.getBoundingClientRect();
++    const dpr = Math.min(2, window.devicePixelRatio || 1);
++    this.canvas.width = Math.max(1, Math.round(r.width * dpr));
++    this.canvas.height = Math.max(1, Math.round(r.height * dpr));
++    this.k = this.canvas.width / W; // el ancho lógico mide siempre 400 unidades
++    this.H = this.canvas.height / this.k;
++  }
++
++  private loadSpark(): void {
++    const skin = this.host.skin();
++    if (skin !== this.sparkSkin) {
++      this.sparkSkin = skin;
++      this.sparkImg.src = skinPreview(skin, 112);
++    }
++  }
++
++  private draw(): void {
++    const ctx = this.ctx;
++    ctx.setTransform(this.k, 0, 0, this.k, 0, 0);
++    ctx.fillStyle = '#040918';
++    ctx.fillRect(0, 0, W, this.H);
++    if (this.sparkImg.complete) ctx.drawImage(this.sparkImg, W / 2 - 28, this.H / 2 - 28 + Math.sin(this.time * 2) * 40, 56, 56);
++  }
++}
+diff --git a/relevo/src/ui/UI.ts b/relevo/src/ui/UI.ts
+index 7315c2d..6e56ae5 100644
+--- a/relevo/src/ui/UI.ts
++++ b/relevo/src/ui/UI.ts
+@@ -61,6 +61,7 @@ const STAR = '<i class="star-ico"></i>';
+ /** Subjuegos: textos fijos de cada tarjeta. */
+ const GAMES: Record<string, { name: string; desc: string; icon: string }> = {
+   fish: { name: 'Pesca de estrellas', desc: 'Soltá la chispa desde un péndulo y atrapá tesoros en 30 segundos.', icon: ICON.fish },
++  ejemplo: { name: 'Ejemplo', desc: 'Descripción corta de una línea.', icon: ICON.games },
+   tower: { name: 'Torre de faroles', desc: 'Apilá faroles con un toque. Lo que sobresale se cae.', icon: ICON.tower },
+ };
+ 
+diff --git a/relevo/src/ui/style.css b/relevo/src/ui/style.css
+index fe4894e..28b64f7 100644
+--- a/relevo/src/ui/style.css
++++ b/relevo/src/ui/style.css
+@@ -2250,3 +2250,7 @@
+   justify-content: center;
+   gap: 6px;
+ }
++
++.game-card.ejemplo .gc-art {
++  background: linear-gradient(180deg, #7be0c3, #2a9c86);
++}

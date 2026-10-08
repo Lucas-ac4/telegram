@@ -7,9 +7,14 @@
     "dev": "vite --host",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview --host",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "build:app": "vite build --config relevo/vite.app.config.ts",
+    "android:sync": "npm run build:app && npx cap sync android"
   },
   "devDependencies": {
+    "@capacitor/android": "8.5.2",
+    "@capacitor/cli": "8.5.2",
+    "@capacitor/core": "8.5.2",
     "@types/three": "^0.186.0",
     "typescript": "^7.0.2",
     "vite": "^8.3.2"
