@@ -3,10 +3,13 @@ import { CONFIG, MOVER_SPEED, OBSTACLE_BOXES, TRUCK, laneX, type ObstacleKind } 
 import { ModelBuilder, box, cylinder, sphere } from '../engine/geometry';
 import { basic, lit, pbrVertexColors, shadowed, withOutline } from '../engine/materials';
 import { bakeRig, buildRig, type Rig } from '../engine/athlete';
-import { KITS } from '../config/cosmetics';
+import type { Kit } from '../config/cosmetics';
+import { NATIONS, type Nation, type NationId } from '../config/nations';
+import { STADIUMS } from '../config/stadiums';
+import { luma, nationTruckDecal } from '../engine/nationTextures';
 import { makePalette } from './Character';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { blobTexture, truckDecalTexture } from '../engine/textures';
+import { blobTexture } from '../engine/textures';
 import { createBall } from './Character';
 import type { Player } from './Player';
 
@@ -45,42 +48,65 @@ export interface SpawnOptions {
  */
 export class Obstacles {
   private items: Obstacle[] = [];
-  private factories: Record<string, () => THREE.Object3D>;
   private shadowGeo = new THREE.PlaneGeometry(2.2, 1.2);
   private shadowMat = basic({ map: blobTexture(), transparent: true, depthWrite: false });
   private rampGeo: THREE.BufferGeometry;
   private mat = pbrVertexColors({ roughness: 0.55, metalness: 0.08 });
   private time = 0;
+  /** Geometrías ya armadas por tema (se arman la primera vez que se necesitan). */
+  private geos = new Map<string, THREE.BufferGeometry>();
+  private decalMats = new Map<string, THREE.MeshLambertMaterial>();
+  private decalGeo = new THREE.PlaneGeometry(TRUCK.length - 1.7, 0.66);
+  /** Tema actual: las selecciones del estadio donde se están generando los obstáculos. */
+  private theme: { nation: NationId; rival: NationId } = { nation: 'arg', rival: 'bra' };
+  private playerKit: Kit = NATIONS.arg.kit;
 
   constructor(private scene: THREE.Scene) {
-    const mat = this.mat;
-    const hurdleGeo = buildHurdle();
-    const barGeo = buildBarFrame();
-    const wallGeo = buildWall();
-    const runnerGeo = buildRunner();
-    const truckGeos = [buildTruck(0), buildTruck(1)];
-    const decalMats = [0, 1].map((v) => lit(0xffffff, { map: truckDecalTexture(v as 0 | 1) }));
-    const decalGeo = new THREE.PlaneGeometry(TRUCK.length - 1.7, 0.66);
-    /** Camión = carrocería (con contorno) + carteles laterales con textura. */
-    const makeTruck = (v: 0 | 1) => () => {
-      const g = new THREE.Group();
-      g.add(withOutline(new THREE.Mesh(truckGeos[v], mat), 0.03));
-      for (const side of [-1, 1]) {
-        const d = new THREE.Mesh(decalGeo, decalMats[v]);
-        d.rotation.y = side * Math.PI / 2;
-        d.position.set(side * 0.935, 1.0, -TRUCK.length / 2 - 0.15);
-        g.add(d);
-      }
-      return g;
-    };
     this.rampGeo = buildRamp();
+  }
 
-    this.factories = {
-      hurdle: () => withOutline(new THREE.Mesh(hurdleGeo, mat)),
-      bar: () => withOutline(new THREE.Mesh(barGeo, mat)),
-      wall: () => withOutline(new THREE.Mesh(wallGeo, mat)),
-      runner: () => withOutline(new THREE.Mesh(runnerGeo, mat)),
-      bigball: () => {
+  /** Camiseta del jugador (para que los rivales no se vistan igual). */
+  setPlayerKit(kit: Kit): void {
+    this.playerKit = kit;
+  }
+
+  /** Tema de los obstáculos nuevos: camiones de la selección local y rivales de otra selección. */
+  setTheme(styleIndex: number): void {
+    const st = STADIUMS[styleIndex];
+    const rival = st.rivals.find((r) => !kitsClash(NATIONS[r].kit, this.playerKit)) ?? st.rivals[st.rivals.length - 1];
+    this.theme = { nation: st.nation, rival };
+  }
+
+  /** Arma de antemano los modelos de un estadio (camiones de la selección y rivales) para que no haya un tirón al aparecer. */
+  warm(styleIndex: number): void {
+    const st = STADIUMS[styleIndex];
+    for (const r of st.rivals) {
+      this.make(`wall:${r}`);
+      this.make(`runner:${r}`);
+    }
+    for (const v of [0, 1]) this.make(`truck${v}:${st.nation}`);
+  }
+
+  private geo(key: string, build: () => THREE.BufferGeometry): THREE.BufferGeometry {
+    let g = this.geos.get(key);
+    if (!g) this.geos.set(key, (g = build()));
+    return g;
+  }
+
+  /** Arma el modelo de un obstáculo según su clave (`wall:bra`, `truck1:nor`, ...). */
+  private make(key: string): THREE.Object3D {
+    const [kind, theme] = key.split(':');
+    const mat = this.mat;
+    switch (kind) {
+      case 'hurdle':
+        return withOutline(new THREE.Mesh(this.geo('hurdle', buildHurdle), mat));
+      case 'bar':
+        return withOutline(new THREE.Mesh(this.geo('bar', buildBarFrame), mat));
+      case 'wall':
+        return withOutline(new THREE.Mesh(this.geo(key, () => buildWall(NATIONS[theme as NationId].kit)), mat));
+      case 'runner':
+        return withOutline(new THREE.Mesh(this.geo(key, () => buildRunner(NATIONS[theme as NationId].kit)), mat));
+      case 'bigball': {
         // Pelota gigante: el grupo exterior se queda en el piso y sólo la pelota gira.
         const g = new THREE.Group();
         const ball = createBall(BIGBALL_R);
@@ -88,19 +114,34 @@ export class Obstacles {
         ball.position.y = BIGBALL_R;
         g.add(ball);
         return g;
-      },
-      truck0: makeTruck(0),
-      truck1: makeTruck(1),
-    };
+      }
+      default: {
+        // truck0:<país> (móvil de TV) · truck1:<país> (micro de la selección)
+        const v = kind === 'truck1' ? 1 : 0;
+        const nation = NATIONS[theme as NationId];
+        const g = new THREE.Group();
+        g.add(withOutline(new THREE.Mesh(this.geo(key, () => buildTruck(v, truckPaint(v, nation))), mat), 0.03));
+        let dm = this.decalMats.get(key);
+        if (!dm) this.decalMats.set(key, (dm = lit(0xffffff, { map: nationTruckDecal(v, nation) })));
+        for (const side of [-1, 1]) {
+          const d = new THREE.Mesh(this.decalGeo, dm);
+          d.rotation.y = side * Math.PI / 2;
+          d.position.set(side * 0.935, 1.0, -TRUCK.length / 2 - 0.15);
+          g.add(d);
+        }
+        return g;
+      }
+    }
   }
 
   spawn(kind: ObstacleKind, lane: number, z: number, opts: SpawnOptions = {}): void {
-    const key = kind === 'truck' ? `truck${opts.variant ?? 0}` : kind;
+    const th = this.theme;
+    const key = kind === 'truck' ? `truck${opts.variant ?? 0}:${th.nation}` : kind === 'wall' || kind === 'runner' ? `${kind}:${th.rival}` : kind;
     let item = this.items.find((o) => !o.active && (o.group.userData.key as string) === key);
     if (!item) {
       const group = new THREE.Group();
       group.userData.key = key;
-      const model = this.factories[key]();
+      const model = this.make(key);
       const shadow = new THREE.Mesh(this.shadowGeo, this.shadowMat);
       shadow.rotation.x = -Math.PI / 2;
       shadow.position.y = 0.015;
@@ -210,6 +251,11 @@ export class Obstacles {
     return g;
   }
 
+  /** Cuánto se metió el jugador (en X) en un obstáculo con el que chocó: un roce chico se perdona. */
+  overlapX(o: Obstacle, player: Player): number {
+    return OBSTACLE_BOXES[o.kind].halfWidth + CONFIG.player.halfWidth - Math.abs(o.group.position.x - player.x);
+  }
+
   /** Obstáculo con el que choca el jugador (o null). Cajas AABB simples. */
   hit(player: Player): Obstacle | null {
     const P = CONFIG.player;
@@ -306,14 +352,13 @@ const DEF_SKINS = ['#d39a73', '#e6b48d', '#8d5b3c'];
 const DEF_HAIRS = ['#1c1616', '#6b3a1a', '#2a1a10'];
 
 /** Defensor rival: el mismo atleta realista (con menos detalle), camiseta roja, congelado en una pose. */
-function defender(i: number, x: number, pose: (r: Rig) => void): THREE.BufferGeometry {
+function defender(i: number, x: number, pose: (r: Rig) => void, kit: Kit): THREE.BufferGeometry {
   const rig = buildRig('lo');
   pose(rig);
   // Los defensores miran hacia +z (hacia el jugador).
   rig.root.rotation.y = Math.PI;
   rig.root.position.x = x;
-  const kit = KITS.find((k) => k.id === 'pincha')!;
-  const pal = makePalette(DEF_HAIRS[i % 3], { ...kit, base: '#d7263d', accent: '#ffffff', sleeve: '#d7263d', shorts: '#ffffff', socks: '#d7263d', pattern: 'band' });
+  const pal = makePalette(DEF_HAIRS[i % 3], kit);
   const skin = new THREE.Color(DEF_SKINS[i % 3]);
   pal.skin = skin;
   pal.skinShade = skin.clone().multiplyScalar(0.8);
@@ -323,7 +368,7 @@ function defender(i: number, x: number, pose: (r: Rig) => void): THREE.BufferGeo
 }
 
 /** Barrera de 3 defensores con las manos adelante (como en un tiro libre). */
-function buildWall(): THREE.BufferGeometry {
+function buildWall(kit: Kit): THREE.BufferGeometry {
   const geos = [-0.62, 0, 0.62].map((x, i) =>
     defender(i, x, (r) => {
       const [AL, AR] = r.arms;
@@ -334,7 +379,7 @@ function buildWall(): THREE.BufferGeometry {
       r.legs[0].hip.rotation.z = 0.04;
       r.legs[1].hip.rotation.z = -0.04;
       r.head.rotation.x = 0.05;
-    }),
+    }, kit),
   );
   const merged = mergeGeometries(geos, false);
   if (!merged) throw new Error('No se pudo armar la barrera');
@@ -342,7 +387,7 @@ function buildWall(): THREE.BufferGeometry {
 }
 
 /** Defensor que viene corriendo hacia el jugador (zancada y brazos en movimiento). */
-function buildRunner(): THREE.BufferGeometry {
+function buildRunner(kit: Kit): THREE.BufferGeometry {
   return defender(1, 0, (r) => {
     const [L, R] = r.legs;
     const [AL, AR] = r.arms;
@@ -356,17 +401,31 @@ function buildRunner(): THREE.BufferGeometry {
     AR.elbow.rotation.x = 1.5;
     r.torso.rotation.x = -0.2;
     r.head.rotation.x = 0.1;
-  });
+  }, kit);
 }
 
 /** Camión de TV / micro de la hinchada. Origen en la trompa; se extiende hacia -z. Techo plano (se corre por arriba). */
-function buildTruck(variant: 0 | 1): THREE.BufferGeometry {
+/** Colores de la carrocería: el móvil de TV es blanco con vivos del país; el micro va pintado con los colores de la selección. */
+function truckPaint(variant: 0 | 1, n: Nation): { paint: number; trim: number } {
+  const hex = (c: string) => parseInt(c.slice(1), 16);
+  if (variant === 0) return { paint: 0xf2f4f8, trim: hex(luma(n.primary) > 0.8 ? n.secondary : n.primary) };
+  return { paint: hex(n.primary), trim: hex(n.secondary) };
+}
+
+/** ¿Dos camisetas se confunden? (distancia entre los colores base). */
+function kitsClash(a: Kit, b: Kit): boolean {
+  const rgb = (h: string) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+  const [r1, g1, b1] = rgb(a.base);
+  const [r2, g2, b2] = rgb(b.base);
+  return Math.hypot(r1 - r2, g1 - g2, b1 - b2) < 95;
+}
+
+function buildTruck(variant: 0 | 1, colors: { paint: number; trim: number }): THREE.BufferGeometry {
   const b = new ModelBuilder();
   const L = TRUCK.length;
   const W = 1.86;
   const TOP = TRUCK.top;
-  const paint = variant === 0 ? 0xf2f4f8 : 0xffc61a;
-  const trim = variant === 0 ? 0x2a6fdb : 0x0b2f86;
+  const { paint, trim } = colors;
   const dark = 0x1c1e26;
   const chrome = 0xb7bdc9;
   const glass = 0x1a2745;

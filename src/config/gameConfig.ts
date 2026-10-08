@@ -45,18 +45,28 @@ export const CONFIG = {
     standHeight: 1.85,
     slideHeight: 0.75,
     /** Medio ancho / medio largo de la caja de colisión. */
-    halfWidth: 0.34,
+    halfWidth: 0.3,
     halfDepth: 0.3,
+  },
+
+  /** Tropiezo: un roce de costado con un obstáculo no mata la primera vez (como en Subway Surfers). */
+  stumble: {
+    /** Si te metiste menos que esto (m) en el obstáculo, es un roce. */
+    grazeMeters: 0.5,
+    /** Segundos de invulnerabilidad después de tropezar. */
+    graceSeconds: 0.8,
+    /** Un segundo roce dentro de esta ventana (seg) sí te saca. */
+    windowSeconds: 6,
   },
 
   speed: {
     start: 18,
-    max: 44,
+    max: 38,
     /** Aumento suave por cada metro recorrido. */
-    increasePerMeter: 0.005,
+    increasePerMeter: 0.0036,
     /** Cada X metros hay un salto de velocidad notorio ("¡MÁS RÁPIDO!"). */
-    stepEveryMeters: 600,
-    stepBonus: 2,
+    stepEveryMeters: 700,
+    stepBonus: 1.5,
   },
 
   spawn: {
@@ -65,15 +75,21 @@ export const CONFIG = {
     /** Hasta dónde se generan obstáculos por delante. */
     viewDistance: 130,
     /** Separación entre filas, en segundos de recorrido. */
-    minGapSeconds: 0.62,
-    maxGapSeconds: 1.0,
+    minGapSeconds: 0.78,
+    maxGapSeconds: 1.2,
     /** A velocidad máxima, el gap mínimo baja hasta este valor. */
-    minGapSecondsAtMaxSpeed: 0.48,
+    minGapSecondsAtMaxSpeed: 0.6,
     /** Arranque: hasta estos metros hay un poco más de aire y filas simples. */
-    warmupMeters: 250,
-    warmupGapSeconds: [1.0, 1.5] as [number, number],
+    warmupMeters: 400,
+    warmupGapSeconds: [1.1, 1.6] as [number, number],
     /** Metros hasta llegar a la dificultad máxima (después del arranque). */
-    metersToMaxDifficulty: 3000,
+    metersToMaxDifficulty: 6000,
+    /** Tiempo humano para cambiar de carril (seg): el generador nunca pide más que esto entre dos filas. */
+    secondsPerLane: 0.28,
+    /** Obstáculos que vienen hacia vos (defensor corriendo, pelota gigante, camión en contra): desde estos metros. */
+    moversFromMeters: 800,
+    /** Probabilidad de que una fila sea un bloque de camiones (más la dificultad). */
+    truckChance: 0.16,
     /** Probabilidad de que aparezca un potenciador en una fila (cuando ya pasó el enfriamiento). */
     powerupChance: 0.12,
     /** Metros mínimos entre un potenciador y el siguiente (aparecen poco). */
@@ -120,7 +136,7 @@ export const CONFIG = {
 export type ObstacleKind = 'hurdle' | 'bar' | 'wall' | 'runner' | 'bigball' | 'truck';
 
 /** Camión / micro: plataforma larga para correr por arriba (como los trenes de Subway). */
-export const TRUCK = { length: 9, top: 1.7, rampLength: 3.4, halfWidth: 0.9, movingSpeed: 9 } as const;
+export const TRUCK = { length: 9, top: 1.7, rampLength: 3.4, halfWidth: 0.86, movingSpeed: 9 } as const;
 
 /** X (en metros) del centro de un carril. Carril 0 = izquierda. */
 export function laneX(lane: number): number {
@@ -134,10 +150,10 @@ export const MOVER_SPEED = { runner: 6, bigball: 7 } as const;
  * hurdle = valla baja → saltar. bar = barra alta → barrida. wall = barrera de defensores → esquivar.
  */
 export const OBSTACLE_BOXES: Record<ObstacleKind, { halfWidth: number; yMin: number; yMax: number; halfDepth: number }> = {
-  hurdle: { halfWidth: 0.95, yMin: 0, yMax: 0.85, halfDepth: 0.15 },
-  bar: { halfWidth: 0.95, yMin: 1.15, yMax: 2.6, halfDepth: 0.2 },
-  wall: { halfWidth: 0.9, yMin: 0, yMax: 2.2, halfDepth: 0.4 },
-  runner: { halfWidth: 0.45, yMin: 0, yMax: 2.1, halfDepth: 0.35 },
-  bigball: { halfWidth: 0.78, yMin: 0, yMax: 1.2, halfDepth: 0.6 },
+  hurdle: { halfWidth: 0.86, yMin: 0, yMax: 0.85, halfDepth: 0.15 },
+  bar: { halfWidth: 0.86, yMin: 1.15, yMax: 2.6, halfDepth: 0.2 },
+  wall: { halfWidth: 0.82, yMin: 0, yMax: 2.2, halfDepth: 0.4 },
+  runner: { halfWidth: 0.42, yMin: 0, yMax: 2.1, halfDepth: 0.35 },
+  bigball: { halfWidth: 0.72, yMin: 0, yMax: 1.2, halfDepth: 0.6 },
   truck: { halfWidth: TRUCK.halfWidth, yMin: 0, yMax: TRUCK.top, halfDepth: 0 },
 };

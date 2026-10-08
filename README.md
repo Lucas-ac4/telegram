@@ -5,7 +5,30 @@ Three.js + TypeScript + Vite.
 
 📄 Análisis completo (tecnología, arquitectura, economía, riesgos, fases): [`docs/ANALISIS.md`](docs/ANALISIS.md)
 
-## Estado: v1.0 — Más auténtico, y estadios que cambian ✅
+## Estado: v1.1 — Selecciones, personaje más chico y juego más justo ✅
+
+v1.1 (feedback del celu):
+- **Temática de selecciones** (`config/nations.ts`): 10 camisetas de selecciones (Argentina, Brasil, Noruega, Países Bajos, Alemania, Francia, España, Uruguay, Italia, Inglaterra; sólo colores, sin escudos) en una pestaña del vestuario y los 5 clubes argentinos en otra.
+- **Cada estadio es un país** (`config/stadiums.ts`): Argentina, Brasil, Noruega (con nieve y neón), Países Bajos y Francia. Cambian la hinchada, los trapos y banderas, los carteles LED, el marcador de la pantalla, **los camiones/micros (con la bandera y el nombre de la selección)** y **los rivales (visten la camiseta de otra selección, nunca igual a la tuya)**. Al cambiar de estadio todo cambia junto.
+- **Personaje más chico y menos "Roblox"**: 16% más chico en pantalla, sin los hombros "globo", muslos con cuádriceps, pantorrillas con gemelo, tobillos finos, manos con pulgar, botines sin "tabla" y camiseta con trama y sombras en las axilas. La pelota ahora es más chica, se toca en cada zancada (sincronizada con el pie) y en el inicio sube desde el pie y pasa por delante de la pierna.
+- **Más fácil entre los 400 y 900 m** (medido con un bot humano, `tools/balance.cjs`): ver abajo.
+
+### Dificultad: qué cambió y cuánto ayudó
+Antes, tras el arranque (250 m) subía de golpe: filas con 3 barreras y un solo carril pasable, camiones en 30% de las filas, obstáculos que se acercan a más velocidad y filas que pedían cambiar 3 carriles en menos de un segundo. Ahora:
+- **El generador garantiza un camino humano**: entre dos filas siempre se puede llegar a un carril pasable cambiando como mucho los carriles que da el tiempo (0,28 s por carril).
+- Arranque fácil hasta los **400 m**; la dificultad llega al máximo a los 6.000 m (antes 3.000); los obstáculos que vienen hacia vos recién desde los 800 m; menos camiones; filas de 3 obstáculos y "paredes" mucho más raras al principio.
+- **Tropiezo**: un roce de costado con un obstáculo no te saca la primera vez (te rebota, parpadeás 0,8 s); un segundo roce en 6 s sí.
+- Cajas de colisión un poco más chicas, velocidad que sube más despacio (máx. 38 m/s en vez de 44).
+
+| Bot "normal" (100 partidas) | v1.0 | v1.1 |
+|---|---|---|
+| Mediana de metros | 386 | **~900** |
+| Llega a 900 m | 10% | **~50%** |
+| Llega a 1.500 m | 1% | **~25%** |
+
+Todo se ajusta en `config/gameConfig.ts` (`spawn`, `stumble`, `speed`, cajas de colisión).
+
+## v1.0 — Más auténtico, y estadios que cambian
 
 v1.0 (feedback del celu):
 - **Personaje menos "Roblox":** cabeza y extremidades en proporción real, sin mejillas rosadas, ojos más chicos y piel más oscura/natural. Pelo mate con hebras.
@@ -118,7 +141,10 @@ src/
   game/Spawner.ts         generación procedural + tutorial
   game/Particles.ts       partículas en 1 draw call · Effects.ts: efectos del juego
   config/quality.ts       niveles LOW / MEDIUM / HIGH
-  config/stadiums.ts      estadios (colores, techo, césped, hinchada) y cuándo cambian
+  config/stadiums.ts      estadios (un país cada uno: colores, techo, césped, hinchada) y cuándo cambian
+  config/nations.ts       selecciones: camisetas, colores, frases, banderas
+  engine/nationTextures.ts banderas, trapos, LED, marcador y camiones por país
+  tools/balance.cjs       mide la dificultad con un bot (sin dibujar)
   engine/assets.ts        ranuras para .glb definitivos (docs/ASSETS.md)
   game/Input.ts           gestos táctiles y teclado
   audio/Sfx.ts            sonidos sintetizados

@@ -198,30 +198,6 @@ export function seatsTexture(): THREE.CanvasTexture {
   return toTexture(c, true);
 }
 
-/** Pantalla gigante del estadio. */
-export function screenTexture(): THREE.CanvasTexture {
-  const [c, g] = canvas(512, 160);
-  const grad = g.createLinearGradient(0, 0, 0, 160);
-  grad.addColorStop(0, '#0b1a4a');
-  grad.addColorStop(1, '#162a73');
-  g.fillStyle = grad;
-  g.fillRect(0, 0, 512, 160);
-  g.textAlign = 'center';
-  g.textBaseline = 'middle';
-  g.font = 'bold 40px "Lilita One", "Arial Black", sans-serif';
-  g.fillStyle = '#ffd23f';
-  g.fillText('⚽ GOLAZO ⚽', 256, 34);
-  g.font = 'bold 66px "Lilita One", "Arial Black", sans-serif';
-  g.fillStyle = '#ffffff';
-  g.fillText('ARG  2 - 1  BRA', 256, 98);
-  g.font = 'bold 26px "Lilita One", "Arial Black", sans-serif';
-  g.fillStyle = '#7cf29c';
-  g.fillText("87'", 256, 140);
-  g.fillStyle = 'rgba(0,0,0,0.2)';
-  for (let y = 0; y < 160; y += 4) g.fillRect(0, y, 512, 1);
-  return toTexture(c);
-}
-
 /** Camiseta según el diseño del equipo, con el 10 en la espalda (u = 0.5 del cilindro). */
 export function jerseyTexture(kit: Kit): THREE.CanvasTexture {
   const [c, g] = canvas(512, 256);
@@ -257,6 +233,32 @@ export function jerseyTexture(kit: Kit): THREE.CanvasTexture {
       g.fillRect(0, 230, 512, 26);
       break;
   }
+  // Tela: trama fina, sombra en las axilas y los costados (u = .25 y .75) y cuello en V al frente (u = 0 / 1).
+  g.fillStyle = 'rgba(0,0,0,0.045)';
+  for (let y = 0; y < 256; y += 3) g.fillRect(0, y, 512, 1);
+  for (const cx of [128, 384]) {
+    const sh = g.createRadialGradient(cx, 60, 0, cx, 60, 70);
+    sh.addColorStop(0, 'rgba(0,0,0,0.28)');
+    sh.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = sh;
+    g.fillRect(cx - 70, 0, 140, 140);
+    const side = g.createLinearGradient(cx - 40, 0, cx + 40, 0);
+    side.addColorStop(0, 'rgba(0,0,0,0)');
+    side.addColorStop(0.5, 'rgba(0,0,0,0.1)');
+    side.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = side;
+    g.fillRect(cx - 40, 0, 80, 256);
+  }
+  const vcol = kit.pattern === 'solid' ? kit.number : kit.accent;
+  g.fillStyle = vcol;
+  for (const [x0, dir] of [[0, 1], [512, -1]] as const) {
+    g.beginPath();
+    g.moveTo(x0, 0);
+    g.lineTo(x0 + dir * 46, 0);
+    g.lineTo(x0, 58);
+    g.closePath();
+    g.fill();
+  }
   g.font = 'bold 120px "Lilita One", "Arial Black", sans-serif';
   g.textAlign = 'center';
   g.textBaseline = 'middle';
@@ -266,34 +268,6 @@ export function jerseyTexture(kit: Kit): THREE.CanvasTexture {
   g.fillStyle = kit.number;
   g.fillText('10', 256, 130);
   return toTexture(c);
-}
-
-/** Cartel LED publicitario (se desplaza animando `offset.x`). */
-export function ledTexture(): THREE.CanvasTexture {
-  const [c, g] = canvas(1024, 64);
-  const items: [string, string, string][] = [
-    ['⚽ GOLAZO', '#ffd23f', '#1d1a4f'],
-    ['¡VAMOS!', '#ffffff', '#e63946'],
-    ['TELEGRAM', '#ffffff', '#229ed9'],
-    ['★ GOL ★', '#1d1a4f', '#7cf29c'],
-  ];
-  const w = 1024 / items.length;
-  items.forEach(([text, fg, bg], i) => {
-    g.fillStyle = bg;
-    g.fillRect(i * w, 0, w, 64);
-    g.fillStyle = fg;
-    g.font = 'bold 40px "Lilita One", "Arial Black", sans-serif';
-    g.textAlign = 'center';
-    g.textBaseline = 'middle';
-    g.fillText(text, i * w + w / 2, 34);
-  });
-  // Grilla de "píxeles" LED.
-  g.fillStyle = 'rgba(0,0,0,0.18)';
-  for (let x = 0; x < 1024; x += 4) g.fillRect(x, 0, 1, 64);
-  for (let y = 0; y < 64; y += 4) g.fillRect(0, y, 1024, 1);
-  const t = toTexture(c, true);
-  t.wrapT = THREE.ClampToEdgeWrapping;
-  return t;
 }
 
 /** Sombra circular difusa (sombra "blob": barata y queda bien en cartoon). */
@@ -355,74 +329,6 @@ export function cloudTexture(): THREE.CanvasTexture {
 
 /** "Trapos" de la hinchada: 4 diseños en una tira (cada uno 256x128). */
 export const BANNER_DESIGNS = 4;
-export function bannersTexture(): THREE.CanvasTexture {
-  const [c, g] = canvas(1024, 128);
-  const designs: { draw: (x: number) => void; text: string; fg: string; stroke: string }[] = [
-    {
-      draw: (x) => {
-        for (let i = 0; i < 8; i++) {
-          g.fillStyle = i % 2 ? '#ffffff' : '#6cc3f5';
-          g.fillRect(x + i * 32, 0, 32, 128);
-        }
-      },
-      text: 'LA 10',
-      fg: '#ffd23f',
-      stroke: '#1d1a4f',
-    },
-    {
-      draw: (x) => {
-        g.fillStyle = '#d7263d';
-        g.fillRect(x, 0, 256, 128);
-        g.fillStyle = '#ffffff';
-        g.fillRect(x, 44, 256, 40);
-      },
-      text: 'VAMOS',
-      fg: '#d7263d',
-      stroke: '#ffffff',
-    },
-    {
-      draw: (x) => {
-        g.fillStyle = '#0b2f86';
-        g.fillRect(x, 0, 256, 128);
-        g.fillStyle = '#ffcc00';
-        g.fillRect(x, 46, 256, 36);
-      },
-      text: 'GOLAZO',
-      fg: '#0b2f86',
-      stroke: '#ffcc00',
-    },
-    {
-      draw: (x) => {
-        for (let i = 0; i < 8; i++)
-          for (let j = 0; j < 4; j++) {
-            g.fillStyle = (i + j) % 2 ? '#111111' : '#ffffff';
-            g.fillRect(x + i * 32, j * 32, 32, 32);
-          }
-      },
-      text: '⚽',
-      fg: '#ffffff',
-      stroke: '#111111',
-    },
-  ];
-  designs.forEach((d, i) => {
-    const x = i * 256;
-    d.draw(x);
-    g.font = 'bold 58px "Lilita One", "Arial Black", sans-serif';
-    g.textAlign = 'center';
-    g.textBaseline = 'middle';
-    g.lineWidth = 10;
-    g.strokeStyle = d.stroke;
-    g.strokeText(d.text, x + 128, 68);
-    g.fillStyle = d.fg;
-    g.fillText(d.text, x + 128, 68);
-    // Bordes cosidos.
-    g.strokeStyle = 'rgba(0,0,0,0.25)';
-    g.lineWidth = 4;
-    g.strokeRect(x + 4, 4, 248, 120);
-  });
-  return toTexture(c);
-}
-
 /** Brillo radial (sol, luna, reflectores). */
 export function glowTexture(inner: string, outer: string): THREE.CanvasTexture {
   const [c, g] = canvas(128, 128);
@@ -433,63 +339,6 @@ export function glowTexture(inner: string, outer: string): THREE.CanvasTexture {
   grad.addColorStop(1, 'rgba(255,255,255,0)');
   g.fillStyle = grad;
   g.fillRect(0, 0, 128, 128);
-  return toTexture(c);
-}
-
-/** Cartel lateral del camión. variant 0 = móvil de TV, 1 = micro de la hinchada. */
-export function truckDecalTexture(variant: 0 | 1): THREE.CanvasTexture {
-  const [c, g] = canvas(1024, 160);
-  if (variant === 0) {
-    g.fillStyle = '#f4f6fa';
-    g.fillRect(0, 0, 1024, 160);
-    const grad = g.createLinearGradient(0, 0, 1024, 0);
-    grad.addColorStop(0, '#1d4fb8');
-    grad.addColorStop(1, '#2a9df4');
-    g.fillStyle = grad;
-    g.fillRect(0, 108, 1024, 52);
-    g.fillStyle = '#ffffff';
-    for (let x = 40; x < 1024; x += 70) {
-      g.beginPath();
-      g.moveTo(x, 108);
-      g.lineTo(x + 30, 108);
-      g.lineTo(x + 10, 160);
-      g.lineTo(x - 20, 160);
-      g.fill();
-    }
-    g.font = 'italic bold 92px "Lilita One", "Arial Black", sans-serif';
-    g.textBaseline = 'middle';
-    g.textAlign = 'left';
-    g.lineWidth = 12;
-    g.strokeStyle = '#1d1a4f';
-    g.strokeText('GOLAZO TV', 46, 62);
-    g.fillStyle = '#ffd23f';
-    g.fillText('GOLAZO TV', 46, 62);
-    g.fillStyle = '#e63946';
-    g.beginPath();
-    g.arc(640, 62, 24, 0, Math.PI * 2);
-    g.fill();
-    g.font = 'bold 62px "Lilita One", "Arial Black", sans-serif';
-    g.fillStyle = '#1d1a4f';
-    g.fillText('EN VIVO', 680, 66);
-  } else {
-    g.fillStyle = '#ffc61a';
-    g.fillRect(0, 0, 1024, 160);
-    g.fillStyle = '#0b2f86';
-    g.fillRect(0, 118, 1024, 42);
-    g.fillStyle = '#ffffff';
-    for (let x = 0; x < 1024; x += 64) g.fillRect(x, 130, 32, 18);
-    g.font = 'bold 92px "Lilita One", "Arial Black", sans-serif';
-    g.textBaseline = 'middle';
-    g.textAlign = 'center';
-    g.lineWidth = 12;
-    g.strokeStyle = '#ffffff';
-    g.strokeText('LA HINCHADA', 512, 58);
-    g.fillStyle = '#0b2f86';
-    g.fillText('LA HINCHADA', 512, 58);
-    g.font = '60px sans-serif';
-    g.fillText('⚽', 110, 60);
-    g.fillText('⚽', 914, 60);
-  }
   return toTexture(c);
 }
 

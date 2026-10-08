@@ -34,6 +34,8 @@ export class Spawner {
   private lastPickupMeters = 0;
   private tutorial: { row: (ObstacleKind | null)[]; text: string }[] = [];
   private speed = 0;
+  /** Carriles en los que el jugador puede estar después de la última fila (según lo que alcanza a moverse). */
+  private reach: boolean[] = range(N).map(() => true);
   readonly hints: Hint[] = [];
 
   constructor(
@@ -47,6 +49,7 @@ export class Spawner {
   reset(withTutorial: boolean): void {
     this.lastRowZ = -CONFIG.spawn.firstRow + 14;
     this.lastPickupMeters = 0;
+    this.reach = range(N).map(() => true);
     this.hints.length = 0;
     const all = (k: ObstacleKind) => range(N).map(() => k);
     this.tutorial = withTutorial
@@ -101,18 +104,25 @@ export class Spawner {
     // Bloques especiales (después del arranque): camiones con rampa o en contra.
     if (!warmup) {
       const r = Math.random();
-      if (r < 0.1 + d * 0.08 && this.spawnMovingTruck(z)) return;
-      if (r < 0.3 + d * 0.1) {
-        this.spawnTruckBlock(z, d);
+      if (meters >= CONFIG.spawn.moversFromMeters && r < 0.04 + d * 0.08 && this.spawnMovingTruck(z)) return;
+      if (r < CONFIG.spawn.truckChance + d * 0.08) {
+        this.spawnTruckBlock(z, d, gap);
         return;
       }
     }
 
-    const row = this.pickRow(d, warmup);
-    // Algunos obstáculos vienen hacia vos (defensor corriendo / pelota gigante).
+    // Siempre hay un camino posible: la fila nueva debe poder alcanzarse con swipes humanos desde la anterior.
+    const gapSec = gap / Math.max(this.speed, CONFIG.speed.start);
+    let row = this.pickRow(d, warmup);
+    for (let tries = 0; tries < 8 && !this.feasible(row, gapSec); tries++) row = this.pickRow(d, warmup);
+    if (!this.feasible(row, gapSec)) this.repair(row, gapSec);
+    this.reach = this.nextReach(row, gapSec);
+
+    // Obstáculos que vienen hacia vos (defensor corriendo / pelota gigante): recién después de la zona fácil.
+    const moverChance = meters < CONFIG.spawn.moversFromMeters ? 0 : 0.1 + d * 0.15;
     row.forEach((cell, i) => {
       if (!cell || warmup) return;
-      if ((cell.kind === 'wall' || cell.kind === 'hurdle') && Math.random() < 0.18 + d * 0.15) {
+      if ((cell.kind === 'wall' || cell.kind === 'hurdle') && Math.random() < moverChance) {
         const kind: ObstacleKind = cell.kind === 'wall' ? 'runner' : 'bigball';
         const vz = kind === 'runner' ? MOVER_SPEED.runner : MOVER_SPEED.bigball;
         if (this.obstacles.laneClearForMover(i, z, vz, this.speed)) row[i] = { kind, moving: true };
@@ -131,23 +141,29 @@ export class Spawner {
     }
   }
 
-  /** 1-3 camiones en fila; siempre hay un carril libre o una rampa para subir. */
-  private spawnTruckBlock(z: number, d: number): void {
-    const lanes = shuffled(range(N));
-    const count = Math.random() < 0.35 + d * 0.4 ? (Math.random() < 0.3 + d * 0.3 ? 3 : 2) : 1;
-    const used = lanes.slice(0, count);
-    const rampLane = rand(used);
+  /** 1-3 camiones en fila; siempre hay un carril libre o una rampa a los que se llega a tiempo. */
+  private spawnTruckBlock(z: number, d: number, gap: number): void {
+    const gapSec = gap / Math.max(this.speed, CONFIG.speed.start);
+    const shift = this.maxShift(gapSec);
+    // La rampa va en un carril que se alcanza desde donde puede estar el jugador.
+    const near = range(N).filter((i) => this.reach.some((on, a) => on && Math.abs(a - i) <= shift));
+    const rampLane = rand(near.length ? near : range(N));
+    const count = Math.random() < 0.2 + d * 0.4 ? (Math.random() < 0.25 + d * 0.3 ? 3 : 2) : 1;
+    const used = [rampLane, ...shuffled(range(N).filter((i) => i !== rampLane)).slice(0, count - 1)];
     for (const i of used) {
-      const ramp = count >= 3 ? i === rampLane : i === rampLane && Math.random() < 0.75;
-      this.obstacles.spawn('truck', i, z, { ramp, variant: Math.random() < 0.5 ? 0 : 1 });
+      // Un solo camión del bloque tiene rampa (el resto son paredes sólidas).
+      this.obstacles.spawn('truck', i, z, { ramp: i === rampLane, variant: Math.random() < 0.5 ? 0 : 1 });
       // Monedas arriba del camión con rampa (premio por subir).
-      if (ramp) for (let k = 0; k < 6; k++) this.coins.spawn(laneX(i), TRUCK.top + 0.75, z - 1 - k * 1.45);
+      if (i === rampLane) for (let k = 0; k < 6; k++) this.coins.spawn(laneX(i), TRUCK.top + 0.75, z - 1 - k * 1.45);
     }
     // En los carriles libres: monedas o algún obstáculo chico a mitad del camión.
-    for (const i of lanes.slice(count)) {
-      if (Math.random() < 0.35 + d * 0.3) this.obstacles.spawn(Math.random() < 0.5 ? 'hurdle' : 'bar', i, z - TRUCK.length / 2);
+    const free = range(N).filter((i) => !used.includes(i));
+    for (const i of free) {
+      if (Math.random() < 0.2 + d * 0.3) this.obstacles.spawn(Math.random() < 0.5 ? 'hurdle' : 'bar', i, z - TRUCK.length / 2);
       else for (let k = 0; k < 5; k++) this.coins.spawn(laneX(i), 0.75, z - k * 1.6);
     }
+    // Después del bloque: se puede estar en el carril de la rampa o en los libres.
+    this.reach = range(N).map((i) => i === rampLane || free.includes(i));
     // El bloque ocupa el largo del camión: la próxima fila arranca después.
     this.lastRowZ = z - TRUCK.length;
   }
@@ -156,7 +172,11 @@ export class Spawner {
   private spawnMovingTruck(z: number): boolean {
     for (const i of shuffled(range(N))) {
       if (!this.obstacles.laneClearForMover(i, z, TRUCK.movingSpeed, this.speed)) continue;
+      // No deja al jugador sin salida: tiene que quedar al menos un carril alcanzable sin ese camión.
+      const left = this.reach.map((on, l) => on && l !== i);
+      if (!left.some(Boolean)) continue;
       this.obstacles.spawn('truck', i, z, { moving: true, variant: Math.random() < 0.5 ? 0 : 1 });
+      this.reach = left;
       return true;
     }
     return false;
@@ -176,26 +196,62 @@ export class Spawner {
     const lanes = shuffled(range(N));
     const row: Row = range(N).map(() => null);
 
-    // Arranque: uno o dos obstáculos. Con 4 carriles, más tarde llegan a 3.
-    const r = warmup ? Math.random() * 0.6 : Math.random();
-    if (r < 0.28 - d * 0.15) {
+    // La mezcla de filas es gradual: arrancan con 1-2 obstáculos; las de 3, las vallas de punta a punta y las
+    // "paredes" (3 barreras + 1 carril con valla) llegan de a poco con los metros.
+    const r = Math.random();
+    const pWall = 0.02 + d * 0.08;
+    const pLine = 0.07;
+    const pThree = 0.05 + d * 0.2;
+    const pTwo = 0.36;
+    if (warmup || r >= pWall + pLine + pThree + pTwo) {
+      // Un obstáculo (en el arranque: 60% uno, 40% dos).
       row[lanes[0]] = cell(rand(kinds));
-    } else if (r < 0.6 - d * 0.1) {
-      row[lanes[0]] = cell(rand(kinds));
-      row[lanes[1]] = cell(rand(kinds));
-    } else if (r < 0.82) {
-      // Tres obstáculos; queda un carril libre.
-      for (const l of lanes.slice(0, N - 1)) row[l] = cell(rand(kinds));
-    } else if (r < 0.92) {
-      // Toda la fila de vallas o barras: hay que saltar o barrerse sí o sí.
-      const k = rand<ObstacleKind>(['hurdle', 'bar']);
-      for (const l of lanes) row[l] = cell(k);
-    } else {
+      if (warmup && Math.random() < 0.4) row[lanes[1]] = cell(rand(kinds));
+    } else if (r < pWall) {
       // Barreras en casi todos los carriles + uno con valla/barra.
       for (const l of lanes.slice(0, N - 1)) row[l] = cell('wall');
       row[lanes[N - 1]] = cell(rand<ObstacleKind>(['hurdle', 'bar']));
+    } else if (r < pWall + pLine) {
+      // Toda la fila de vallas o barras: hay que saltar o barrerse sí o sí.
+      const k = rand<ObstacleKind>(['hurdle', 'bar']);
+      for (const l of lanes) row[l] = cell(k);
+    } else if (r < pWall + pLine + pThree) {
+      // Tres obstáculos; queda un carril libre.
+      for (const l of lanes.slice(0, N - 1)) row[l] = cell(rand(kinds));
+    } else {
+      row[lanes[0]] = cell(rand(kinds));
+      row[lanes[1]] = cell(rand(kinds));
     }
     return row;
+  }
+
+  // ---------- Justicia: siempre hay un camino que un jugador humano puede hacer ----------
+
+  /** Cuántos carriles se alcanzan a cambiar entre dos filas separadas `gapSec` segundos (un swipe humano ≈ 0.28 s). */
+  private maxShift(gapSec: number): number {
+    return Math.max(1, Math.floor((gapSec - 0.15) / CONFIG.spawn.secondsPerLane));
+  }
+
+  /** Carriles por donde se puede pasar la fila: libres o con valla / barra (saltar o barrerse). */
+  private passable(row: Row): boolean[] {
+    return row.map((c) => !c || c.kind === 'hurdle' || c.kind === 'bar');
+  }
+
+  private nextReach(row: Row, gapSec: number): boolean[] {
+    const shift = this.maxShift(gapSec);
+    const pass = this.passable(row);
+    return pass.map((ok, b) => ok && this.reach.some((on, a) => on && Math.abs(a - b) <= shift));
+  }
+
+  private feasible(row: Row, gapSec: number): boolean {
+    return this.nextReach(row, gapSec).some(Boolean);
+  }
+
+  /** Libera el carril alcanzable más cercano al jugador (la fila ya no es imposible). */
+  private repair(row: Row, gapSec: number): void {
+    const shift = this.maxShift(gapSec);
+    const cand = range(N).filter((b) => this.reach.some((on, a) => on && Math.abs(a - b) <= shift));
+    row[rand(cand.length ? cand : range(N))] = null;
   }
 
   private spawnCoins(row: Row, z: number, gap: number): void {

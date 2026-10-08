@@ -1,6 +1,6 @@
 import css from './style.css?inline';
 import { DAILY, REDEEM, SHOP_ITEMS, type ItemId } from '../config/economy';
-import { HAIR_COLORS, HAIR_STYLES, KITS, type Look } from '../config/cosmetics';
+import { CLUB_KITS, HAIR_COLORS, HAIR_STYLES, KITS, NATION_KITS, type Look } from '../config/cosmetics';
 import { secondsToResetAR, type Profile } from '../save/save';
 import { fmt, getLang, t, type Lang } from '../i18n';
 import { hairIcon } from './hairIcons';
@@ -43,7 +43,7 @@ export interface UIHandlers {
   onPause(): void;
 }
 
-type LockerTab = 'color' | 'style' | 'kit';
+type LockerTab = 'color' | 'style' | 'kit' | 'club';
 
 /**
  * Interfaz en HTML/CSS por encima del canvas 3D.
@@ -58,6 +58,11 @@ export class UI {
   /** Pestaña actual del vestuario (la cámara hace zoom a la cara con pelo / peinado). */
   get lockerTab(): LockerTab {
     return this.tab;
+  }
+
+  /** Pelo / peinado: la cámara hace zoom a la cara. */
+  get lockerCloseUp(): boolean {
+    return this.tab === 'color' || this.tab === 'style';
   }
   private profile!: Profile;
   private muted = false;
@@ -374,9 +379,11 @@ export class UI {
   private renderLocker(): void {
     const look = this.profile.look;
     const hairHex = HAIR_COLORS.find((c) => c.id === look.hairColor)?.hex ?? '#5a3418';
-    const kit = KITS.find((k) => k.id === look.kit) ?? KITS[2];
+    const kit = KITS.find((k) => k.id === look.kit) ?? KITS[0];
+    const isClub = CLUB_KITS.some((k) => k.id === kit.id);
     const tabs: [LockerTab, string][] = [
-      ['kit', kitIcon(kit, 38)],
+      ['kit', kitIcon(isClub ? NATION_KITS[0] : kit, 38)],
+      ['club', kitIcon(isClub ? kit : CLUB_KITS[1], 38)],
       ['color', hairColorIcon(hairHex, 36)],
       ['style', hairIcon(look.hairStyle, hairHex)],
     ];
@@ -392,7 +399,8 @@ export class UI {
     } else if (this.tab === 'style') {
       html = HAIR_STYLES.map((st) => tile(look.hairStyle === st.id, st.name, 'hairStyle', st.id, hairIcon(st.id, hairHex))).join('');
     } else {
-      html = KITS.map((k) => tile(look.kit === k.id, k.name, 'kit', k.id, kitIcon(k))).join('');
+      const list = this.tab === 'club' ? CLUB_KITS : NATION_KITS;
+      html = list.map((k) => tile(look.kit === k.id, k.name, 'kit', k.id, kitIcon(k))).join('');
     }
     this.$('[data-options]').innerHTML = html;
   }

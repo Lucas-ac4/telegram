@@ -19,7 +19,7 @@ const SPRING_K = 260;
 const SPRING_C = 16;
 
 /** Escalas de estilo: cabeza y extremidades más contundentes para que la silueta se lea en pantalla chica. */
-const STYLE = { head: 1.0, limbXZ: 1.05, torsoXZ: 1.03 };
+const STYLE = { head: 1.02, limbXZ: 1.0, torsoXZ: 1.0 };
 
 /** Tono de piel base (se puede ofrecer más tonos en el vestuario). */
 export const SKIN_TONE = '#bf8761';
@@ -73,7 +73,7 @@ export function makePalette(hairHex: string, kit: Kit): Palette {
 export class Character implements Avatar {
   readonly root = new THREE.Group();
   private rig: Rig;
-  private jerseyMat = pbr(0xffffff, { map: jerseyTexture(KITS[2]), roughness: 0.82 });
+  private jerseyMat = pbr(0xffffff, { map: jerseyTexture(KITS[0]), roughness: 0.82 });
   private body: THREE.Group;
   private torso: THREE.Group;
   private head: THREE.Group;
@@ -82,7 +82,8 @@ export class Character implements Avatar {
   private stars: THREE.Group;
   private time = 0;
   private target = new Map<THREE.Object3D, [number, number, number]>();
-  private phase = 0;
+  /** Fase de la zancada (la usa la pelota para sincronizar los toques). */
+  phase = 0;
   private spring = 0;
   private springV = 0;
   private deadT = 0;
@@ -117,7 +118,7 @@ export class Character implements Avatar {
       this.stars.add(s);
     }
     this.root.add(this.stars);
-    this.setLook({ hairColor: 'castano', hairStyle: 'corto', kit: 'academia' });
+    this.setLook({ hairColor: 'castano', hairStyle: 'corto', kit: 'arg' });
   }
 
   /** Posición de la cabeza en el mundo (para cámaras de prueba / efectos). */
@@ -129,7 +130,7 @@ export class Character implements Avatar {
   /** Aplica pelo, peinado y camiseta elegidos en el vestuario. */
   setLook(look: Look): void {
     const hair = HAIR_COLORS.find((h) => h.id === look.hairColor) ?? HAIR_COLORS[1];
-    const kit: Kit = KITS.find((k) => k.id === look.kit) ?? KITS[2];
+    const kit: Kit = KITS.find((k) => k.id === look.kit) ?? KITS[0];
     const pal = makePalette(hair.hex, kit);
     for (const p of this.rig.painted) p.paint(pal);
     for (const [id, p] of this.rig.hairStyles) p.mesh.visible = id === look.hairStyle;

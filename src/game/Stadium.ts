@@ -4,17 +4,16 @@ import { CONFIG } from '../config/gameConfig';
 import { ModelBuilder, box, cylinder } from '../engine/geometry';
 import { basic, curved, toon, toonVertexColors } from '../engine/materials';
 import { STADIUMS, type StadiumStyle } from '../config/stadiums';
+import { NATIONS } from '../config/nations';
+import { nationBannersTexture, nationLedTexture, nationScreenTexture } from '../engine/nationTextures';
 import {
   BANNER_DESIGNS,
-  bannersTexture,
   CROWD_COLS,
   cloudTexture,
   crowdTexture,
   grassDetailTexture,
   glowTexture,
-  ledTexture,
   pitchTexture,
-  screenTexture,
   seatsTexture,
   trackTexture,
 } from '../engine/textures';
@@ -58,8 +57,7 @@ interface StyleSet {
 export class Stadium {
   private segments: Segment[] = [];
   private sets: (StyleSet | null)[] = STADIUMS.map(() => null);
-  private common: THREE.InstancedMesh[] = [];
-  private led: THREE.CanvasTexture;
+  private ledTextures: THREE.CanvasTexture[] = [];
   private cloudMat!: THREE.MeshBasicMaterial;
   private stars!: THREE.Points;
   private disc!: THREE.Mesh;
@@ -77,27 +75,7 @@ export class Stadium {
     this.pitchGeo.rotateX(-Math.PI / 2);
     this.pitchGeo.translate(0, 0, -L / 2);
 
-    this.led = ledTexture();
-    this.led.repeat.set(2, 1);
     const N = CONFIG.world.segmentCount;
-    const sides = [-1, 1] as const;
-    // Cartel LED y pantalla gigante: iguales en todos los estadios.
-    const ledGeos = sides.map((side) => {
-      const g = new THREE.PlaneGeometry(L, 0.85, 16, 1);
-      g.rotateY(side * -Math.PI / 2);
-      g.translate(side * (PITCH_HALF + 0.3), 0.62, -L / 2);
-      return g;
-    });
-    const screenGeos = sides.map((side) => {
-      const g = new THREE.PlaneGeometry(5.4, 1.7);
-      g.rotateY(side * -Math.PI / 2);
-      g.translate(side * (STEP0 + STEPS * STEP_W - 0.04), 5.1, -11.5);
-      return g;
-    });
-    this.common.push(
-      this.piece(mergeGeometries(ledGeos, false)!, basic({ map: this.led }), N),
-      this.piece(mergeGeometries(screenGeos, false)!, basic({ map: screenTexture() }), N),
-    );
 
     for (let i = 0; i < N; i++) {
       const seg = new THREE.Group();
@@ -150,7 +128,25 @@ export class Stadium {
       false,
     )!;
 
-    const bannerTex = bannersTexture();
+    const nation = NATIONS[style.nation];
+    const away = NATIONS[style.rivals[0]];
+    // Carteles LED y pantalla gigante con los colores, frases y marcador de la selección local.
+    const ledTex = nationLedTexture(nation);
+    ledTex.repeat.set(2, 1);
+    this.ledTextures.push(ledTex);
+    const ledGeos = sides.map((side) => {
+      const g = new THREE.PlaneGeometry(L, 0.85, 16, 1);
+      g.rotateY(side * -Math.PI / 2);
+      g.translate(side * (PITCH_HALF + 0.3), 0.62, -L / 2);
+      return g;
+    });
+    const screenGeos = sides.map((side) => {
+      const g = new THREE.PlaneGeometry(5.4, 1.7);
+      g.rotateY(side * -Math.PI / 2);
+      g.translate(side * (STEP0 + STEPS * STEP_W - 0.04), 5.1, -11.5);
+      return g;
+    });
+    const bannerTex = nationBannersTexture(nation);
     const bannersMat = toon(style.banners, { map: bannerTex, side: THREE.DoubleSide });
     const flagsMat = curved(new THREE.MeshLambertMaterial({ map: bannerTex, color: style.banners, side: THREE.DoubleSide }), {
       key: 'flag',
@@ -168,6 +164,8 @@ export class Stadium {
     const crowdMat = crowdCardMaterial(this.crowdFx, crowdTexture(style.crowdShirts, style.crowdScarf));
 
     const pieces = [
+      this.piece(mergeGeometries(ledGeos, false)!, basic({ map: ledTex }), N),
+      this.piece(mergeGeometries(screenGeos, false)!, basic({ map: nationScreenTexture(nation, away) }), N),
       this.piece(trackGeo, trackMat, N),
       this.piece(buildStands(style), toonVertexColors({ map: seatsTexture() }), N),
       this.piece(buildLightPanels(style), basic({ vertexColors: true }), N),
@@ -176,7 +174,7 @@ export class Stadium {
       this.piece(mergeGeometries(glowGeos, false)!, glowMat, N),
       this.piece(buildCrowdCards(), crowdMat, N),
     ];
-    pieces[5].renderOrder = 2;
+    pieces[7].renderOrder = 2;
     const set: StyleSet = { style, pieces, glowMat, pitchMats: [null, null, null], visible: true };
     this.sets[i] = set;
     this.sync();
@@ -201,6 +199,15 @@ export class Stadium {
     this.spawnStyle = i;
   }
 
+  /** Estilo del tramo donde está el jugador (z = 0). */
+  styleHere(): number {
+    for (const seg of this.segments) {
+      const z = seg.group.position.z;
+      if (z >= 0 && z - L <= 0) return seg.style;
+    }
+    return this.spawnStyle;
+  }
+
   get styleCount(): number {
     return STADIUMS.length;
   }
@@ -218,7 +225,6 @@ export class Stadium {
       }
       for (const piece of pieces) piece.instanceMatrix.needsUpdate = true;
     };
-    setMats(this.common, null);
     this.sets.forEach((set, idx) => {
       if (!set) return;
       const used = this.segments.some((seg) => seg.style === idx);
@@ -226,7 +232,15 @@ export class Stadium {
       if (used !== set.visible) {
         set.visible = used;
         for (const piece of set.pieces) piece.visible = used;
-        if (!used) setMats(set.pieces, idx);
+        if (!used) {
+          setMats(set.pieces, idx);
+          // El césped de un estadio que ya quedó atrás se libera (se vuelve a armar si hace falta): ahorra ~6 MB por estadio.
+          set.pitchMats.forEach((m, k) => {
+            m?.map?.dispose();
+            m?.dispose();
+            set.pitchMats[k] = null;
+          });
+        }
       }
     });
   }
@@ -338,7 +352,7 @@ export class Stadium {
     this.sync();
     this.blimp.position.x += dt * 3;
     if (this.blimp.position.x > 90) this.blimp.position.x = -90;
-    this.led.offset.x = (this.led.offset.x + dt * 0.08) % 1;
+    for (const t of this.ledTextures) t.offset.x = (t.offset.x + dt * 0.08) % 1;
   }
 }
 

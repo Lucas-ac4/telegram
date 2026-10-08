@@ -22,6 +22,8 @@ import { detectLang, getLang, setLang, t, type Lang } from '../i18n';
 import { loadModel } from '../engine/assets';
 import { PostFX } from '../engine/postfx';
 import { STADIUMS, STADIUM_CHANGE } from '../config/stadiums';
+import { NATIONS } from '../config/nations';
+import { KITS } from '../config/cosmetics';
 import { QUALITIES, detectQuality, saveQuality, type Quality, type QualityId } from '../config/quality';
 
 /** Nombre de la GPU (para estimar la potencia del dispositivo). */
@@ -54,6 +56,10 @@ export class Game {
   private nextChangeAt = STADIUM_CHANGE.firstMeters;
   private toastAt = 0;
   private toastName = '';
+  /** Cuándo (en metros) los obstáculos nuevos pasan a vestirse del estadio siguiente. */
+  private themeAt = 0;
+  private themeStyle = 0;
+  private snowAcc = 0;
   private post: PostFX | null = null;
   private postWanted = false;
   private postTune: [number, number, number, number] = [0.35, 1.1, 1.05, 0.95];
@@ -110,6 +116,10 @@ export class Game {
   private fovPulse = 0;
   private trauma = 0;
   private prevX = 0;
+
+  // Tropiezo (roce de costado): el primero se perdona.
+  private stumbleWindow = 0;
+  private stumbleGrace = 0;
 
   // Racha de monedas.
   private combo = 0;
@@ -175,6 +185,8 @@ export class Game {
     setLang(detectLang(profile.lang, Telegram.unsafeUser?.language_code));
     this.sfx.muted = profile.muted;
     this.player.character.setLook(profile.look);
+    this.obstacles.setPlayerKit(KITS.find((k) => k.id === profile.look.kit) ?? KITS[0]);
+    this.obstacles.setTheme(this.runStyle);
     this.ui = new UI({
       onPlay: () => this.play(),
       onNavigate: (v) => this.enterMenu(v),
@@ -200,6 +212,7 @@ export class Game {
       onLook: (look) => {
         Save.setLook(look);
         this.player.character.setLook(Save.profile.look);
+        this.obstacles.setPlayerKit(KITS.find((k) => k.id === Save.profile.look.kit) ?? KITS[0]);
         this.sfx.lane();
         this.ui.refresh(Save.profile);
       },
@@ -266,6 +279,8 @@ export class Game {
     this.camera.position.copy(this.camBase);
     this.camLook.set(0, 1.15, 0);
 
+    // Los modelos de los otros estadios se arman de a uno mientras estás en el menú (sin tirones en la partida).
+    for (let i = 0; i < STADIUMS.length; i++) window.setTimeout(() => this.obstacles.warm(i), 2600 + i * 700);
     this.loadOptionalAssets();
     this.renderer.setAnimationLoop((t) => this.frame(t));
   }
@@ -300,6 +315,7 @@ export class Game {
       this.spawner.reset(false);
       this.runStyle = this.pickStyle();
       this.stadium.reset(this.runStyle);
+      this.obstacles.setTheme(this.runStyle);
       this.player.reset();
       this.applyTheme();
       this.player.group.rotation.y = Math.PI; // mira a cámara
@@ -322,7 +338,15 @@ export class Game {
       this.stadium.setNextStyle(this.curStyle);
       // El aviso sale cuando los tramos nuevos llegan hasta el jugador (están ~150 m más adelante).
       this.toastAt = this.distance + 150;
-      this.toastName = STADIUMS[this.curStyle].name[getLang()];
+      const nation = NATIONS[STADIUMS[this.curStyle].nation];
+      this.toastName = `${nation.emoji} ${nation.name[getLang()]}`;
+      // Los camiones y rivales nuevos se visten del nuevo país cuando los tramos nuevos llegan a donde se generan.
+      this.themeAt = this.distance + 38;
+      this.themeStyle = this.curStyle;
+    }
+    if (this.themeAt > 0 && this.distance >= this.themeAt) {
+      this.themeAt = 0;
+      this.obstacles.setTheme(this.themeStyle);
     }
     if (this.toastAt > 0 && this.distance >= this.toastAt) {
       this.toastAt = 0;
@@ -354,6 +378,8 @@ export class Game {
     this.spawner.reset(profile.gamesPlayed < 2);
     if (!fromMenu) this.runStyle = this.pickStyle();
     this.stadium.reset(this.runStyle);
+    this.obstacles.setTheme(this.runStyle);
+    this.themeAt = 0;
     this.curStyle = this.runStyle;
     this.nextChangeAt = STADIUM_CHANGE.firstMeters;
     this.toastAt = 0;
@@ -368,6 +394,8 @@ export class Game {
     this.stateTime = 0;
     this.paused = false;
     this.revivesUsed = 0;
+    this.stumbleGrace = 0;
+    this.stumbleWindow = 0;
     this.saved = { meters: 0, coins: 0, newGame: true };
 
     // Potenciadores elegidos en el inicio.
@@ -425,6 +453,23 @@ export class Game {
     this.player.shielded = false;
   }
 
+  /** Roce de costado: te vas para el costado, parpadeás un rato y el primero no cuenta. */
+  private stumble(hit: { group: THREE.Group; lane: number }): void {
+    const S = CONFIG.stumble;
+    this.stumbleGrace = S.graceSeconds;
+    this.stumbleWindow = S.windowSeconds;
+    this.player.ghost = S.graceSeconds;
+    // Si te metiste en el carril al que querías ir, volvés al anterior; si lo estabas dejando, seguís.
+    if (hit.lane === this.player.lane) this.player.bounceFrom(hit.group.position.x);
+    this.player.character.punch(-2.4);
+    this.effects.impact(new THREE.Vector3(this.player.x, 0.9, -0.4), 0xffd23f);
+    this.trauma = Math.max(this.trauma, 0.4);
+    this.combo = 0;
+    this.ui.setCombo(0);
+    this.sfx.land();
+    Telegram.hapticError();
+  }
+
   private die(): void {
     this.clearBoosts();
     this.player.dead = true;
@@ -468,10 +513,27 @@ export class Game {
   }
 
   private firstFrame = true;
+  /** Simulación sin dibujar (tests de balance). */
+  private headless = false;
+  private simClock = 1e6;
+
+  /**
+   * Avanza el juego sin dibujar: sirve para medir la dificultad con bots (cientos de partidas en segundos).
+   * `hook` se llama en cada paso; si devuelve false, la simulación termina.
+   */
+  simulate(steps: number, dt = 1 / 60, hook?: (g: Game) => boolean | void): void {
+    this.headless = true;
+    for (let i = 0; i < steps; i++) {
+      this.simClock += dt * 1000;
+      this.frame(this.simClock);
+      if (hook && hook(this) === false) break;
+    }
+    this.headless = false;
+  }
 
   private frame(timestamp: number): void {
     this.timer.update(timestamp);
-    const rawDt = this.timer.getDelta();
+    const rawDt = Math.max(0, this.timer.getDelta());
     const dt = Math.min(rawDt, 1 / 20);
     sharedUniforms.uTime.value += dt;
     this.adaptQuality(rawDt);
@@ -535,6 +597,14 @@ export class Game {
     const collected = this.coins.update(dt, worldSpeed, this.state === 'playing' ? this.player : null, magnet);
     for (const kind of this.pickups.update(dt, worldSpeed, this.state === 'playing' ? this.player : null)) this.activate(kind);
     this.effects.update(dt, worldSpeed);
+    // Nieve en el estadio de Noruega (según el tramo donde está el jugador).
+    if (this.quality.ambientFx && STADIUMS[this.stadium.styleHere()]?.snow) {
+      this.snowAcc += dt * (this.state === 'playing' ? 34 : 18);
+      while (this.snowAcc >= 1) {
+        this.snowAcc -= 1;
+        this.effects.snow(this.player.x, this.state !== 'playing');
+      }
+    }
     this.spot.visible = this.state === 'menu';
     if (this.state === 'menu' && this.quality.ambientFx) {
       this.spot.scale.setScalar(1 + Math.sin(this.stateTime * 1.6) * 0.04);
@@ -595,7 +665,9 @@ export class Game {
         x2: this.x2Time,
       });
 
-      const hit = this.obstacles.hit(this.player);
+      if (this.stumbleGrace > 0) this.stumbleGrace -= dt;
+      if (this.stumbleWindow > 0) this.stumbleWindow -= dt;
+      const hit = this.stumbleGrace > 0 ? null : this.obstacles.hit(this.player);
       if (hit) {
         // Un camión no sale volando: te sube al techo.
         const popUp = () => hit.kind === 'truck' && (this.player.y = TRUCK.top + 0.01);
@@ -619,6 +691,8 @@ export class Game {
           this.sfx.hit();
           Telegram.hapticError();
           this.ui.toast(t('toast.shield'));
+        } else if (this.stumbleWindow <= 0 && this.obstacles.overlapX(hit, this.player) < CONFIG.stumble.grazeMeters) {
+          this.stumble(hit);
         } else {
           this.die();
         }
@@ -628,7 +702,7 @@ export class Game {
     }
 
     this.updateCamera(dt, turbo);
-    this.draw();
+    if (!this.headless) this.draw();
     if (this.firstFrame) {
       this.firstFrame = false;
       const splash = document.getElementById('splash');
@@ -750,7 +824,7 @@ export class Game {
   }
 
   private adaptQuality(rawDt: number): void {
-    if (this.noAdapt || this.state !== 'playing' || rawDt > 0.25) return;
+    if (this.headless || this.noAdapt || this.state !== 'playing' || rawDt > 0.25) return;
     this.frameAcc += rawDt;
     this.frameCount++;
     if (this.frameCount < 90) return;
@@ -781,20 +855,20 @@ export class Game {
     if (this.state === 'menu') {
       const t = this.stateTime;
       if (this.view === 'locker') {
-        if (this.ui.lockerTab === 'kit') {
+        if (!this.ui.lockerCloseUp) {
           // Cuerpo entero, arriba (el panel ocupa la parte de abajo).
-          pos.set(0, 1.25, 5.6);
-          look.set(0, 0.3, 0);
+          pos.set(0, 1.2, 4.5);
+          look.set(0, 0.42, 0);
         } else {
           // Pelo / peinado: primer plano de la cabeza.
           pos.set(0.2, 2.0, 2.3);
           look.set(0, 1.8, 0);
         }
       } else if (this.view === 'shop') {
-        pos.set(1.6, 2.4, 6.5);
-        look.set(0.4, 1.6, 0);
+        pos.set(1.4, 2.2, 5.4);
+        look.set(0.4, 1.45, 0);
       } else {
-        pos.set(0.35 + Math.sin(t * 0.4) * 0.3, 1.75, 5.2);
+        pos.set(0.3 + Math.sin(t * 0.4) * 0.25, 1.6, 4.3);
         look.set(0, 0.95, 0);
       }
     } else {
@@ -846,7 +920,7 @@ export class Game {
     const minV = THREE.MathUtils.radToDeg(2 * Math.atan(Math.tan(THREE.MathUtils.degToRad(C.minHorizontalFov / 2)) / aspect));
     this.fovPulse *= Math.exp(-dt * 5);
     const boost = this.state === 'playing' ? speedT * C.speedFovBoost + (turbo ? 10 : 0) + this.fovPulse : 0;
-    const closeUp = this.state === 'menu' && this.view === 'locker' && this.ui.lockerTab !== 'kit';
+    const closeUp = this.state === 'menu' && this.view === 'locker' && this.ui.lockerCloseUp;
     const fov = closeUp ? 34 : (this.state === 'menu' ? Math.max(48, minV * 0.8) : Math.max(C.baseVerticalFov, minV)) + boost;
     if (Math.abs(fov - this.camera.fov) > 0.01) {
       this.camera.fov += (fov - this.camera.fov) * k;

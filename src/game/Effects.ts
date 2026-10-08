@@ -10,7 +10,7 @@ const rnd = (a: number, b: number) => a + Math.random() * (b - a);
  */
 export class Effects {
   /** Humo / polvo / pasto (mezcla normal). */
-  private soft = new Particles(260, false, 1);
+  private soft = new Particles(360, false, 1);
   /** Chispas, brillos, estelas (mezcla aditiva). */
   private glow = new Particles(260, true, 1);
   private runAcc = 0;
@@ -58,6 +58,15 @@ export class Effects {
       x: x + rnd(-1.6, 1.6), y: rnd(0.1, 1.2), z: rnd(-0.8, 1.2),
       vx: rnd(-0.1, 0.1), vy: rnd(0.25, 0.6), vz: rnd(-0.1, 0.1),
       life: rnd(2.2, 3.6), size: rnd(7, 13), grow: -0.3, color: 0xffe9a8, alpha: 0.75,
+    });
+  }
+
+  /** Copo de nieve: cae lento y se mueve con el mundo. `near` = menú (cae cerca de la cámara). */
+  snow(x: number, near = false): void {
+    this.soft.emit({
+      x: x + rnd(-9, 9), y: rnd(5.5, 9), z: near ? rnd(-6, 3) : rnd(-34, 1),
+      vx: rnd(-0.5, 0.5), vy: -rnd(1.1, 2.1), vz: rnd(-0.2, 0.2),
+      life: rnd(3.2, 4.4), size: rnd(10, 18), grow: 0, color: 0xffffff, alpha: 0.85, world: !near,
     });
   }
 

@@ -6,6 +6,8 @@ import { basic } from '../engine/materials';
 import { blobTexture } from '../engine/textures';
 
 const P = CONFIG.player;
+/** Radio de la pelota (m): una pelota real mide 0,11; un poco más grande para que se lea en pantalla. */
+const BALL_R = 0.14;
 
 /**
  * Lógica de movimiento del jugador: 3 carriles, salto, barrida y caída rápida.
@@ -13,7 +15,7 @@ const P = CONFIG.player;
  */
 export class Player {
   character: Avatar = new Character();
-  readonly ball = createBall(0.16);
+  readonly ball = createBall(BALL_R);
   readonly group = new THREE.Group();
   private shadow: THREE.Mesh;
   private ballShadow: THREE.Mesh;
@@ -35,6 +37,8 @@ export class Player {
   shielded = false;
   /** Segundos de invulnerabilidad restantes (parpadeo). */
   grace = 0;
+  /** Parpadeo del tropiezo (sin romper obstáculos). */
+  ghost = 0;
 
   /** Eventos para sonido / haptics. */
   onJump?: () => void;
@@ -45,7 +49,7 @@ export class Player {
   constructor(scene: THREE.Scene) {
     this.group.add(this.character.root);
     // Escala visual (la caja de colisión no cambia): un atleta real se ve chico a la distancia de la cámara.
-    this.character.root.scale.setScalar(1.17);
+    this.character.root.scale.setScalar(0.98);
     scene.add(this.group, this.ball);
 
     this.shadow = new THREE.Mesh(
@@ -109,7 +113,7 @@ export class Player {
   useAvatar(avatar: Avatar): void {
     this.group.remove(this.character.root);
     this.character = avatar;
-    avatar.root.scale.setScalar(1.17);
+    avatar.root.scale.setScalar(0.98);
     this.group.add(avatar.root);
   }
 
@@ -123,6 +127,7 @@ export class Player {
     this.dead = false;
     this.shielded = false;
     this.grace = 0;
+    this.ghost = 0;
     this.floor = 0;
     this.superJump = 0;
     this.flip = 0;
@@ -131,6 +136,12 @@ export class Player {
     this.ball.scale.setScalar(1);
     this.character.reset();
     this.group.rotation.set(0, 0, 0);
+  }
+
+  /** Rebote del tropiezo: vuelve al carril del que venía (si te metiste en un carril ocupado). */
+  bounceFrom(obstacleX: number): void {
+    const away = this.x < obstacleX ? -1 : 1;
+    this.lane = THREE.MathUtils.clamp(Math.round((this.x + away * 1.0) / CONFIG.lanes.width + (CONFIG.lanes.count - 1) / 2), 0, CONFIG.lanes.count - 1);
   }
 
   moveLane(dir: -1 | 1): void {
@@ -201,7 +212,8 @@ export class Player {
       this.bubble.scale.setScalar(1 + Math.sin(performance.now() / 120) * 0.04);
       (this.bubble.material as THREE.ShaderMaterial).uniforms.uTime.value = performance.now() / 1000;
     }
-    this.character.setBlink(this.grace > 0 && !this.dead);
+    if (this.ghost > 0) this.ghost -= dt;
+    this.character.setBlink((this.grace > 0 || this.ghost > 0) && !this.dead);
 
     const pose: Pose = this.dead
       ? 'dead'
@@ -256,8 +268,8 @@ export class Player {
     if (this.kickT > 0) {
       this.kickT -= dt;
       // Arranca el golpe a mitad del swing (el pie llega a la pelota) y vuela hacia adelante.
-      if (this.kickT > 0.38) {
-        b.position.set(this.x + 0.46, this.y + 0.25, -0.5);
+      if (this.kickT > 0.27) {
+        b.position.set(this.x + 0.17, this.y + BALL_R, -0.62);
       } else {
         this.kickVy -= 14 * dt;
         b.position.z -= 38 * dt;
@@ -268,7 +280,7 @@ export class Player {
       if (this.kickT <= 0) {
         this.ballFlying = false;
         b.scale.setScalar(1);
-        b.position.set(this.x + 0.46, this.y + 0.3, -0.4);
+        b.position.set(this.x + 0.17, this.y + BALL_R + 0.06, -0.6);
       }
       return;
     }
@@ -277,8 +289,8 @@ export class Player {
       this.dribble += dt;
       const h = Math.abs(Math.sin(this.dribble * Math.PI * 1.6));
       // El personaje mira a cámara (+z) en el menú: su pie derecho queda en -x.
-      // Jueguito al costado (no tapa la cara).
-      b.position.set(this.x - 0.42, 0.3 + h * 0.75, 0.42);
+      // La pelota sube desde el empeine y cae al mismo pie, por delante de la pierna (la tapa un poco).
+      b.position.set(this.x - 0.11 + Math.sin(this.dribble * 1.7) * 0.025, BALL_R + 0.06 + h * 0.62, 0.34 + h * 0.06);
       b.rotation.x += dt * 4;
       return;
     }
@@ -287,16 +299,28 @@ export class Player {
       b.position.y = Math.max(0.22, b.position.y - dt * 3);
       return;
     }
-    // Conducción con la parte externa del pie derecho: la pelota va al costado
-    // (si fuera justo adelante, el cuerpo la taparía desde la cámara).
-    this.dribble += dt * (speed / 7);
-    const touch = Math.abs(Math.sin(this.dribble * 2.2));
-    const ahead = pose === 'slide' ? -1.4 : -0.45 - touch * 0.45;
-    const side = pose === 'slide' ? 0.25 : 0.46;
-    const targetY = this.y + 0.22 + (pose === 'jump' ? 0.2 : touch * 0.1);
-    b.position.x += (this.x + side - b.position.x) * Math.min(1, dt * 18);
-    b.position.y += (targetY - b.position.y) * Math.min(1, dt * 20);
-    b.position.z += (ahead - b.position.z) * Math.min(1, dt * 14);
-    b.rotation.x -= (speed * dt) / 0.22;
+    // Conducción pegada al pie derecho: en cada zancada el pie la toca (sale hacia adelante y se frena hasta el
+    // próximo toque). Se sincroniza con la fase de la zancada, así el pie y la pelota se ven conectados.
+    const phase = this.character.phase;
+    let ahead: number;
+    let hop: number;
+    if (pose === 'slide') {
+      ahead = -1.1;
+      hop = 0;
+    } else if (phase !== undefined) {
+      // 0 justo después del toque (pelota adelante) → 1 cuando el pie vuelve a alcanzarla.
+      const s = (((phase + Math.PI / 2) / (Math.PI * 2)) % 1 + 1) % 1;
+      ahead = -0.58 - 0.5 * Math.pow(1 - s, 1.6);
+      hop = Math.sin(Math.PI * Math.min(1, s * 1.1)) * 0.07;
+    } else {
+      ahead = -0.8;
+      hop = 0;
+    }
+    const side = pose === 'slide' ? 0.22 : 0.17;
+    const targetY = this.y + BALL_R + hop + (pose === 'jump' ? 0.25 : 0);
+    b.position.x += (this.x + side - b.position.x) * Math.min(1, dt * 20);
+    b.position.y += (targetY - b.position.y) * Math.min(1, dt * 24);
+    b.position.z += (ahead - b.position.z) * Math.min(1, dt * 30);
+    b.rotation.x -= (speed * dt) / BALL_R;
   }
 }

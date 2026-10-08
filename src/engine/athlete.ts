@@ -347,29 +347,51 @@ export function buildRig(detail: Detail, opts: RigOptions = {}): Rig {
     const hip = new THREE.Group();
     hip.position.set(side * SK.hipX, -SK.hipDrop, 0);
     hips.add(hip);
-    // Muslo (piel) + pierna del short con vuelo y ribete.
+    // Muslo con cuádriceps y glúteo (cortes elípticos, no un tubo) + pierna del short con vuelo y ribete.
     add(hip, [
-      { geo: tube([[0.0, 0.088], [-0.1, 0.096], [-0.22, 0.086], [-0.34, 0.073], [-0.42, 0.063]], R), key: 'skin' },
-      { geo: tube([[0.05, 0.1], [-0.06, 0.108], [-0.15, 0.113], [-0.205, 0.116]], R), key: 'shorts' },
+      {
+        geo: loft(
+          [
+            { y: 0.04, rx: 0.088, zf: -0.082, zb: 0.09 },
+            { y: -0.06, rx: 0.095, zf: -0.092, zb: 0.088 },
+            { y: -0.18, rx: 0.09, zf: -0.092, zb: 0.078 },
+            { y: -0.3, rx: 0.075, zf: -0.078, zb: 0.064 },
+            { y: -0.37, rx: 0.066, zf: -0.07, zb: 0.058 },
+            { y: -0.42, rx: 0.062, zf: -0.068, zb: 0.056 },
+          ],
+          R,
+        ),
+        key: 'skin',
+      },
+      { geo: tube([[0.095, 0.07], [0.06, 0.097], [-0.02, 0.107], [-0.1, 0.111], [-0.16, 0.114], [-0.205, 0.116]], R), key: 'shorts' },
       { geo: tube([[-0.19, 0.1182], [-0.218, 0.1182]], R), key: 'shortsTrim' },
     ]);
     const knee = new THREE.Group();
     knee.position.y = -SK.thigh;
     hip.add(knee);
-    const shin: Part[] = [
-      { geo: tube([[0, 0.063], [-0.06, 0.068], [-0.13, 0.071], [-0.22, 0.057], [-0.32, 0.045], [-0.385, 0.04]], R), key: 'skin' },
-      { geo: tube([[-0.03, 0.0715], [-0.07, 0.0755], [-0.13, 0.0775], [-0.22, 0.0635], [-0.32, 0.0525], [-0.372, 0.0475]], R), key: 'sock' },
-      { geo: tube([[-0.028, 0.0725], [-0.068, 0.0765]], R), key: 'sockBand' },
+    // Pantorrilla con gemelo marcado, tobillo fino y media con protector de canilla.
+    const calf: Section[] = [
+      { y: 0.0, rx: 0.062, zf: -0.066, zb: 0.058 },
+      { y: -0.07, rx: 0.066, zf: -0.062, zb: 0.082 },
+      { y: -0.15, rx: 0.062, zf: -0.058, zb: 0.082 },
+      { y: -0.25, rx: 0.048, zf: -0.048, zb: 0.058 },
+      { y: -0.335, rx: 0.037, zf: -0.04, zb: 0.04 },
+      { y: -0.385, rx: 0.04, zf: -0.042, zb: 0.044 },
     ];
-    // Botín: capellada, puntera, talón, suela y detalle de color.
+    const sock = calf.slice(1).map((c, i) => ({ ...c, rx: c.rx + 0.004, zf: c.zf - 0.004, zb: c.zb + 0.004, y: i === 0 ? -0.03 : c.y }));
+    const shin: Part[] = [
+      { geo: loft(calf, R), key: 'skin' },
+      { geo: loft(sock, R), key: 'sock' },
+    ];
+    // Botín: capellada, puntera, talón y suela fina (sin "tabla" rectangular).
     const bz = -0.385;
-    shin.push({ geo: ellipsoid(0.046, 0.046, 0.115, 12, 8, [0, bz - 0.03, -0.055]), key: 'boot' });
-    shin.push({ geo: new THREE.BoxGeometry(0.094, 0.02, 0.27).translate(0, bz - 0.078, -0.06), key: 'sole' });
+    shin.push({ geo: ellipsoid(0.045, 0.042, 0.115, 12, 8, [0, bz - 0.035, -0.05]), key: 'boot' });
+    shin.push({ geo: ellipsoid(0.047, 0.016, 0.135, 12, 6, [0, bz - 0.073, -0.058]), key: 'sole' });
     if (detail === 'hi') {
-      shin.push({ geo: ellipsoid(0.044, 0.034, 0.05, 10, 6, [0, bz - 0.05, -0.145]), key: 'boot' });
-      shin.push({ geo: ellipsoid(0.042, 0.05, 0.045, 10, 6, [0, bz - 0.028, 0.04]), key: 'boot' });
-      for (const s2 of [-1, 1]) shin.push({ geo: new THREE.BoxGeometry(0.005, 0.022, 0.12).translate(s2 * 0.047, bz - 0.045, -0.06), key: 'bootAccent' });
-      shin.push({ geo: new THREE.BoxGeometry(0.05, 0.004, 0.09).translate(0, bz - 0.011, -0.085), key: 'bootAccent' });
+      shin.push({ geo: ellipsoid(0.043, 0.032, 0.05, 10, 6, [0, bz - 0.052, -0.14]), key: 'boot' });
+      shin.push({ geo: ellipsoid(0.04, 0.05, 0.045, 10, 6, [0, bz - 0.03, 0.045]), key: 'boot' });
+      for (const s2 of [-1, 1]) shin.push({ geo: new THREE.BoxGeometry(0.005, 0.02, 0.1).translate(s2 * 0.045, bz - 0.048, -0.055), key: 'bootAccent' });
+      shin.push({ geo: new THREE.BoxGeometry(0.044, 0.004, 0.08).translate(0, bz - 0.0105, -0.08), key: 'bootAccent' });
     }
     add(knee, shin);
     legs.push({ hip, knee });
@@ -396,22 +418,60 @@ export function buildRig(detail: Detail, opts: RigOptions = {}): Rig {
     const shoulder = new THREE.Group();
     shoulder.position.set(side * SK.shoulderX, SK.shoulderY, 0);
     torso.add(shoulder);
+    // Manga corta que sigue el deltoides y se abre un poco en el puño (sin "bolón" en el hombro) + brazo con bíceps.
     add(shoulder, [
-      { geo: ellipsoid(0.06, 0.064, 0.06, 10, 8, [side * 0.006, -0.012, 0]), key: 'sleeve' },
-      { geo: tube([[0.0, 0.057], [-0.07, 0.059], [-0.13, 0.064]], R), key: 'sleeve' },
-      { geo: tube([[-0.11, 0.05], [-0.2, 0.0475], [-0.29, 0.041]], R), key: 'skin' },
-      { geo: tube([[-0.125, 0.0655], [-0.135, 0.0655]], R), key: 'trim' },
+      {
+        geo: loft(
+          [
+            { y: 0.06, rx: 0.052, zf: -0.052, zb: 0.05 },
+            { y: 0.02, rx: 0.066, zf: -0.064, zb: 0.062 },
+            { y: -0.04, rx: 0.062, zf: -0.06, zb: 0.058 },
+            { y: -0.1, rx: 0.058, zf: -0.056, zb: 0.054 },
+            { y: -0.14, rx: 0.06, zf: -0.058, zb: 0.056 },
+          ],
+          R,
+          { capTop: true },
+        ),
+        key: 'sleeve',
+      },
+      {
+        geo: loft(
+          [
+            { y: -0.12, rx: 0.05, zf: -0.05, zb: 0.048 },
+            { y: -0.19, rx: 0.048, zf: -0.05, zb: 0.044 },
+            { y: -0.25, rx: 0.041, zf: -0.042, zb: 0.04 },
+            { y: -0.29, rx: 0.038, zf: -0.04, zb: 0.038 },
+          ],
+          R,
+        ),
+        key: 'skin',
+      },
+      { geo: tube([[-0.128, 0.0605], [-0.14, 0.0605]], R), key: 'trim' },
     ]);
     const elbow = new THREE.Group();
     elbow.position.y = -SK.upperArm;
     shoulder.add(elbow);
+    // Antebrazo con volumen, muñeca fina y mano con pulgar.
     const fore: Part[] = [
-      { geo: tube([[0, 0.04], [-0.06, 0.044], [-0.15, 0.036], [-0.25, 0.029]], R), key: 'skin' },
-      { geo: ellipsoid(0.031, 0.054, 0.021, 10, 8, [0, -0.305, 0]), key: 'skin' },
+      {
+        geo: loft(
+          [
+            { y: 0.01, rx: 0.039, zf: -0.04, zb: 0.038 },
+            { y: -0.06, rx: 0.043, zf: -0.044, zb: 0.04 },
+            { y: -0.15, rx: 0.036, zf: -0.036, zb: 0.034 },
+            { y: -0.24, rx: 0.027, zf: -0.028, zb: 0.028 },
+            { y: -0.275, rx: 0.025, zf: -0.026, zb: 0.026 },
+          ],
+          R,
+        ),
+        key: 'skin',
+      },
+      { geo: ellipsoid(0.033, 0.05, 0.022, 10, 8, [0, -0.31, 0]), key: 'skin' },
     ];
     if (detail === 'hi') {
       fore.push({ geo: tube([[-0.2, 0.0345], [-0.245, 0.0335]], R), key: 'wrist' });
-      fore.push({ geo: ellipsoid(0.011, 0.028, 0.013, 6, 5, [side * -0.02, -0.285, -0.018]), key: 'skin' });
+      fore.push({ geo: xf(ellipsoid(0.012, 0.03, 0.014, 6, 5), [side * -0.022, -0.29, -0.018], [0, 0, side * 0.35]), key: 'skin' });
+      fore.push({ geo: ellipsoid(0.03, 0.026, 0.02, 8, 6, [0, -0.355, 0]), key: 'skin' });
     }
     add(elbow, fore);
     arms.push({ shoulder, elbow });

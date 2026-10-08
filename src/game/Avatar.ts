@@ -6,6 +6,8 @@ import type { LoadedModel } from '../engine/assets';
 /** Lo que el juego necesita de un jugador animado (lo cumplen el procedural y el .glb). */
 export interface Avatar {
   readonly root: THREE.Group;
+  /** Fase de la zancada (solo el procedural; sirve para sincronizar los toques de la pelota). */
+  phase?: number;
   update(dt: number, pose: Pose, cycle: number, ctx?: Ctx): void;
   setLook(look: Look): void;
   setBlink(on: boolean): void;
