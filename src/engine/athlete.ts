@@ -84,21 +84,21 @@ function headParts(R: number, detail: Detail): Part[] {
 
   const ey = 0.15;
   for (const side of [-1, 1]) {
-    const ex = side * 0.04;
+    const ex = side * 0.0385;
     const ez = frontZ(ey);
     // Ojo: esclerótica, iris, pupila, brillo y párpado.
-    parts.push({ geo: ellipsoid(0.0215, 0.0165, 0.01, 12, 8, [ex, ey, ez + 0.002]), key: 'eyeWhite' });
-    parts.push({ geo: ellipsoid(0.0142, 0.0142, 0.0045, 12, 8, [ex - side * 0.0015, ey - 0.0006, ez - 0.0068]), key: 'iris' });
-    parts.push({ geo: ellipsoid(0.0066, 0.0066, 0.003, 8, 6, [ex - side * 0.0015, ey - 0.0006, ez - 0.0104]), key: 'pupil' });
-    parts.push({ geo: ellipsoid(0.0034, 0.0034, 0.0016, 6, 5, [ex + 0.0045, ey + 0.0055, ez - 0.0128]), key: 'shine' });
+    parts.push({ geo: ellipsoid(0.0178, 0.0132, 0.0095, 12, 8, [ex, ey, ez + 0.002]), key: 'eyeWhite' });
+    parts.push({ geo: ellipsoid(0.0115, 0.0115, 0.0045, 12, 8, [ex - side * 0.0012, ey - 0.0005, ez - 0.0064]), key: 'iris' });
+    parts.push({ geo: ellipsoid(0.0054, 0.0054, 0.003, 8, 6, [ex - side * 0.0012, ey - 0.0005, ez - 0.0098]), key: 'pupil' });
+    parts.push({ geo: ellipsoid(0.0026, 0.0026, 0.0014, 6, 5, [ex + 0.0036, ey + 0.0045, ez - 0.0122]), key: 'shine' });
     // Párpado superior (piel) + línea de pestañas.
-    const lid = new THREE.SphereGeometry(0.0215, 12, 6, 0, Math.PI * 2, 0, Math.PI * 0.3);
+    const lid = new THREE.SphereGeometry(0.0182, 12, 6, 0, Math.PI * 2, 0, Math.PI * 0.34);
     lid.scale(1.05, 0.9, 0.85);
     parts.push({ geo: xf(lid, [ex, ey + 0.0035, ez + 0.0012], [-0.35, 0, 0]), key: 'skin' });
-    parts.push({ geo: xf(new THREE.TorusGeometry(0.0172, 0.0013, 4, 10, Math.PI * 0.95), [ex, ey + 0.0035, ez - 0.0065], [0, 0, 0.0], [1.15, 0.9, 1]), key: 'lash' });
+    parts.push({ geo: xf(new THREE.TorusGeometry(0.0146, 0.0012, 4, 10, Math.PI * 0.95), [ex, ey + 0.003, ez - 0.0065], [0, 0, 0.0], [1.15, 0.9, 1]), key: 'lash' });
     // Ceja.
     parts.push({
-      geo: xf(new THREE.CapsuleGeometry(0.0058, 0.044, 2, 6), [ex + side * 0.003, 0.18, frontZ(0.18) + 0.0005], [0, 0, Math.PI / 2 - side * 0.16]),
+      geo: xf(new THREE.CapsuleGeometry(0.0048, 0.042, 2, 6), [ex + side * 0.003, 0.18, frontZ(0.18) + 0.0005], [0, 0, Math.PI / 2 - side * 0.1]),
       key: 'brow',
     });
     // Oreja.
@@ -119,7 +119,6 @@ function headParts(R: number, detail: Detail): Part[] {
   // Sonrisa leve en las comisuras y rubor en las mejillas (rostro más amable).
   for (const side of [-1, 1]) {
     parts.push({ geo: ellipsoid(0.0028, 0.0042, 0.003, 5, 4, [side * 0.0215, 0.0775, mz - 0.0005]), key: 'lashDark' });
-    parts.push({ geo: xf(ellipsoid(0.019, 0.012, 0.004, 10, 6), [side * 0.052, 0.105, frontZ(0.105) + 0.009], [0, side * 0.5, 0]), key: 'blush' });
   }
   return parts;
 }
@@ -154,7 +153,7 @@ function headAt(y: number): { rx: number; zf: number; zb: number } {
  * Casquete de pelo que sigue exactamente la forma de la cabeza con un espesor `t`.
  * El borde inferior (línea de nacimiento) sigue `hairline(az)`; az = 0 al frente, ±π atrás.
  */
-function hairShell(t: number, hairline: (az: number) => number, radial: number, rows: number): THREE.BufferGeometry {
+function hairShell(t: number, hairline: (az: number) => number, radial: number, rows: number, extra?: (az: number, u: number) => number): THREE.BufferGeometry {
   const top = HEAD[HEAD.length - 1].y;
   const verts: number[] = [];
   const idx: number[] = [];
@@ -168,9 +167,11 @@ function hairShell(t: number, hairline: (az: number) => number, radial: number, 
       const y = y0 + (top + t - y0) * (1 - Math.pow(1 - u, 1.35));
       const sec = headAt(Math.min(y, top));
       const shrink = y > top ? Math.max(0, 1 - (y - top) / t) : 1; // se cierra en la coronilla
-      const rx = (sec.rx + t) * shrink;
+      // `extra` = grosor adicional según la zona (volumen del jopo, flequillo, etc.)
+      const tt = t + (extra ? extra(az, u) : 0);
+      const rx = (sec.rx + tt) * shrink;
       const zc = (sec.zf + sec.zb) / 2;
-      const rz = ((sec.zb - sec.zf) / 2 + t) * shrink;
+      const rz = ((sec.zb - sec.zf) / 2 + tt) * shrink;
       verts.push(rx * Math.sin(phi), y, zc + rz * Math.cos(phi));
     }
   }
@@ -189,28 +190,21 @@ function hairShell(t: number, hairline: (az: number) => number, radial: number, 
   return g;
 }
 
-/** Aleta de la cresta (mohicano) con puntas. Perfil de frente (-z) a nuca (+z). */
-function mohawk(): THREE.BufferGeometry {
-  const pts: THREE.Vector2[] = [];
-  const steps = 12;
-  const a0 = -0.95;
-  const a1 = 1.65;
-  const cy = 0.12;
-  const inner = 0.126;
-  for (let k = 0; k <= steps; k++) {
-    const a = a0 + ((a1 - a0) * k) / steps;
-    const taper = Math.min(1, Math.min(k, steps - k) / 3);
-    const r = inner + 0.012 + (k % 2 === 0 ? 0.075 : 0.04) * (0.4 + 0.6 * taper);
-    pts.push(new THREE.Vector2(Math.sin(a) * r, cy + Math.cos(a) * r));
+/** Cresta suave: una aleta de mechones superpuestos (altos al medio, bajos en las puntas) que sigue la curva de la cabeza. */
+function mohawkFin(): Part[] {
+  const parts: Part[] = [];
+  const N = 24;
+  for (let k = 0; k < N; k++) {
+    const t = k / (N - 1);
+    const a = -0.95 + 2.6 * t;
+    const h = 0.025 + 0.055 * Math.sin(Math.PI * t) ** 0.7;
+    const rc = 0.122 + h * 0.45;
+    parts.push({
+      geo: xf(ellipsoid(0.0145, h * 0.62, 0.03, 8, 5), [0, 0.12 + Math.cos(a) * rc, Math.sin(a) * rc], [a, 0, 0]),
+      key: 'hair',
+    });
   }
-  for (let k = steps; k >= 0; k--) {
-    const a = a0 + ((a1 - a0) * k) / steps;
-    pts.push(new THREE.Vector2(Math.sin(a) * inner, cy + Math.cos(a) * inner));
-  }
-  const g = new THREE.ExtrudeGeometry(new THREE.Shape(pts), { depth: 0.018, bevelEnabled: true, bevelThickness: 0.009, bevelSize: 0.008, bevelSegments: 2 });
-  g.translate(0, 0, -0.009);
-  g.rotateY(-Math.PI / 2);
-  return g;
+  return parts;
 }
 
 function hairParts(style: HairStyleId, detail: Detail): Part[] {
@@ -239,49 +233,45 @@ function hairParts(style: HairStyleId, detail: Detail): Part[] {
         { geo: hairShell(0.0065, (az) => 0.115 + 0.09 * Math.pow((1 + Math.cos(az)) / 2, 0.6), radial, rows), key: 'stubHi' },
       ];
     }
-    case 'melena': {
-      // Pelo largo hasta los hombros con raya al costado.
-      const back: Section[] = [
-        { y: 0.15, rx: 0.09, zf: 0.045, zb: 0.114 },
-        { y: 0.03, rx: 0.093, zf: 0.05, zb: 0.126 },
-        { y: -0.1, rx: 0.088, zf: 0.045, zb: 0.12 },
-        { y: -0.2, rx: 0.07, zf: 0.045, zb: 0.104 },
-        { y: -0.255, rx: 0.04, zf: 0.05, zb: 0.088 },
-        { y: -0.268, rx: 0.01, zf: 0.06, zb: 0.075 },
+    case 'jopo': {
+      // Jopo / tupé: costados bajos con degradé y volumen peinado hacia arriba y atrás.
+      return [
+        { geo: hairShell(0.0035, (az) => natural(-0.02)(az) * 0.9, radial, rows), key: 'stubLo' },
+        { geo: hairShell(0.0065, (az) => 0.12 + 0.09 * Math.pow((1 + Math.cos(az)) / 2, 0.6), radial, rows), key: 'stubHi' },
+        // Masa de pelo de arriba (casquete grueso) + el jopo levantado sobre la frente.
+        // Pelo de arriba: casquete y mechones anchos peinados hacia atrás, con el flequillo levantado (como el corto, pero con más volumen).
+        { geo: hairShell(0.014, (az) => 0.145 + 0.062 * Math.pow((1 + Math.cos(az)) / 2, 0.8), radial, rows), key: 'hair' },
+        { geo: xf(ellipsoid(0.066, 0.034, 0.1, 16, 9), [0.004, 0.232, -0.02], [-0.16, 0, -0.06]), key: 'hair' },
+        { geo: xf(ellipsoid(0.044, 0.024, 0.08, 12, 7), [-0.03, 0.236, -0.03], [-0.1, 0, 0.35]), key: 'hairLight' },
+        { geo: xf(ellipsoid(0.058, 0.026, 0.046, 12, 7), [0.012, 0.214, -0.098], [-0.78, 0, -0.2]), key: 'hair' },
       ];
-      const parts: Part[] = [shell(0.012, -0.075, 'hair'), { geo: loft(back, 14), key: 'hair' }];
-      for (const side of [-1, 1]) {
-        parts.push({ geo: xf(tube([[0.17, 0.02], [0.07, 0.03], [-0.07, 0.027], [-0.2, 0.017], [-0.275, 0.004]], 8), [side * 0.094, 0, -0.004]), key: side > 0 ? 'hairLight' : 'hair' });
-      }
-      parts.push({ geo: xf(ellipsoid(0.062, 0.02, 0.09, 12, 7), [0.012, 0.224, -0.03], [-0.2, 0, -0.1]), key: 'hairLight' });
-      return parts;
     }
     case 'cresta': {
       // Cresta con laterales rapados.
       return [
         { geo: hairShell(0.0035, (az) => natural(0.03)(az) * 0.92, radial, rows), key: 'stubLo' },
         { geo: hairShell(0.0065, (az) => 0.13 + 0.08 * Math.pow((1 + Math.cos(az)) / 2, 0.6), radial, rows), key: 'stubHi' },
-        { geo: mohawk(), key: 'hair' },
+        ...mohawkFin(),
       ];
     }
     case 'rulos': {
-      // Rulos: base corta en los costados y mechones rizados arriba.
-      const parts: Part[] = [shell(0.006, 0.0, 'stubHi')];
+      // Rulos: base de pelo del mismo color (densa) y rizos chicos y desparejos arriba, sin verse como bolitas.
+      const parts: Part[] = [shell(0.009, 0.0, 'hair')];
       const hl = natural(0.02);
       const golden = Math.PI * (3 - Math.sqrt(5));
-      const curl = ellipsoid(0.026, 0.024, 0.026, 7, 5);
-      const N = 120;
+      const curl = ellipsoid(0.021, 0.017, 0.021, 6, 4);
+      const N = 150;
       for (let i = 0; i < N; i++) {
         const t = i / (N - 1);
-        const uy = 1 - t * 1.0; // 1 arriba → 0 ecuador
+        const uy = 1 - t * 0.95; // 1 arriba → 0 ecuador
         const r = Math.sqrt(Math.max(0, 1 - uy * uy));
         const az = i * golden;
-        const x = Math.cos(az) * r * 0.104;
-        const z = 0.004 + Math.sin(az) * r * 0.12;
-        const y = 0.12 + uy * 0.145;
-        if (y < hl(Math.atan2(x, -(z - 0.004))) + 0.015) continue;
-        const j = 0.9 + ((i * 37) % 10) / 40;
-        parts.push({ geo: xf(curl, [x, y, z], [i, i * 2, 0], [j, j, j]), key: i % 3 === 0 ? 'hairLight' : 'hair' });
+        const x = Math.cos(az) * r * 0.108;
+        const z = 0.004 + Math.sin(az) * r * 0.124;
+        const y = 0.12 + uy * 0.15;
+        if (y < hl(Math.atan2(x, -(z - 0.004))) + 0.01) continue;
+        const j = 0.8 + ((i * 37) % 10) / 22;
+        parts.push({ geo: xf(curl, [x, y, z], [i, i * 2, i * 3], [j, j * 0.9, j]), key: i % 3 === 0 ? 'hairLight' : 'hair' });
       }
       return parts;
     }
@@ -314,8 +304,8 @@ export function buildRig(detail: Detail, opts: RigOptions = {}): Rig {
   const R = detail === 'hi' ? 18 : 8;
   const mat = pbrVertexColors({ roughness: 0.62 });
   const painted: Painted[] = [];
-  const add = (parent: THREE.Object3D, parts: Part[], pos: [number, number, number] = [0, 0, 0]) => {
-    const p = new Painted(parts, mat);
+  const add = (parent: THREE.Object3D, parts: Part[], pos: [number, number, number] = [0, 0, 0], material: THREE.Material = mat) => {
+    const p = new Painted(parts, material);
     p.mesh.position.set(...pos);
     parent.add(p.mesh);
     painted.push(p);
@@ -430,11 +420,12 @@ export function buildRig(detail: Detail, opts: RigOptions = {}): Rig {
   // Cabeza y cuello.
   add(head, headParts(R + 4, detail));
 
-  // Peinados (sólo el elegido se ve).
+  // Peinados (sólo el elegido se ve). El pelo es mate, sin brillo de plástico.
+  const hairMat = pbrVertexColors({ roughness: 0.82, envMapIntensity: 0.3 });
   const hairStyles = new Map<HairStyleId, Painted>();
-  const styles: HairStyleId[] = detail === 'hi' ? ['corto', 'rapado', 'melena', 'cresta', 'rulos'] : ['corto'];
+  const styles: HairStyleId[] = detail === 'hi' ? ['corto', 'rapado', 'jopo', 'cresta', 'rulos'] : ['corto'];
   for (const st of styles) {
-    const hp = add(head, hairParts(st, detail));
+    const hp = add(head, hairParts(st, detail), [0, 0, 0], hairMat);
     hairStyles.set(st, hp);
   }
   return { root, body, hips, torso, head, legs, arms, painted, jersey, hairStyles };

@@ -3,6 +3,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { CONFIG } from '../config/gameConfig';
 import { ModelBuilder, box, cylinder } from '../engine/geometry';
 import { basic, curved, toon, toonVertexColors } from '../engine/materials';
+import { STADIUMS, type StadiumStyle } from '../config/stadiums';
 import {
   BANNER_DESIGNS,
   bannersTexture,
@@ -34,141 +35,200 @@ const TOWER_X = STEP0 + STEPS * STEP_W + 1.8;
 interface Segment {
   group: THREE.Group;
   pitch: THREE.Mesh;
+  /** Estilo de estadio (índice en STADIUMS) y marca de cancha de este tramo. */
+  style: number;
+  marks: 0 | 1 | 2;
+}
+
+/** Piezas ya construidas de un estilo de estadio (se arman la primera vez que se necesitan). */
+interface StyleSet {
+  style: StadiumStyle;
+  pieces: THREE.InstancedMesh[];
+  glowMat: THREE.MeshBasicMaterial;
+  pitchMats: (THREE.MeshLambertMaterial | null)[];
+  visible: boolean;
 }
 
 /**
- * Estadio infinito: tramos de 24 m que se reciclan (pool).
- * Cada tramo = césped (con marcas de cancha variables) + pista + carteles LED + tribunas con
- * asientos + público + pantalla gigante + túneles + torres de luz.
+ * Estadio infinito: tramos de 24 m que se reciclan (pool). Cada tramo pertenece a un estilo (STADIUMS):
+ * el estilo de los tramos nuevos se puede cambiar en cualquier momento (`setNextStyle`) y la cancha "se
+ * transforma" en otro estadio a medida que los tramos entran desde la niebla.
+ * Piezas por estilo = InstancedMesh (1 draw call por pieza para todos los tramos de ese estilo).
  */
 export class Stadium {
   private segments: Segment[] = [];
-  private pitchMats: THREE.MeshLambertMaterial[];
+  private sets: (StyleSet | null)[] = STADIUMS.map(() => null);
+  private common: THREE.InstancedMesh[] = [];
   private led: THREE.CanvasTexture;
   private cloudMat!: THREE.MeshBasicMaterial;
   private stars!: THREE.Points;
   private disc!: THREE.Mesh;
   private discMat!: THREE.MeshBasicMaterial;
-  private glowMat: THREE.MeshBasicMaterial;
   private blimp!: THREE.Group;
   private blimpMat!: THREE.MeshBasicMaterial;
   private crowdFx = { value: 1 };
-  private crowdMat = crowdCardMaterial(this.crowdFx);
+  private floodlights = false;
+  private spawnStyle = 0;
+  private grassDetail = grassDetailTexture();
+  private pitchGeo: THREE.PlaneGeometry;
 
-  constructor(scene: THREE.Scene) {
-    const detail = grassDetailTexture();
-    this.pitchMats = ([0, 1, 2] as const).map((v) => pitchMaterial(pitchTexture(LANES, CONFIG.lanes.width, PITCH_HALF, v), detail));
-    const pitchGeo = new THREE.PlaneGeometry(PITCH_HALF * 2, L, 1, 16);
-    pitchGeo.rotateX(-Math.PI / 2);
-    pitchGeo.translate(0, 0, -L / 2);
-
-    const trackTex = trackTexture();
-    trackTex.repeat.set(1, L / 6);
-    const trackMat = toon(0xffffff, { map: trackTex });
-    const outerGeo = new THREE.PlaneGeometry(TRACK_W, L, 1, 16);
-    outerGeo.rotateX(-Math.PI / 2);
+  constructor(private scene: THREE.Scene) {
+    this.pitchGeo = new THREE.PlaneGeometry(PITCH_HALF * 2, L, 1, 16);
+    this.pitchGeo.rotateX(-Math.PI / 2);
+    this.pitchGeo.translate(0, 0, -L / 2);
 
     this.led = ledTexture();
     this.led.repeat.set(2, 1);
-    const ledMat = basic({ map: this.led });
-    // Un cartel por lado, girado para mirar hacia la cancha.
-    const ledGeos = [-1, 1].map((side) => {
+    const N = CONFIG.world.segmentCount;
+    const sides = [-1, 1] as const;
+    // Cartel LED y pantalla gigante: iguales en todos los estadios.
+    const ledGeos = sides.map((side) => {
       const g = new THREE.PlaneGeometry(L, 0.85, 16, 1);
       g.rotateY(side * -Math.PI / 2);
       g.translate(side * (PITCH_HALF + 0.3), 0.62, -L / 2);
       return g;
     });
-
-    const standsGeo = buildStands();
-    const seatsTex = seatsTexture();
-    const standsMat = toonVertexColors({ map: seatsTex });
-    const lightsGeo = buildLightPanels();
-    const lightsMat = basic({ color: 0xfffbe0 });
-
-    // Pantalla gigante en la pared trasera.
-    const screenMat = basic({ map: screenTexture() });
-    const screenGeos = [-1, 1].map((side) => {
+    const screenGeos = sides.map((side) => {
       const g = new THREE.PlaneGeometry(5.4, 1.7);
       g.rotateY(side * -Math.PI / 2);
-      g.translate(side * (STEP0 + STEPS * STEP_W - 0.04 - 0.55 + 0.55), 5.1, -11.5);
+      g.translate(side * (STEP0 + STEPS * STEP_W - 0.04), 5.1, -11.5);
       return g;
     });
-
-    // Trapos colgados y banderas que flamean.
-    const bannerTex = bannersTexture();
-    const bannersGeo = buildBanners();
-    const bannersMat = toon(0xffffff, { map: bannerTex, side: THREE.DoubleSide });
-    const flagsGeo = buildFlags();
-    const flagsMat = curved(new THREE.MeshLambertMaterial({ map: bannerTex, side: THREE.DoubleSide }), {
-      key: 'flag',
-      header: 'attribute float flagT;',
-      afterBegin: 'transformed.x += sin(uTime * 7.0 + position.z * 2.5 + position.y) * 0.22 * flagT;',
-    });
-
-    // Brillo de los reflectores (sólo de noche / atardecer).
-    this.glowMat = basic({
-      map: glowTexture('rgba(255,250,225,1)', 'rgba(255,240,200,0.5)'),
-      transparent: true,
-      depthWrite: false,
-      blending: THREE.AdditiveBlending,
-    });
-    const glowGeo = new THREE.PlaneGeometry(5.5, 5.5);
-
-    // Público: tarjetas con una hinchada pintada (1 draw call por tramo).
-    const crowdGeo = buildCrowdCards();
-    const crowdMat = this.crowdMat;
-
-    // Piezas repetidas en todos los tramos = InstancedMesh (1 draw call por pieza, no por tramo).
-    const N = CONFIG.world.segmentCount;
-    const sides = [-1, 1] as const;
-    const trackGeo = mergeGeometries(
-      sides.map((side) => outerGeo.clone().translate(side * (PITCH_HALF + TRACK_W / 2), 0.005, -L / 2)),
-      false,
-    )!;
-    const glowGeos = sides.map((side) => glowGeo.clone().translate(side * (TOWER_X - 0.2), 15.6, -1.4));
-    this.piece(scene, trackGeo, trackMat, N);
-    this.piece(scene, mergeGeometries(ledGeos, false)!, ledMat, N);
-    this.piece(scene, mergeGeometries(screenGeos, false)!, screenMat, N);
-    this.piece(scene, standsGeo, standsMat, N);
-    this.piece(scene, lightsGeo, lightsMat, N);
-    this.piece(scene, bannersGeo, bannersMat, N);
-    this.piece(scene, flagsGeo, flagsMat, N);
-    this.piece(scene, mergeGeometries(glowGeos, false)!, this.glowMat, N).renderOrder = 2;
-    this.piece(scene, crowdGeo, crowdMat, N);
-
+    this.common.push(
+      this.piece(mergeGeometries(ledGeos, false)!, basic({ map: this.led }), N),
+      this.piece(mergeGeometries(screenGeos, false)!, basic({ map: screenTexture() }), N),
+    );
 
     for (let i = 0; i < N; i++) {
       const seg = new THREE.Group();
-      const pitch = new THREE.Mesh(pitchGeo, this.pitchMats[0]);
+      const pitch = new THREE.Mesh(this.pitchGeo, undefined);
       pitch.receiveShadow = true;
       seg.add(pitch);
       seg.position.z = -i * L + L / 2;
       scene.add(seg);
-      this.segments.push({ group: seg, pitch });
+      this.segments.push({ group: seg, pitch, style: 0, marks: 0 });
     }
-    this.sync();
+    this.ensureSet(0);
+    this.reset(0);
     this.addClouds(scene);
+
+    // Los otros estadios se arman de a uno mientras el jugador está en el menú (sin trabar el arranque).
+    let k = 1;
+    const warm = () => {
+      if (k < STADIUMS.length) {
+        this.ensureSet(k++);
+        setTimeout(warm, 500);
+      }
+    };
+    setTimeout(warm, 1500);
   }
 
-  private pieces: THREE.InstancedMesh[] = [];
-
-  private piece(scene: THREE.Scene, geo: THREE.BufferGeometry, mat: THREE.Material, n: number): THREE.InstancedMesh {
+  private piece(geo: THREE.BufferGeometry, mat: THREE.Material, n: number): THREE.InstancedMesh {
     const m = new THREE.InstancedMesh(geo, mat, n);
     m.frustumCulled = false;
     m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-    scene.add(m);
-    this.pieces.push(m);
+    this.scene.add(m);
     return m;
   }
 
-  /** Copia la posición de cada tramo a las instancias. */
+  /** Arma las piezas de un estilo (tribunas, pista, techo, luces, público, trapos...) si todavía no existen. */
+  private ensureSet(i: number): StyleSet {
+    const existing = this.sets[i];
+    if (existing) return existing;
+    const style = STADIUMS[i];
+    const N = CONFIG.world.segmentCount;
+    const sides = [-1, 1] as const;
+    const headY = 3.6 + style.towerH;
+
+    const trackTex = trackTexture(style.track);
+    trackTex.repeat.set(1, L / 6);
+    const trackMat = toon(0xffffff, { map: trackTex });
+    const outerGeo = new THREE.PlaneGeometry(TRACK_W, L, 1, 16);
+    outerGeo.rotateX(-Math.PI / 2);
+    const trackGeo = mergeGeometries(
+      sides.map((side) => outerGeo.clone().translate(side * (PITCH_HALF + TRACK_W / 2), 0.005, -L / 2)),
+      false,
+    )!;
+
+    const bannerTex = bannersTexture();
+    const bannersMat = toon(style.banners, { map: bannerTex, side: THREE.DoubleSide });
+    const flagsMat = curved(new THREE.MeshLambertMaterial({ map: bannerTex, color: style.banners, side: THREE.DoubleSide }), {
+      key: 'flag',
+      header: 'attribute float flagT;',
+      afterBegin: 'transformed.x += sin(uTime * 7.0 + position.z * 2.5 + position.y) * 0.22 * flagT;',
+    });
+    const glowMat = basic({
+      map: glowTexture(style.glow[0], style.glow[1]),
+      transparent: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+    });
+    glowMat.visible = this.floodlights;
+    const glowGeos = sides.map((side) => new THREE.PlaneGeometry(5.5, 5.5).translate(side * (TOWER_X - 0.2), headY, -1.4));
+    const crowdMat = crowdCardMaterial(this.crowdFx, crowdTexture(style.crowdShirts, style.crowdScarf));
+
+    const pieces = [
+      this.piece(trackGeo, trackMat, N),
+      this.piece(buildStands(style), toonVertexColors({ map: seatsTexture() }), N),
+      this.piece(buildLightPanels(style), basic({ vertexColors: true }), N),
+      this.piece(buildBanners(), bannersMat, N),
+      this.piece(buildFlags(style.flags / 2), flagsMat, N),
+      this.piece(mergeGeometries(glowGeos, false)!, glowMat, N),
+      this.piece(buildCrowdCards(), crowdMat, N),
+    ];
+    pieces[5].renderOrder = 2;
+    const set: StyleSet = { style, pieces, glowMat, pitchMats: [null, null, null], visible: true };
+    this.sets[i] = set;
+    this.sync();
+    return set;
+  }
+
+  private pitchMat(style: number, marks: 0 | 1 | 2): THREE.MeshLambertMaterial {
+    const set = this.ensureSet(style);
+    let m = set.pitchMats[marks];
+    if (!m) {
+      const st = set.style;
+      m = pitchMaterial(pitchTexture(LANES, CONFIG.lanes.width, PITCH_HALF, marks, st.grass), this.grassDetail);
+      m.color.setHex(st.grassTint);
+      set.pitchMats[marks] = m;
+    }
+    return m;
+  }
+
+  /** Estilo de los tramos que entran de ahora en adelante (el cambio se ve llegar desde la niebla). */
+  setNextStyle(i: number): void {
+    this.ensureSet(i);
+    this.spawnStyle = i;
+  }
+
+  get styleCount(): number {
+    return STADIUMS.length;
+  }
+
+  /** Copia la posición de cada tramo a las instancias (los tramos de otro estilo quedan escondidos en cada pieza). */
   private sync(): void {
     const m = new THREE.Matrix4();
-    this.segments.forEach((seg, i) => {
-      m.makeTranslation(0, 0, seg.group.position.z);
-      for (const piece of this.pieces) piece.setMatrixAt(i, m);
+    const zero = new THREE.Matrix4().makeScale(0, 0, 0);
+    const setMats = (pieces: THREE.InstancedMesh[], style: number | null) => {
+      for (let i = 0; i < this.segments.length; i++) {
+        const seg = this.segments[i];
+        const show = style === null || seg.style === style;
+        const mat = show ? m.makeTranslation(0, 0, seg.group.position.z) : zero;
+        for (const piece of pieces) piece.setMatrixAt(i, mat);
+      }
+      for (const piece of pieces) piece.instanceMatrix.needsUpdate = true;
+    };
+    setMats(this.common, null);
+    this.sets.forEach((set, idx) => {
+      if (!set) return;
+      const used = this.segments.some((seg) => seg.style === idx);
+      if (used) setMats(set.pieces, idx);
+      if (used !== set.visible) {
+        set.visible = used;
+        for (const piece of set.pieces) piece.visible = used;
+        if (!used) setMats(set.pieces, idx);
+      }
     });
-    for (const piece of this.pieces) piece.instanceMatrix.needsUpdate = true;
   }
 
   /** Nubes de fondo: fijas, sin curvatura ni niebla (son parte del cielo). */
@@ -244,14 +304,20 @@ export class Stadium {
     this.discMat.needsUpdate = true;
     this.disc.position.set(...theme.disc.pos);
     this.disc.scale.setScalar(theme.disc.size);
-    this.glowMat.visible = theme.floodlights;
+    this.floodlights = theme.floodlights;
+    for (const set of this.sets) if (set) set.glowMat.visible = theme.floodlights;
     this.blimpMat.color.setHex(theme.id === 'noche' ? 0x8f9bb8 : theme.id === 'atardecer' ? 0xf0c9a8 : 0xf2f4f8);
   }
 
-  reset(): void {
+  /** Vuelve al inicio con el estadio elegido (todos los tramos del mismo estilo). */
+  reset(style = this.spawnStyle): void {
+    this.spawnStyle = style;
+    this.ensureSet(style);
     this.segments.forEach((seg, i) => {
       seg.group.position.z = -i * L + L / 2;
-      seg.pitch.material = this.pitchMats[0];
+      seg.style = style;
+      seg.marks = 0;
+      seg.pitch.material = this.pitchMat(style, 0);
     });
     this.sync();
   }
@@ -260,11 +326,13 @@ export class Stadium {
     const dz = speed * dt;
     for (const seg of this.segments) {
       seg.group.position.z += dz;
-      // Tramo que quedó detrás de la cámara → se manda al final con otra marca de cancha.
+      // Tramo que quedó detrás de la cámara → se manda al final con otra marca de cancha (y el estilo vigente).
       if (seg.group.position.z - L > 12) {
         seg.group.position.z -= L * this.segments.length;
         const r = Math.random();
-        seg.pitch.material = this.pitchMats[r < 0.55 ? 0 : r < 0.78 ? 1 : 2];
+        seg.marks = r < 0.55 ? 0 : r < 0.78 ? 1 : 2;
+        seg.style = this.spawnStyle;
+        seg.pitch.material = this.pitchMat(seg.style, seg.marks);
       }
     }
     this.sync();
@@ -296,8 +364,8 @@ function pitchMaterial(map: THREE.Texture, detail: THREE.Texture): THREE.MeshLam
 }
 
 /** Material del público: tarjetas con recorte, salto por persona y flashes de cámara (todo en el shader). */
-function crowdCardMaterial(fx: { value: number }): THREE.MeshLambertMaterial {
-  const mat = curved(new THREE.MeshLambertMaterial({ map: crowdTexture(), alphaTest: 0.5, side: THREE.DoubleSide }), { key: 'crowdcard' });
+function crowdCardMaterial(fx: { value: number }, map: THREE.Texture): THREE.MeshLambertMaterial {
+  const mat = curved(new THREE.MeshLambertMaterial({ map, alphaTest: 0.5, side: THREE.DoubleSide }), { key: 'crowdcard' });
   const base = mat.onBeforeCompile;
   mat.onBeforeCompile = (shader, renderer) => {
     base(shader, renderer);
@@ -375,15 +443,15 @@ function boxUV(g: THREE.BufferGeometry, tileU: number, tileV: number): void {
 }
 
 /** Tribunas con asientos por sectores + muro + túneles + banco de suplentes + torres de luz (todo en 1 geometría). */
-function buildStands(): THREE.BufferGeometry {
-  const sectorColors = [0x3a58a8, 0xe9eef8, 0x3a58a8, 0x2c8a4a];
+function buildStands(style: StadiumStyle): THREE.BufferGeometry {
+  const sectorColors = style.seats;
   const parts: THREE.BufferGeometry[] = [];
   const seated = new ModelBuilder(); // con textura de asientos (se les calcula UV)
   const plain = new ModelBuilder(); // sin textura (UV 0)
   for (const side of [-1, 1]) {
     // Muro perimetral blanco con friso.
-    plain.add(boxZ(0.4, 1.0, L), 0xf4f1f8, [side * WALL_X, 0.5, -L / 2]);
-    plain.add(boxZ(0.42, 0.14, L), 0x14213d, [side * WALL_X, 1.02, -L / 2]);
+    plain.add(boxZ(0.4, 1.0, L), style.wall, [side * WALL_X, 0.5, -L / 2]);
+    plain.add(boxZ(0.42, 0.14, L), style.wallTrim, [side * WALL_X, 1.02, -L / 2]);
     // Escalones: cada uno dividido en 3 sectores de color (como las populares de verdad).
     for (let st = 0; st < STEPS; st++) {
       const h = 1.0 + st * 0.7;
@@ -395,18 +463,27 @@ function buildStands(): THREE.BufferGeometry {
     }
     // Pared trasera alta, con friso dorado.
     const backX = side * (STEP0 + STEPS * STEP_W + 0.3);
-    plain.add(boxZ(0.6, 7, L), 0x26335f, [backX, 3.5, -L / 2]);
-    plain.add(boxZ(0.7, 0.3, L), 0xe8b93c, [backX, 7, -L / 2]);
+    plain.add(boxZ(0.6, 7, L), style.back, [backX, 3.5, -L / 2]);
+    plain.add(boxZ(0.7, 0.3, L), style.backTrim, [backX, 7, -L / 2]);
     // Túneles de acceso (vomitorios) con marco: aparecen cada tramo.
     const tx = side * (STEP0 + 2 * STEP_W + 0.56);
     plain.add(new THREE.BoxGeometry(0.1, 1.5, 2.3), 0x090b14, [tx, 1.0 + 2 * 0.7 + 0.75, -6]);
-    plain.add(new THREE.BoxGeometry(0.14, 0.14, 2.6), 0xe8b93c, [tx, 1.0 + 2 * 0.7 + 1.55, -6]);
-    // Techo de la tribuna con cartelera y cercha.
+    plain.add(new THREE.BoxGeometry(0.14, 0.14, 2.6), style.backTrim, [tx, 1.0 + 2 * 0.7 + 1.55, -6]);
+    // Techo según el estilo: cercha inclinada (clásico / mundial), visera plana moderna (arena) o sin techo (popular).
     const roofX = side * (STEP0 + (STEPS * STEP_W) / 2 - 0.3);
-    plain.add(boxZ(STEPS * STEP_W + 1.6, 0.22, L), 0xdfe4ec, [roofX, 7.9, -L / 2], [0, 0, side * 0.1]);
-    plain.add(boxZ(0.12, 0.5, L), 0x26335f, [side * (WALL_X + 0.25), 7.45, -L / 2]);
-    for (const z of [-3, -9, -15, -21]) {
-      plain.add(new THREE.BoxGeometry(STEPS * STEP_W + 1.4, 0.1, 0.1), 0x8d97a8, [roofX, 7.72, z], [0, 0, side * 0.1]);
+    if (style.roof === 'truss') {
+      plain.add(boxZ(STEPS * STEP_W + 1.6, 0.22, L), style.roofColor, [roofX, 7.9, -L / 2], [0, 0, side * 0.1]);
+      plain.add(boxZ(0.12, 0.5, L), style.roofEdge, [side * (WALL_X + 0.25), 7.45, -L / 2]);
+      for (const z of [-3, -9, -15, -21]) {
+        plain.add(new THREE.BoxGeometry(STEPS * STEP_W + 1.4, 0.1, 0.1), 0x8d97a8, [roofX, 7.72, z], [0, 0, side * 0.1]);
+      }
+    } else if (style.roof === 'canopy') {
+      plain.add(boxZ(STEPS * STEP_W + 2.6, 0.45, L), style.roofColor, [roofX - side * 0.3, 8.3, -L / 2]);
+      plain.add(boxZ(0.14, 0.7, L), style.roofEdge, [side * (WALL_X - 0.9), 8.2, -L / 2]);
+      for (const z of [-3, -9, -15, -21]) plain.add(cylinder(0.09, 0.09, 8, 6), 0x3a4256, [side * (WALL_X - 0.8), 4.2, z]);
+    } else {
+      // Sin techo: una baranda baja y vigas de iluminación al fondo.
+      plain.add(boxZ(0.12, 0.5, L), style.roofEdge, [side * (WALL_X + 0.25), 1.35, -L / 2]);
     }
     // Banco de suplentes (techo curvo + asientos).
     const bx = side * (PITCH_HALF + 1.05);
@@ -424,8 +501,8 @@ function buildStands(): THREE.BufferGeometry {
       plain.add(new THREE.ConeGeometry(0.22, 0.42, 3), z === -2 ? 0xffd23f : 0xd7263d, [side * (PITCH_HALF - 0.1), 1.12, z - 0.22], [Math.PI / 2, 0, 0]);
     }
     // Torre de luz.
-    plain.add(cylinder(0.18, 0.25, 12, 8), 0x9aa5b1, [side * TOWER_X, 9.5, -2]);
-    plain.add(box(3.2, 1.8, 0.5, 0.1), 0x4b5563, [side * TOWER_X, 15.6, -2], [0, -side * 0.5, 0]);
+    plain.add(cylinder(0.18, 0.25, style.towerH, 8), 0x9aa5b1, [side * TOWER_X, 3.5 + style.towerH / 2, -2]);
+    plain.add(box(3.2, 1.8, 0.5, 0.1), 0x4b5563, [side * TOWER_X, 3.6 + style.towerH, -2], [0, -side * 0.5, 0]);
   }
   const sg = seated.build();
   boxUV(sg, 2.0, 1.4);
@@ -441,22 +518,32 @@ function buildStands(): THREE.BufferGeometry {
   return mergeGeometries(parts, false)!;
 }
 
-function buildLightPanels(): THREE.BufferGeometry {
+function buildLightPanels(style: StadiumStyle): THREE.BufferGeometry {
+  const headY = 3.6 + style.towerH;
   const parts: THREE.BufferGeometry[] = [];
   for (const side of [-1, 1]) {
     const b = new ModelBuilder();
     for (let r = 0; r < 2; r++) {
-      for (let c = 0; c < 4; c++) b.add(new THREE.BoxGeometry(0.62, 0.62, 0.1), 0xffffff, [(c - 1.5) * 0.72, 0.36 - r * 0.72, 0.27]);
+      for (let c = 0; c < 4; c++) b.add(new THREE.BoxGeometry(0.62, 0.62, 0.1), style.lightPanel, [(c - 1.5) * 0.72, 0.36 - r * 0.72, 0.27]);
     }
     const g = b.build();
     // Mismo giro y posición que el cabezal de la torre.
     g.rotateY(-side * 0.5);
-    g.translate(side * TOWER_X, 15.6, -2);
+    g.translate(side * TOWER_X, headY, -2);
     parts.push(g);
+    // Tiras de neón (arena): borde de la visera, tope del muro y pared del fondo.
+    if (style.neon) {
+      const n = new ModelBuilder();
+      const [c1, c2] = style.neon;
+      const backX = side * (STEP0 + STEPS * STEP_W + 0.3);
+      n.add(boxZ(0.16, 0.16, L), c1, [side * (WALL_X - 0.9), 7.9, -L / 2]);
+      n.add(boxZ(0.2, 0.14, L), c2, [side * (WALL_X - 0.22), 1.1, -L / 2]);
+      n.add(boxZ(0.16, 0.2, L), c1, [backX - side * 0.32, 6.6, -L / 2]);
+      n.add(boxZ(0.16, 0.14, L), c2, [backX - side * 0.32, 4.2, -L / 2]);
+      parts.push(n.build());
+    }
   }
-  const merged = mergeGeometries(parts, false)!;
-  merged.deleteAttribute('color');
-  return merged;
+  return mergeGeometries(parts, false)!;
 }
 
 /** Caja alargada en Z con subdivisiones (necesarias para que el mundo curvo no la deforme). */
@@ -481,12 +568,14 @@ function buildBanners(): THREE.BufferGeometry {
   return mergeGeometries(parts, false)!;
 }
 
+const FLAG_SPOTS: [number, number][] = [[2, -6], [4, -17], [3, -11], [5, -22], [1, -2], [4, -9]];
+
 /** Banderas en mástiles dentro de la hinchada; `flagT` = distancia al mástil (para el flameo). */
-function buildFlags(): THREE.BufferGeometry {
+function buildFlags(perSide: number): THREE.BufferGeometry {
   const parts: THREE.BufferGeometry[] = [];
   let k = 1;
   for (const side of [-1, 1]) {
-    for (const [step, z] of [[2, -6], [4, -17]] as const) {
+    for (const [step, z] of FLAG_SPOTS.slice(0, perSide)) {
       const x = side * (STEP0 + step * STEP_W);
       const y = 1.0 + step * 0.7 + 1.9;
       const cloth = new THREE.PlaneGeometry(1.6, 0.9, 8, 1);

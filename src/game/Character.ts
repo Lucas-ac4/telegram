@@ -19,10 +19,10 @@ const SPRING_K = 260;
 const SPRING_C = 16;
 
 /** Escalas de estilo: cabeza y extremidades más contundentes para que la silueta se lea en pantalla chica. */
-const STYLE = { head: 1.3, limbXZ: 1.3, torsoXZ: 1.13 };
+const STYLE = { head: 1.0, limbXZ: 1.05, torsoXZ: 1.03 };
 
 /** Tono de piel base (se puede ofrecer más tonos en el vestuario). */
-export const SKIN_TONE = '#dfa981';
+export const SKIN_TONE = '#bf8761';
 const jerseyCache = new Map<string, THREE.Texture>();
 
 const c = (hex: string | number) => new THREE.Color(hex);
@@ -37,7 +37,6 @@ export function makePalette(hairHex: string, kit: Kit): Palette {
     skin,
     skinShade: mix(skin, c('#7a3f2a'), 0.22),
     skinLight: mix(skin, c('#ffd9bd'), 0.22),
-    blush: mix(skin, c('#ee7f6c'), 0.32),
     lip: mix(skin, c('#a8453f'), 0.5),
     lipLower: mix(skin, c('#b24f48'), 0.45),
     eyeWhite: c('#f1eee9'),
@@ -173,53 +172,60 @@ export class Character implements Avatar {
     let torsoRotY = 0;
     let headRotX = 0;
     let headRotY = 0;
+    let hipsRotY = 0;
+    let bodyRotZ = 0;
     const [L, R] = this.legs;
     const [AL, AR] = this.arms;
 
     switch (pose) {
       case 'run': {
-        // Zancada de atleta: rodilla alta, brazos a 90°, torso inclinado y cabeza estable.
+        // Carrera de atleta: el ciclo de piernas y brazos va en contrafase, el torso rota contra la cadera,
+        // la cabeza queda estable y el cuerpo rebota dos veces por zancada. Los brazos NUNCA suben por encima del pecho.
         const s = Math.sin(p);
         const c = Math.cos(p);
         bodyY = Math.abs(c) * 0.06;
-        torsoRotX = -0.17;
-        torsoRotY = -s * 0.14;
-        set(L.hip, s * 0.8);
-        set(R.hip, -s * 0.8);
-        set(L.knee, -(0.25 + 1.35 * Math.max(0, c)));
-        set(R.knee, -(0.25 + 1.35 * Math.max(0, -c)));
-        set(AL.shoulder, -s * 0.9, 0, -0.08);
-        set(AR.shoulder, s * 0.9, 0, 0.08);
-        set(AL.elbow, 1.4 + Math.max(0, s) * 0.25);
-        set(AR.elbow, 1.4 + Math.max(0, -s) * 0.25);
-        headRotX = 0.1 + c * 0.025;
+        torsoRotX = -0.19;
+        torsoRotY = -s * 0.17;
+        hipsRotY = s * 0.12;
+        bodyRotZ = s * 0.03;
+        set(L.hip, s * 0.85);
+        set(R.hip, -s * 0.85);
+        set(L.knee, -(0.22 + 1.45 * Math.max(0, c)));
+        set(R.knee, -(0.22 + 1.45 * Math.max(0, -c)));
+        // Brazos: se balancean hacia adelante y atrás con el codo cerrado, un poco separados del cuerpo.
+        set(AL.shoulder, -s * 0.8 - 0.1, 0, -0.14);
+        set(AR.shoulder, s * 0.8 - 0.1, 0, 0.14);
+        set(AL.elbow, 1.25 + Math.max(0, s) * 0.35);
+        set(AR.elbow, 1.25 + Math.max(0, -s) * 0.35);
+        headRotX = 0.12 + c * 0.02;
+        headRotY = s * 0.04;
         break;
       }
       case 'jump': {
-        // Subida: rodilla al pecho, brazos arriba.
-        torsoRotX = -0.1;
+        // Subida: rodilla al pecho y brazos hacia adelante (no por encima de la cabeza).
+        torsoRotX = -0.12;
         set(L.hip, 1.2);
         set(L.knee, -1.6);
         set(R.hip, -0.35);
         set(R.knee, -0.95);
-        set(AL.shoulder, 2.5, 0, -0.5);
-        set(AR.shoulder, 2.5, 0, 0.5);
-        set(AL.elbow, 0.3);
-        set(AR.elbow, 0.3);
-        headRotX = -0.14;
+        set(AL.shoulder, 1.1, 0, -0.5);
+        set(AR.shoulder, -0.4, 0, 0.5);
+        set(AL.elbow, 1.1);
+        set(AR.elbow, 1.2);
+        headRotX = -0.1;
         break;
       }
       case 'fall': {
-        // Bajada: piernas buscan el piso, brazos abiertos para el equilibrio.
-        torsoRotX = -0.04;
+        // Bajada: piernas buscan el piso, brazos abiertos al costado para el equilibrio.
+        torsoRotX = -0.06;
         set(L.hip, 0.55);
         set(L.knee, -0.55);
         set(R.hip, -0.2);
         set(R.knee, -0.35);
-        set(AL.shoulder, 1.0, 0, -1.0);
-        set(AR.shoulder, 1.0, 0, 1.0);
-        set(AL.elbow, 0.3);
-        set(AR.elbow, 0.3);
+        set(AL.shoulder, 0.3, 0, -0.95);
+        set(AR.shoulder, 0.3, 0, 0.95);
+        set(AL.elbow, 0.5);
+        set(AR.elbow, 0.5);
         headRotX = 0.05;
         break;
       }
@@ -317,8 +323,8 @@ export class Character implements Avatar {
         }
         case 'reach': {
           // Agarrar un potenciador: brazo derecho adelante y arriba.
-          blend(AR.shoulder, 2.2, 0, 0.35);
-          blend(AR.elbow, 0.2);
+          blend(AR.shoulder, 1.4, 0, 0.25);
+          blend(AR.elbow, 0.5);
           torsoRotY -= 0.25 * w;
           break;
         }
@@ -337,6 +343,8 @@ export class Character implements Avatar {
       limb.rotation.z += (z - limb.rotation.z) * k;
     }
     const kb = 1 - Math.exp(-dt * 14);
+    this.rig.hips.rotation.y += (hipsRotY - this.rig.hips.rotation.y) * kb;
+    this.body.rotation.z += (bodyRotZ - this.body.rotation.z) * kb;
     const kh = 1 - Math.exp(-dt * 9); // la cabeza llega un poco después que el torso
     this.body.position.y += (bodyY - this.body.position.y) * kb;
     this.body.rotation.x += (bodyRotX - this.body.rotation.x) * kb;
@@ -360,6 +368,7 @@ export class Character implements Avatar {
 
   reset(): void {
     this.body.rotation.set(0, 0, 0);
+    this.rig.hips.rotation.set(0, 0, 0);
     this.body.position.set(0, 0, 0);
     this.torso.rotation.set(0, 0, 0);
     this.body.scale.set(1, 1, 1);

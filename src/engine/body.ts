@@ -164,15 +164,27 @@ export class Painted {
   }
 
   paint(palette: Palette): void {
-    const attr = this.mesh.geometry.attributes.color as THREE.BufferAttribute;
+    const geo = this.mesh.geometry;
+    const attr = geo.attributes.color as THREE.BufferAttribute;
     const arr = attr.array as Float32Array;
+    const pos = geo.attributes.position as THREE.BufferAttribute;
     for (const s of this.spans) {
       const c = palette[s.key];
       if (!c) continue;
+      const hair = s.key === 'hair' || s.key === 'hairLight';
       for (let i = s.start; i < s.start + s.count; i++) {
-        arr[i * 3] = c.r;
-        arr[i * 3 + 1] = c.g;
-        arr[i * 3 + 2] = c.b;
+        let k = 1;
+        if (hair) {
+          // Hebras: franjas verticales de brillo distinto (según el ángulo alrededor de la cabeza) y más oscuro hacia la raíz.
+          const x = pos.getX(i);
+          const z = pos.getZ(i);
+          const strand = Math.floor(((Math.atan2(x, z) + Math.PI) / (Math.PI * 2)) * 64);
+          const h = Math.sin(strand * 12.9898) * 43758.5453;
+          k = (0.84 + 0.3 * (h - Math.floor(h))) * (0.86 + 0.22 * Math.min(1, Math.max(0, (pos.getY(i) - 0.1) / 0.17)));
+        }
+        arr[i * 3] = c.r * k;
+        arr[i * 3 + 1] = c.g * k;
+        arr[i * 3 + 2] = c.b * k;
       }
     }
     attr.needsUpdate = true;

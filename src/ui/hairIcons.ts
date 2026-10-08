@@ -1,8 +1,8 @@
 import type { HairStyleId } from '../config/cosmetics';
 
 const INK = '#1d1a4f';
-const SKIN = '#e3ae86';
-const SKIN_SHADE = '#c98d66';
+const SKIN = '#c98f66';
+const SKIN_SHADE = '#a8704b';
 
 /** Aclara (amount > 0) u oscurece (amount < 0) un color #rrggbb. */
 function shade(hex: string, amount: number): string {
@@ -59,14 +59,12 @@ export function hairIcon(style: HairStyleId, hex: string, size = 44): string {
         <path d="M20 22 C22 15.5 27 12.5 32 12.5 C37 12.5 42 15.5 44 22 C40 18 24 18 20 22 Z" fill="${hex}" fill-opacity="0.8"/>
         ${hl('M24 15 C28 12.8 36 12.8 40 15', 0.35)}`;
       break;
-    case 'melena':
-      // Pelo largo hasta los hombros con raya al medio.
-      behind = `<path d="M13 31 C10 12 22 6 32 6 C42 6 54 12 51 31 L54 56 L42 56 L41 38 L23 38 L22 56 L10 56 Z" fill="${fill}" ${line}/>`;
-      front = `<path d="M17 33 C14.5 15 24 9 32 9 C40 9 49.5 15 47 33 C46.5 27 43 22 35.5 17.5 C34 20.5 29.5 24.5 24.5 25.5 C20.5 27 18 29.5 17 33 Z" fill="${fill}" ${line}/>
-        <path d="M32 9.5 C32.6 12 33.5 14 35.5 17.5" fill="none" stroke="${dark}" stroke-opacity="0.6" stroke-width="1.2"/>
-        <path d="M17 34 C14.5 44 12 52 11 62 L22 62 C21 52 21 43 22 36 Z" fill="${fill}" ${line}/>
-        <path d="M47 34 C49.5 44 52 52 53 62 L42 62 C43 52 43 43 42 36 Z" fill="${fill}" ${line}/>
-        ${hl('M21 14.5 C25 10.5 31 9.5 31 9.5', 0.5)}${hl('M14.5 44 L13.5 56', 0.4)}${hl('M49.5 44 L50.5 56', 0.4)}`;
+    case 'jopo':
+      // Jopo: costados rapados con degradé y mucho volumen levantado arriba.
+      front = `<path d="M18.2 29 C17.4 19 21 15 25 13.5 C24 8 30 3.5 37 4.2 C45 5 49.5 11 47.5 18 C46.5 21 46.2 25 45.8 29 C44.5 23.5 40 20.5 32 20.5 C24 20.5 19.5 23.5 18.2 29 Z" fill="${fill}" ${line}/>
+        <path d="M18.4 28 C18 23.5 21 21 24.5 19.5 C23 22 22.3 25 22.4 28 Z" fill="url(#${id}-s)" stroke="none"/>
+        ${hl('M27 9.5 C31 6.5 38 6.5 43 10', 0.55)}${hl('M25.5 15 C29 12 36 11.5 42 14.5', 0.35)}
+        <path d="M24.5 13.5 C30 16.5 38 16.5 46 17.5" fill="none" stroke="${dark}" stroke-opacity="0.45" stroke-width="1.2"/>`;
       break;
     case 'cresta':
       // Cresta: laterales rapados y fila central de puntas.

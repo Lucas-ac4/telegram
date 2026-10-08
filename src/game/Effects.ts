@@ -93,7 +93,7 @@ export class Effects {
       this.soft.emit({
         x: x + rnd(-0.18, 0.18), y: y + 0.07, z: rnd(0.1, 0.35),
         vx: rnd(-0.4, 0.4), vy: rnd(0.4, 0.9), vz: rnd(0.2, 1),
-        life: rnd(0.3, 0.5), size: rnd(26, 40), grow: 1.4, color: 0xd9e8c4, alpha: 0.32, drag: 2, world: true,
+        life: rnd(0.25, 0.4), size: rnd(16, 26), grow: 1.3, color: 0xd9e8c4, alpha: 0.24, drag: 2, world: true,
       });
     }
   }

@@ -18,9 +18,10 @@ import { Telegram } from '../telegram/telegram';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { Pickups, PICKUP_SECONDS, type PickupKind } from './Pickups';
 import { TRUCK } from '../config/gameConfig';
-import { detectLang, setLang, t, type Lang } from '../i18n';
+import { detectLang, getLang, setLang, t, type Lang } from '../i18n';
 import { loadModel } from '../engine/assets';
 import { PostFX } from '../engine/postfx';
+import { STADIUMS, STADIUM_CHANGE } from '../config/stadiums';
 import { QUALITIES, detectQuality, saveQuality, type Quality, type QualityId } from '../config/quality';
 
 /** Nombre de la GPU (para estimar la potencia del dispositivo). */
@@ -47,6 +48,12 @@ export class Game {
   private camBase = new THREE.Vector3();
   private tmp = new THREE.Vector3();
   private spot!: THREE.Mesh;
+  // Estadio actual de la partida y próximo cambio (en metros).
+  private runStyle = 0;
+  private curStyle = 0;
+  private nextChangeAt = STADIUM_CHANGE.firstMeters;
+  private toastAt = 0;
+  private toastName = '';
   private post: PostFX | null = null;
   private postWanted = false;
   private postTune: [number, number, number, number] = [0.35, 1.1, 1.05, 0.95];
@@ -291,13 +298,37 @@ export class Game {
       this.obstacles.clear();
       this.coins.clear();
       this.spawner.reset(false);
-      this.stadium.reset();
+      this.runStyle = this.pickStyle();
+      this.stadium.reset(this.runStyle);
       this.player.reset();
       this.applyTheme();
       this.player.group.rotation.y = Math.PI; // mira a cámara
     }
     this.view = view;
     this.ui.showView(view, Save.profile);
+  }
+
+  /** Estadio para la próxima partida: uno distinto al actual. */
+  private pickStyle(): number {
+    const n = STADIUMS.length;
+    return (this.runStyle + 1 + Math.floor(Math.random() * (n - 1))) % n;
+  }
+
+  /** Cada cierta cantidad de metros la cancha se transforma en otro estadio. */
+  private updateStadiumChange(): void {
+    if (this.distance >= this.nextChangeAt) {
+      this.nextChangeAt += STADIUM_CHANGE.everyMeters;
+      this.curStyle = (this.curStyle + 1) % STADIUMS.length;
+      this.stadium.setNextStyle(this.curStyle);
+      // El aviso sale cuando los tramos nuevos llegan hasta el jugador (están ~150 m más adelante).
+      this.toastAt = this.distance + 150;
+      this.toastName = STADIUMS[this.curStyle].name[getLang()];
+    }
+    if (this.toastAt > 0 && this.distance >= this.toastAt) {
+      this.toastAt = 0;
+      this.ui.toast(t('toast.stadium', { name: this.toastName }));
+      this.sfx.cheer();
+    }
   }
 
   private buy(id: ItemId): void {
@@ -321,7 +352,11 @@ export class Game {
     this.coins.clear();
     this.pickups.clear();
     this.spawner.reset(profile.gamesPlayed < 2);
-    this.stadium.reset();
+    if (!fromMenu) this.runStyle = this.pickStyle();
+    this.stadium.reset(this.runStyle);
+    this.curStyle = this.runStyle;
+    this.nextChangeAt = STADIUM_CHANGE.firstMeters;
+    this.toastAt = 0;
     this.player.reset();
     if (fromMenu) this.player.group.rotation.y = Math.PI;
     this.speed = CONFIG.speed.start;
@@ -541,12 +576,12 @@ export class Game {
       if (this.quality.ambientFx && Math.random() < dt * 7 && this.coins.sample(this.tmp)) this.effects.glint(this.tmp);
       if (this.quality.ambientFx && Math.random() < dt * 10 && this.pickups.sample(this.tmp)) this.effects.glint(this.tmp);
       if (this.player.ballFlying) this.effects.trail(this.player.ball.position);
+      this.updateStadiumChange();
       const meters = Math.floor(this.distance);
       this.ui.setDistance(meters);
       if (meters >= this.nextCheer) {
         this.nextCheer += 100;
         this.sfx.cheer();
-        this.player.character.action('cheer');
         if (meters % 500 === 0) this.effects.confetti(this.player.x);
       }
       const hint = this.spawner.hints.find((h) => h.z > -24 && h.z < 0.5);
@@ -752,8 +787,8 @@ export class Game {
           look.set(0, 0.3, 0);
         } else {
           // Pelo / peinado: primer plano de la cabeza.
-          pos.set(0.3, 2.28, 3.3);
-          look.set(0, 1.93, 0);
+          pos.set(0.2, 2.0, 2.3);
+          look.set(0, 1.8, 0);
         }
       } else if (this.view === 'shop') {
         pos.set(1.6, 2.4, 6.5);

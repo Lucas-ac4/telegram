@@ -45,7 +45,7 @@ export class Player {
   constructor(scene: THREE.Scene) {
     this.group.add(this.character.root);
     // Escala visual (la caja de colisión no cambia): un atleta real se ve chico a la distancia de la cámara.
-    this.character.root.scale.set(1.28, 1.18, 1.28);
+    this.character.root.scale.setScalar(1.17);
     scene.add(this.group, this.ball);
 
     this.shadow = new THREE.Mesh(
@@ -109,7 +109,7 @@ export class Player {
   useAvatar(avatar: Avatar): void {
     this.group.remove(this.character.root);
     this.character = avatar;
-    avatar.root.scale.setScalar(1.2);
+    avatar.root.scale.setScalar(1.17);
     this.group.add(avatar.root);
   }
 

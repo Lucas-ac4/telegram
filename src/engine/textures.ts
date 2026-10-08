@@ -25,34 +25,66 @@ function toTexture(c: HTMLCanvasElement, repeat = false): THREE.CanvasTexture {
  * Césped con franjas de cortadora, ruido, líneas de carril y (según la variante) marcas de cancha.
  * Cubre `halfWidth*2` m de ancho x 24 m de largo. variant: 0 liso · 1 mitad de cancha · 2 área grande.
  */
-export function pitchTexture(lanes: number, laneWidth: number, halfWidth: number, variant: 0 | 1 | 2): THREE.CanvasTexture {
+export interface GrassStyle {
+  light: [string, string, string];
+  dark: [string, string, string];
+  pattern: 'stripes' | 'checker' | 'diamond';
+}
+
+export const CLASSIC_GRASS: GrassStyle = {
+  light: ['#3c9a3f', '#368f3a', '#318535'],
+  dark: ['#27782f', '#236c2a', '#1f6326'],
+  pattern: 'stripes',
+};
+
+export function pitchTexture(lanes: number, laneWidth: number, halfWidth: number, variant: 0 | 1 | 2, grass: GrassStyle = CLASSIC_GRASS): THREE.CanvasTexture {
   const W = 512;
   const H = 1024;
   const [c, g] = canvas(W, H);
   const pxPerM = W / (halfWidth * 2);
   const mY = H / 24; // px por metro a lo largo
-  // Franjas de cortadora (4 m): contraste claro/oscuro con transición suave + veteado en direcciones alternas.
-  const bands = 6;
-  for (let i = 0; i < bands; i++) {
-    const y0 = (i * H) / bands;
-    const light = i % 2 === 0;
-    const grad = g.createLinearGradient(0, y0, 0, y0 + H / bands);
-    grad.addColorStop(0, light ? '#3c9a3f' : '#27782f');
-    grad.addColorStop(0.5, light ? '#368f3a' : '#236c2a');
-    grad.addColorStop(1, light ? '#318535' : '#1f6326');
+  // Dibujo del corte del césped (franjas, damero o rombos) con degradé suave y hebras inclinadas según la franja.
+  const fillCell = (x: number, y: number, w: number, h: number, light: boolean) => {
+    const pal = light ? grass.light : grass.dark;
+    const grad = g.createLinearGradient(0, y, 0, y + h);
+    grad.addColorStop(0, pal[0]);
+    grad.addColorStop(0.5, pal[1]);
+    grad.addColorStop(1, pal[2]);
     g.fillStyle = grad;
-    g.fillRect(0, y0, W, H / bands);
-    // Hebras inclinadas hacia un lado u otro según la franja (así se ve el "peinado" del césped).
+    g.fillRect(x, y, w, h);
     g.strokeStyle = light ? 'rgba(210,255,170,0.07)' : 'rgba(0,40,10,0.09)';
     g.lineWidth = 1;
-    for (let k = 0; k < 700; k++) {
-      const x = Math.random() * W;
-      const y = y0 + Math.random() * (H / bands);
+    g.save();
+    g.beginPath();
+    g.rect(x, y, w, h);
+    g.clip();
+    for (let k = 0; k < (w * h) / 700; k++) {
+      const px = x + Math.random() * w;
+      const py = y + Math.random() * h;
       g.beginPath();
-      g.moveTo(x, y);
-      g.lineTo(x + (light ? 3 : -3), y + 7);
+      g.moveTo(px, py);
+      g.lineTo(px + (light ? 3 : -3), py + 7);
       g.stroke();
     }
+    g.restore();
+  };
+  const bands = 6;
+  if (grass.pattern === 'stripes') {
+    for (let i = 0; i < bands; i++) fillCell(0, (i * H) / bands, W, H / bands, i % 2 === 0);
+  } else if (grass.pattern === 'checker') {
+    const cols = 4;
+    for (let i = 0; i < bands; i++) for (let j = 0; j < cols; j++) fillCell((j * W) / cols, (i * H) / bands, W / cols, H / bands, (i + j) % 2 === 0);
+  } else {
+    // Rombos: franjas a 45° (se dibujan en un lienzo girado y se ven como un diseño de rombos).
+    g.fillStyle = grass.dark[1];
+    g.fillRect(0, 0, W, H);
+    g.save();
+    g.translate(W / 2, H / 2);
+    g.rotate(Math.PI / 4);
+    const span = Math.hypot(W, H);
+    const step = 150;
+    for (let k = -Math.ceil(span / step); k <= Math.ceil(span / step); k++) fillCell(k * step, -span / 2, step, span, k % 2 === 0);
+    g.restore();
   }
   // Desgaste del césped: manchas más claras/amarillentas.
   for (let i = 0; i < 14; i++) {
@@ -132,9 +164,9 @@ export function pitchTexture(lanes: number, laneWidth: number, halfWidth: number
 }
 
 /** Pista de atletismo (naranja) con líneas de carril. */
-export function trackTexture(): THREE.CanvasTexture {
+export function trackTexture(color = '#c75a36'): THREE.CanvasTexture {
   const [c, g] = canvas(128, 512);
-  g.fillStyle = '#c75a36';
+  g.fillStyle = color;
   g.fillRect(0, 0, 128, 512);
   for (let i = 0; i < 900; i++) {
     g.fillStyle = Math.random() > 0.5 ? 'rgba(255,200,150,0.06)' : 'rgba(80,20,0,0.08)';
@@ -470,12 +502,11 @@ export const crowdActive = (col: number) => (col * 0.618034) % 1 > 0.6;
  * Hinchada pintada: una fila de bustos (cabeza, hombros, camiseta, bufanda, brazos arriba) con
  * fondo transparente. Se usa en tarjetas sobre las tribunas = estadio lleno sin miles de modelos.
  */
-export function crowdTexture(): THREE.CanvasTexture {
+export function crowdTexture(shirts: string[] = ['#78b4e0', '#eef2f7', '#78b4e0', '#d9d4c4', '#b8404b', '#2b3550', '#5d6b7a', '#d8a63a', '#eef2f7', '#3d6fb5'], scarf = '#6fb6e8'): THREE.CanvasTexture {
   const W = 1024;
   const H = 160;
   const [c, g] = canvas(W, H);
   const cw = W / CROWD_COLS;
-  const shirts = ['#78b4e0', '#eef2f7', '#78b4e0', '#d9d4c4', '#b8404b', '#2b3550', '#5d6b7a', '#d8a63a', '#eef2f7', '#3d6fb5'];
   const skins = ['#e3b08d', '#c88a64', '#9a6444', '#eec4a0', '#6d4430', '#d9a07a'];
   const hairs = ['#17120f', '#2a1c14', '#4a3222', '#7a5a38', '#c9a45a', '#8a8a8a', '#0e0e12'];
   const rnd = (a: number, b: number) => a + Math.random() * (b - a);
@@ -530,7 +561,7 @@ export function crowdTexture(): THREE.CanvasTexture {
     if (col % 3 === 0) {
       g.fillStyle = '#fff';
       g.fillRect(cx - 12, hy + 26, 24, 5);
-      g.fillStyle = '#6fb6e8';
+      g.fillStyle = scarf;
       g.fillRect(cx - 12, hy + 31, 24, 5);
     }
     // Cuello y cabeza.

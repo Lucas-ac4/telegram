@@ -1,5 +1,5 @@
 import { DAILY, REDEEM, SHOP_ITEMS, type ItemId } from '../config/economy';
-import { DEFAULT_LOOK, type Look } from '../config/cosmetics';
+import { DEFAULT_LOOK, HAIR_STYLES, type Look } from '../config/cosmetics';
 
 /**
  * Perfil del jugador guardado en el dispositivo.
@@ -43,6 +43,11 @@ function defaults(): Profile {
   };
 }
 
+/** Si un peinado guardado ya no existe (por ejemplo la melena), vuelve al corte normal. */
+function sanitizeLook(look: Look): Look {
+  return HAIR_STYLES.some((h) => h.id === look.hairStyle) ? look : { ...look, hairStyle: 'corto' };
+}
+
 function load(): Profile {
   const base = defaults();
   try {
@@ -53,7 +58,7 @@ function load(): Profile {
         ...base,
         ...p,
         inventory: { ...base.inventory, ...p.inventory },
-        look: { ...base.look, ...p.look },
+        look: sanitizeLook({ ...base.look, ...p.look }),
         daily: { ...base.daily, ...p.daily },
       };
     }

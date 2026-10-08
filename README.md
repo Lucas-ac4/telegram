@@ -5,7 +5,15 @@ Three.js + TypeScript + Vite.
 
 📄 Análisis completo (tecnología, arquitectura, economía, riesgos, fases): [`docs/ANALISIS.md`](docs/ANALISIS.md)
 
-## Estado: v0.9 — Pulido premium ✅
+## Estado: v1.0 — Más auténtico, y estadios que cambian ✅
+
+v1.0 (feedback del celu):
+- **Personaje menos "Roblox":** cabeza y extremidades en proporción real, sin mejillas rosadas, ojos más chicos y piel más oscura/natural. Pelo mate con hebras.
+- **Corrida más auténtica:** el torso rota contra la cadera, brazos con el codo cerrado que se balancean sin subir nunca por encima del pecho, cabeza estable, rebote por zancada. (El "festejo con los brazos arriba" cada 100 m se sacó.)
+- **Peinados:** la melena se reemplazó por un **jopo** (tupé con degradé); rulos más chicos y desparejos; cresta más suave. Quien tenía la melena guardada pasa al corte normal.
+- **4 estadios que cambian en plena carrera** (`config/stadiums.ts`): Clásico, Arena Neón (visera moderna, neón, césped en rombos), La Popular (sin techo, hinchada roja y amarilla, muchas banderas) y Gran Mundial (verde y dorado, césped en damero). Cada partida arranca en uno distinto y a los 450 m (y cada 700 m) la cancha se transforma entrando desde la niebla, con aviso. Se construyen de a uno en segundo plano (sin trabar el arranque).
+
+## v0.9 — Pulido premium
 
 v0.9 (segunda pasada gráfica):
 - **Post-proceso en HIGH** (`engine/postfx.ts`): bloom suave en sol, reflectores, monedas y chispas + color grading, con buffer HDR y antialiasing. Se apaga solo si el dispositivo no lo soporta o falla (`?nopost` para comparar).
@@ -110,6 +118,7 @@ src/
   game/Spawner.ts         generación procedural + tutorial
   game/Particles.ts       partículas en 1 draw call · Effects.ts: efectos del juego
   config/quality.ts       niveles LOW / MEDIUM / HIGH
+  config/stadiums.ts      estadios (colores, techo, césped, hinchada) y cuándo cambian
   engine/assets.ts        ranuras para .glb definitivos (docs/ASSETS.md)
   game/Input.ts           gestos táctiles y teclado
   audio/Sfx.ts            sonidos sintetizados

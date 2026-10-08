@@ -32,7 +32,8 @@ varying float vAlpha;
 varying vec3 vColor;
 uniform float uScale;
 void main() {
-  vAlpha = aAlpha;
+  // se desvanecen al acercarse a la cámara (evita manchones enormes)
+  vAlpha = aAlpha * smoothstep(1.5, 5.5, -(modelViewMatrix * vec4(position, 1.0)).z);
   vColor = aColor;
   vec4 mv = modelViewMatrix * vec4(position, 1.0);
   gl_Position = projectionMatrix * mv;
