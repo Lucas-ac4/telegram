@@ -36,6 +36,10 @@ export class Spawner {
   private speed = 0;
   /** Carriles en los que el jugador puede estar después de la última fila (según lo que alcanza a moverse). */
   private reach: boolean[] = range(N).map(() => true);
+  /** Obstáculos de la última fila y metros de la última fila llena (3-4 carriles): después de una fila densa viene aire. */
+  private prevCount = 0;
+  private lastFullMeters = -1e9;
+  private gapMult = 1;
   readonly hints: Hint[] = [];
 
   constructor(
@@ -50,6 +54,9 @@ export class Spawner {
     this.lastRowZ = -CONFIG.spawn.firstRow + 14;
     this.lastPickupMeters = 0;
     this.reach = range(N).map(() => true);
+    this.prevCount = 0;
+    this.lastFullMeters = -1e9;
+    this.gapMult = 1;
     this.hints.length = 0;
     const all = (k: ObstacleKind) => range(N).map(() => k);
     this.tutorial = withTutorial
@@ -84,10 +91,13 @@ export class Spawner {
     // Se calcula con la velocidad inicial como piso: en el menú (velocidad 0) no hay gap 0.
     const v = Math.max(speed, CONFIG.speed.start);
     if (this.tutorial.length) return v * 1.8; // tutorial: más espacio entre filas
-    if (meters < S.warmupMeters) return v * THREE.MathUtils.randFloat(...S.warmupGapSeconds);
+    // Después de una fila densa (3-4 obstáculos) hay más aire.
+    const mult = this.gapMult;
+    this.gapMult = 1;
+    if (meters < S.warmupMeters) return v * THREE.MathUtils.randFloat(...S.warmupGapSeconds) * mult;
     const d = difficulty(meters);
     const minGap = THREE.MathUtils.lerp(S.minGapSeconds, S.minGapSecondsAtMaxSpeed, d);
-    return v * THREE.MathUtils.randFloat(minGap, S.maxGapSeconds);
+    return v * THREE.MathUtils.randFloat(minGap, S.maxGapSeconds) * mult;
   }
 
   private spawnRow(z: number, meters: number, gap: number): void {
@@ -113,10 +123,15 @@ export class Spawner {
 
     // Siempre hay un camino posible: la fila nueva debe poder alcanzarse con swipes humanos desde la anterior.
     const gapSec = gap / Math.max(this.speed, CONFIG.speed.start);
-    let row = this.pickRow(d, warmup);
-    for (let tries = 0; tries < 8 && !this.feasible(row, gapSec); tries++) row = this.pickRow(d, warmup);
+    const sparse = this.prevCount >= CONFIG.spawn.denseRowCount; // después de una fila densa, una liviana
+    const allowFull = meters - this.lastFullMeters > CONFIG.spawn.fullRowEveryMeters;
+    let row = this.pickRow(d, warmup, sparse, allowFull);
+    for (let tries = 0; tries < 8 && !this.feasible(row, gapSec); tries++) row = this.pickRow(d, warmup, sparse, allowFull);
     if (!this.feasible(row, gapSec)) this.repair(row, gapSec);
     this.reach = this.nextReach(row, gapSec);
+    this.prevCount = row.filter(Boolean).length;
+    if (this.prevCount >= N - 1) this.lastFullMeters = meters;
+    if (this.prevCount >= CONFIG.spawn.denseRowCount) this.gapMult = CONFIG.spawn.afterDenseGap;
 
     // Obstáculos que vienen hacia vos (defensor corriendo / pelota gigante): recién después de la zona fácil.
     const moverChance = meters < CONFIG.spawn.moversFromMeters ? 0 : 0.1 + d * 0.15;
@@ -125,7 +140,10 @@ export class Spawner {
       if ((cell.kind === 'wall' || cell.kind === 'hurdle') && Math.random() < moverChance) {
         const kind: ObstacleKind = cell.kind === 'wall' ? 'runner' : 'bigball';
         const vz = kind === 'runner' ? MOVER_SPEED.runner : MOVER_SPEED.bigball;
-        if (this.obstacles.laneClearForMover(i, z, vz, this.speed)) row[i] = { kind, moving: true };
+        // Un obstáculo que viene hacia vos avanza más rápido que la pista: si cruzaría el límite entre dos estadios
+        // (y cambiaría de camiseta a mitad de camino) no se genera ahí.
+        const sameStadium = this.obstacles.styleAt(z) === this.obstacles.styleAt(z + 70);
+        if (sameStadium && this.obstacles.laneClearForMover(i, z, vz, this.speed)) row[i] = { kind, moving: true };
       }
     });
     row.forEach((cell, i) => cell && this.obstacles.spawn(cell.kind, i, z, { moving: cell.moving }));
@@ -162,6 +180,9 @@ export class Spawner {
       if (Math.random() < 0.2 + d * 0.3) this.obstacles.spawn(Math.random() < 0.5 ? 'hurdle' : 'bar', i, z - TRUCK.length / 2);
       else for (let k = 0; k < 5; k++) this.coins.spawn(laneX(i), 0.75, z - k * 1.6);
     }
+    // Un bloque de 3+ camiones también es una fila densa: después viene aire.
+    this.prevCount = used.length;
+    if (used.length >= CONFIG.spawn.denseRowCount) this.gapMult = CONFIG.spawn.afterDenseGap;
     // Después del bloque: se puede estar en el carril de la rampa o en los libres.
     this.reach = range(N).map((i) => i === rampLane || free.includes(i));
     // El bloque ocupa el largo del camión: la próxima fila arranca después.
@@ -172,6 +193,7 @@ export class Spawner {
   private spawnMovingTruck(z: number): boolean {
     for (const i of shuffled(range(N))) {
       if (!this.obstacles.laneClearForMover(i, z, TRUCK.movingSpeed, this.speed)) continue;
+      if (this.obstacles.styleAt(z) !== this.obstacles.styleAt(z + 70)) continue; // cruzaría de estadio
       // No deja al jugador sin salida: tiene que quedar al menos un carril alcanzable sin ese camión.
       const left = this.reach.map((on, l) => on && l !== i);
       if (!left.some(Boolean)) continue;
@@ -190,7 +212,7 @@ export class Spawner {
     this.lastPickupMeters = meters;
   }
 
-  private pickRow(d: number, warmup: boolean): Row {
+  private pickRow(d: number, warmup: boolean, sparse: boolean, allowFull: boolean): Row {
     const kinds: ObstacleKind[] = ['hurdle', 'bar', 'wall'];
     const cell = (kind: ObstacleKind): Cell => ({ kind });
     const lanes = shuffled(range(N));
@@ -199,14 +221,14 @@ export class Spawner {
     // La mezcla de filas es gradual: arrancan con 1-2 obstáculos; las de 3, las vallas de punta a punta y las
     // "paredes" (3 barreras + 1 carril con valla) llegan de a poco con los metros.
     const r = Math.random();
-    const pWall = 0.02 + d * 0.08;
-    const pLine = 0.07;
-    const pThree = 0.05 + d * 0.2;
+    const pWall = allowFull ? 0.015 + d * 0.05 : 0;
+    const pLine = allowFull ? 0.03 : 0;
+    const pThree = 0.04 + d * 0.12;
     const pTwo = 0.36;
-    if (warmup || r >= pWall + pLine + pThree + pTwo) {
+    if (warmup || sparse || r >= pWall + pLine + pThree + pTwo) {
       // Un obstáculo (en el arranque: 60% uno, 40% dos).
       row[lanes[0]] = cell(rand(kinds));
-      if (warmup && Math.random() < 0.4) row[lanes[1]] = cell(rand(kinds));
+      if ((warmup || sparse) && Math.random() < 0.4) row[lanes[1]] = cell(rand(kinds));
     } else if (r < pWall) {
       // Barreras en casi todos los carriles + uno con valla/barra.
       for (const l of lanes.slice(0, N - 1)) row[l] = cell('wall');

@@ -5,7 +5,16 @@ Three.js + TypeScript + Vite.
 
 📄 Análisis completo (tecnología, arquitectura, economía, riesgos, fases): [`docs/ANALISIS.md`](docs/ANALISIS.md)
 
-## Estado: v1.1 — Selecciones, personaje más chico y juego más justo ✅
+## Estado: v1.2 — Jugadores más chicos, peinados nuevos y filas más livianas ✅
+
+v1.2 (feedback del celu):
+- **Camisetas de los obstáculos = el país del estadio**: en el estadio de Brasil los jugadores obstáculo visten Brasil, en el de Noruega, Noruega, etc. (antes vestían "rivales" de otro país, por eso parecía que no coincidían). Cada obstáculo se viste según la tribuna donde aparece, así que nunca queda desfasado. Sólo si la camiseta se parece a la tuya usa otra selección.
+- **Jugador y rivales más chicos** (jugador 12% más chico, rivales 12%).
+- **Peinados rehechos**: el pelo se afina hacia los bordes (sin el "casco" ni el corte recto en la nuca), pasa de piel a pelo con degradé y tiene hebras; corto con flequillo en mechones, jopo con tupé, rulos más naturales, cresta y rapado con degradé.
+- **Filas más livianas**: después de una fila de 3+ obstáculos viene una liviana y con más aire; las filas "llenas" (3-4 carriles bloqueados de punta a punta) son más raras y hay 450 m entre una y otra.
+- **Arranque más lento**: los primeros 450 m se corre al 78% de la velocidad y se acelera suave hasta la normal.
+
+## v1.1 — Selecciones, personaje más chico y juego más justo
 
 v1.1 (feedback del celu):
 - **Temática de selecciones** (`config/nations.ts`): 10 camisetas de selecciones (Argentina, Brasil, Noruega, Países Bajos, Alemania, Francia, España, Uruguay, Italia, Inglaterra; sólo colores, sin escudos) en una pestaña del vestuario y los 5 clubes argentinos en otra.

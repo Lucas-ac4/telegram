@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { MathUtils } from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 /**
@@ -168,23 +169,49 @@ export class Painted {
     const attr = geo.attributes.color as THREE.BufferAttribute;
     const arr = attr.array as Float32Array;
     const pos = geo.attributes.position as THREE.BufferAttribute;
+    const uv = geo.attributes.uv as THREE.BufferAttribute;
+    const tmp = new THREE.Color();
     for (const s of this.spans) {
-      const c = palette[s.key];
+      // Pelo que nace de la piel (el color pasa de la piel con un poco de pelo a pelo completo):
+      //  hairFade  → según la distancia a la línea del pelo (v)       · pelo corto con flequillo, rulos
+      //  hairFadeH → según la altura de la cabeza (y)                 · costados rapados + pelo largo arriba
+      //  stubFade  → pelo cortísimo: nunca llega al pelo completo     · rapado, laterales de la cresta
+      //  hairOver  → masa de pelo sobre un rapado: nace del color del rapado · jopo
+      const mode = s.key === 'hairFade' ? 1 : s.key === 'hairFadeH' ? 2 : s.key === 'stubFade' ? 3 : s.key === 'hairOver' ? 4 : 0;
+      const c = mode ? palette.hair : palette[s.key];
       if (!c) continue;
-      const hair = s.key === 'hair' || s.key === 'hairLight';
+      const skin = palette.skin as THREE.Color;
+      const hair = mode > 0 || s.key === 'hair' || s.key === 'hairLight';
       for (let i = s.start; i < s.start + s.count; i++) {
         let k = 1;
+        let r = c.r;
+        let g = c.g;
+        let b = c.b;
         if (hair) {
-          // Hebras: franjas verticales de brillo distinto (según el ángulo alrededor de la cabeza) y más oscuro hacia la raíz.
-          const x = pos.getX(i);
-          const z = pos.getZ(i);
-          const strand = Math.floor(((Math.atan2(x, z) + Math.PI) / (Math.PI * 2)) * 64);
-          const h = Math.sin(strand * 12.9898) * 43758.5453;
-          k = (0.84 + 0.3 * (h - Math.floor(h))) * (0.86 + 0.22 * Math.min(1, Math.max(0, (pos.getY(i) - 0.1) / 0.17)));
+          // Más oscuro hacia la raíz, más claro en las puntas (x1.55 compensa lo que oscurece la textura de hebras).
+          k = (0.8 + 0.28 * Math.min(1, Math.max(0, (pos.getY(i) - 0.1) / 0.17))) * 1.55;
         }
-        arr[i * 3] = c.r * k;
-        arr[i * 3 + 1] = c.g * k;
-        arr[i * 3 + 2] = c.b * k;
+        if (mode) {
+          const w =
+            mode === 1
+              ? MathUtils.smoothstep(uv.getY(i), 0.0, 0.75)
+              : mode === 2
+                ? MathUtils.smoothstep(pos.getY(i), 0.1, 0.215)
+                : mode === 4
+                  ? MathUtils.smoothstep(uv.getY(i), 0.0, 0.6)
+                  : 0.12 + 0.55 * MathUtils.smoothstep(uv.getY(i), 0.0, 1.0);
+          // piel con una sombra del color del pelo → pelo
+          if (mode === 4) tmp.copy(skin).lerp(c, 0.67).lerp(c, w);
+          else if (mode === 3) tmp.copy(skin).lerp(c, w);
+          else tmp.copy(skin).lerp(c, 0.12 + 0.88 * w);
+          r = tmp.r;
+          g = tmp.g;
+          b = tmp.b;
+          k = 1.55 * (mode === 3 ? 0.9 : mode === 4 ? 0.88 + 0.2 * w : 0.8 + 0.28 * w);
+        }
+        arr[i * 3] = r * k;
+        arr[i * 3 + 1] = g * k;
+        arr[i * 3 + 2] = b * k;
       }
     }
     attr.needsUpdate = true;

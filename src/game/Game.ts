@@ -56,9 +56,6 @@ export class Game {
   private nextChangeAt = STADIUM_CHANGE.firstMeters;
   private toastAt = 0;
   private toastName = '';
-  /** Cuándo (en metros) los obstáculos nuevos pasan a vestirse del estadio siguiente. */
-  private themeAt = 0;
-  private themeStyle = 0;
   private snowAcc = 0;
   private post: PostFX | null = null;
   private postWanted = false;
@@ -186,6 +183,7 @@ export class Game {
     this.sfx.muted = profile.muted;
     this.player.character.setLook(profile.look);
     this.obstacles.setPlayerKit(KITS.find((k) => k.id === profile.look.kit) ?? KITS[0]);
+    this.obstacles.styleAt = (z) => this.stadium.styleAt(z);
     this.obstacles.setTheme(this.runStyle);
     this.ui = new UI({
       onPlay: () => this.play(),
@@ -335,19 +333,12 @@ export class Game {
     if (this.distance >= this.nextChangeAt) {
       this.nextChangeAt += STADIUM_CHANGE.everyMeters;
       this.curStyle = (this.curStyle + 1) % STADIUMS.length;
-      this.stadium.setNextStyle(this.curStyle);
-      // El aviso sale cuando los tramos nuevos llegan hasta el jugador (están ~150 m más adelante).
-      this.toastAt = this.distance + 150;
+      // El aviso sale cuando el nuevo estadio llega hasta el jugador.
+      this.toastAt = this.distance + this.stadium.setNextStyle(this.curStyle);
       const nation = NATIONS[STADIUMS[this.curStyle].nation];
       this.toastName = `${nation.emoji} ${nation.name[getLang()]}`;
-      // Los camiones y rivales nuevos se visten del nuevo país cuando los tramos nuevos llegan a donde se generan.
-      this.themeAt = this.distance + 38;
-      this.themeStyle = this.curStyle;
     }
-    if (this.themeAt > 0 && this.distance >= this.themeAt) {
-      this.themeAt = 0;
-      this.obstacles.setTheme(this.themeStyle);
-    }
+
     if (this.toastAt > 0 && this.distance >= this.toastAt) {
       this.toastAt = 0;
       this.ui.toast(t('toast.stadium', { name: this.toastName }));
@@ -379,13 +370,12 @@ export class Game {
     if (!fromMenu) this.runStyle = this.pickStyle();
     this.stadium.reset(this.runStyle);
     this.obstacles.setTheme(this.runStyle);
-    this.themeAt = 0;
     this.curStyle = this.runStyle;
     this.nextChangeAt = STADIUM_CHANGE.firstMeters;
     this.toastAt = 0;
     this.player.reset();
     if (fromMenu) this.player.group.rotation.y = Math.PI;
-    this.speed = CONFIG.speed.start;
+    this.speed = CONFIG.speed.start * CONFIG.speed.openingFactor;
     this.distance = 0;
     this.coinCount = 0;
     this.nextCheer = 100;
@@ -560,7 +550,9 @@ export class Game {
       // Velocidad según los metros: sube de a poco y pega un salto cada 700 m.
       const S = CONFIG.speed;
       const step = Math.floor(this.distance / S.stepEveryMeters);
-      const target = Math.min(S.max, S.start + this.distance * S.increasePerMeter + step * S.stepBonus);
+      let target = Math.min(S.max, S.start + this.distance * S.increasePerMeter + step * S.stepBonus);
+      // Arranque más tranquilo: los primeros 450 m van más lento y aceleran suave.
+      target *= S.openingFactor + (1 - S.openingFactor) * THREE.MathUtils.smoothstep(this.distance, 0, S.openingMeters);
       this.speed += THREE.MathUtils.clamp(target - this.speed, -6 * dt, 4 * dt);
       if (step > this.speedStep) {
         this.speedStep = step;

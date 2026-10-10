@@ -37,6 +37,8 @@ interface Segment {
   /** Estilo de estadio (índice en STADIUMS) y marca de cancha de este tramo. */
   style: number;
   marks: 0 | 1 | 2;
+  /** Casillero (ranura) de 24 m que ocupa en la pista: el estilo depende de la ranura, no del momento en que se recicla. */
+  slot: number;
 }
 
 /** Piezas ya construidas de un estilo de estadio (se arman la primera vez que se necesitan). */
@@ -67,6 +69,10 @@ export class Stadium {
   private crowdFx = { value: 1 };
   private floodlights = false;
   private spawnStyle = 0;
+  /** Metros recorridos desde el inicio y cambios de estilo programados por ranura. */
+  private dist = 0;
+  private baseStyle = 0;
+  private changes: { slot: number; style: number }[] = [];
   private grassDetail = grassDetailTexture();
   private pitchGeo: THREE.PlaneGeometry;
 
@@ -84,7 +90,7 @@ export class Stadium {
       seg.add(pitch);
       seg.position.z = -i * L + L / 2;
       scene.add(seg);
-      this.segments.push({ group: seg, pitch, style: 0, marks: 0 });
+      this.segments.push({ group: seg, pitch, style: 0, marks: 0, slot: i });
     }
     this.ensureSet(0);
     this.reset(0);
@@ -193,19 +199,41 @@ export class Stadium {
     return m;
   }
 
-  /** Estilo de los tramos que entran de ahora en adelante (el cambio se ve llegar desde la niebla). */
-  setNextStyle(i: number): void {
-    this.ensureSet(i);
-    this.spawnStyle = i;
+  /** Estilo de una ranura de la pista (24 m). Las ranuras se numeran desde el inicio de la partida. */
+  private styleOfSlot(slot: number): number {
+    let st = this.baseStyle;
+    for (const c of this.changes) if (slot >= c.slot) st = c.style;
+    return st;
   }
 
-  /** Estilo del tramo donde está el jugador (z = 0). */
+  /** Ranura que corresponde al punto `z` (0 = jugador, negativo = adelante). */
+  private slotAt(z: number): number {
+    return Math.floor((this.dist - z + L / 2) / L);
+  }
+
+  /**
+   * Programa el cambio de estadio: lo que se genere desde dos ranuras después del borde del mundo (≈ 180-200 m adelante)
+   * tendrá el nuevo estilo. Devuelve cuántos metros faltan para que el cambio llegue al jugador.
+   */
+  setNextStyle(i: number): number {
+    this.ensureSet(i);
+    const slot = Math.max(...this.segments.map((s) => s.slot)) + 2;
+    this.changes.push({ slot, style: i });
+    this.spawnStyle = i;
+    return slot * L - L / 2 - this.dist;
+  }
+
+  /**
+   * Estilo del punto `z`. Se calcula por posición (no por el tramo que lo contiene), así los obstáculos que aparecen
+   * más allá del borde del estadio se visten igual que la tribuna que va a aparecer ahí.
+   */
+  styleAt(z: number): number {
+    return this.styleOfSlot(this.slotAt(z));
+  }
+
+  /** Estilo del tramo donde está el jugador. */
   styleHere(): number {
-    for (const seg of this.segments) {
-      const z = seg.group.position.z;
-      if (z >= 0 && z - L <= 0) return seg.style;
-    }
-    return this.spawnStyle;
+    return this.styleAt(-0.01);
   }
 
   get styleCount(): number {
@@ -326,9 +354,13 @@ export class Stadium {
   /** Vuelve al inicio con el estadio elegido (todos los tramos del mismo estilo). */
   reset(style = this.spawnStyle): void {
     this.spawnStyle = style;
+    this.baseStyle = style;
+    this.changes = [];
+    this.dist = 0;
     this.ensureSet(style);
     this.segments.forEach((seg, i) => {
       seg.group.position.z = -i * L + L / 2;
+      seg.slot = i;
       seg.style = style;
       seg.marks = 0;
       seg.pitch.material = this.pitchMat(style, 0);
@@ -338,14 +370,16 @@ export class Stadium {
 
   update(dt: number, speed: number): void {
     const dz = speed * dt;
+    this.dist += dz;
     for (const seg of this.segments) {
       seg.group.position.z += dz;
       // Tramo que quedó detrás de la cámara → se manda al final con otra marca de cancha (y el estilo vigente).
       if (seg.group.position.z - L > 12) {
         seg.group.position.z -= L * this.segments.length;
+        seg.slot += this.segments.length;
         const r = Math.random();
         seg.marks = r < 0.55 ? 0 : r < 0.78 ? 1 : 2;
-        seg.style = this.spawnStyle;
+        seg.style = this.styleOfSlot(seg.slot);
         seg.pitch.material = this.pitchMat(seg.style, seg.marks);
       }
     }

@@ -477,3 +477,45 @@ export function softSpotTexture(rgb = '255,238,196'): THREE.CanvasTexture {
   return toTexture(c);
 }
 
+
+/**
+ * Hebras de pelo (escala de grises que se multiplica por el color del pelo): mechones claros y oscuros ondulados + pelitos finos.
+ * Las hebras corren en vertical (v): en el casquete, de la coronilla hacia la línea del pelo. Se repite en u (sin costura).
+ */
+let hairTex: THREE.CanvasTexture | null = null;
+export function hairStrandTexture(): THREE.CanvasTexture {
+  if (hairTex) return hairTex;
+  const W = 512;
+  const H = 256;
+  const [c, g] = canvas(W, H);
+  g.fillStyle = '#c8c8c8';
+  g.fillRect(0, 0, W, H);
+  // Mechones cortos: cada hebra empieza y termina en un lugar distinto (no son cortinas continuas).
+  const streak = (x: number, w: number, light: boolean, alpha: number) => {
+    const amp = 1.5 + Math.random() * 4;
+    const per = H * (0.6 + Math.random() * 1.2);
+    const ph = Math.random() * 6.28;
+    const y0 = Math.random() * H;
+    const len = H * (0.25 + Math.random() * 0.45);
+    g.strokeStyle = light ? `rgba(255,255,255,${alpha})` : `rgba(20,20,20,${alpha})`;
+    g.lineWidth = w;
+    g.lineCap = 'round';
+    for (const ox of [-W, 0, W]) {
+      for (const oy of [-H, 0, H]) {
+        g.beginPath();
+        for (let y = 0; y <= len; y += 5) {
+          const px = x + ox + Math.sin(((y + y0) / per) * 6.28 + ph) * amp;
+          if (y === 0) g.moveTo(px, y0 + oy + y);
+          else g.lineTo(px, y0 + oy + y + 0);
+        }
+        g.stroke();
+      }
+    }
+  };
+  for (let i = 0; i < 260; i++) streak(Math.random() * W, 2 + Math.random() * 6, Math.random() < 0.5, 0.16 + Math.random() * 0.26);
+  for (let i = 0; i < 1400; i++) streak(Math.random() * W, 0.8 + Math.random() * 1.2, Math.random() < 0.5, 0.08 + Math.random() * 0.14);
+  const t = toTexture(c, true);
+  t.anisotropy = 4;
+  hairTex = t;
+  return t;
+}

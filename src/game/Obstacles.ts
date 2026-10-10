@@ -13,6 +13,9 @@ import { blobTexture } from '../engine/textures';
 import { createBall } from './Character';
 import type { Player } from './Player';
 
+/** Escala visual de los jugadores obstáculo (un poco más chicos, como el jugador). */
+const DEFENDER_SCALE = 0.88;
+
 /** Radio de la pelota gigante (se puede saltar por encima: salto máx. ~1.7 m). */
 const BIGBALL_R = 0.78;
 
@@ -57,30 +60,46 @@ export class Obstacles {
   private geos = new Map<string, THREE.BufferGeometry>();
   private decalMats = new Map<string, THREE.MeshLambertMaterial>();
   private decalGeo = new THREE.PlaneGeometry(TRUCK.length - 1.7, 0.66);
-  /** Tema actual: las selecciones del estadio donde se están generando los obstáculos. */
-  private theme: { nation: NationId; rival: NationId } = { nation: 'arg', rival: 'bra' };
+  /** Dado un punto de la pista (z), dice en qué estadio está: los obstáculos se visten como la tribuna que los rodea. */
+  styleAt: (z: number) => number = () => 0;
+  private fallbackStyle = 0;
   private playerKit: Kit = NATIONS.arg.kit;
+  private themes = new Map<string, { nation: NationId; rival: NationId }>();
 
   constructor(private scene: THREE.Scene) {
     this.rampGeo = buildRamp();
   }
 
-  /** Camiseta del jugador (para que los rivales no se vistan igual). */
+  /** Camiseta del jugador (para que los jugadores obstáculo no se vistan igual que vos). */
   setPlayerKit(kit: Kit): void {
     this.playerKit = kit;
+    this.themes.clear();
   }
 
-  /** Tema de los obstáculos nuevos: camiones de la selección local y rivales de otra selección. */
+  /** Estilo por defecto (menú / pruebas) cuando todavía no hay tramos que consultar. */
   setTheme(styleIndex: number): void {
-    const st = STADIUMS[styleIndex];
-    const rival = st.rivals.find((r) => !kitsClash(NATIONS[r].kit, this.playerKit)) ?? st.rivals[st.rivals.length - 1];
-    this.theme = { nation: st.nation, rival };
+    this.fallbackStyle = styleIndex;
   }
 
-  /** Arma de antemano los modelos de un estadio (camiones de la selección y rivales) para que no haya un tirón al aparecer. */
+  /**
+   * Tema de un estadio: los camiones llevan la selección local y los jugadores obstáculo visten la camiseta
+   * de ese mismo país (en el estadio de Brasil, camiseta de Brasil). Sólo si se parece a la tuya se usa un rival.
+   */
+  private themeFor(styleIndex: number): { nation: NationId; rival: NationId } {
+    const key = String(styleIndex);
+    let th = this.themes.get(key);
+    if (!th) {
+      const st = STADIUMS[styleIndex];
+      const wear = [st.nation, ...st.rivals].find((n) => !kitsClash(NATIONS[n].kit, this.playerKit)) ?? st.rivals[st.rivals.length - 1];
+      this.themes.set(key, (th = { nation: st.nation, rival: wear }));
+    }
+    return th;
+  }
+
+  /** Arma de antemano los modelos de un estadio (camiones de la selección y jugadores) para que no haya un tirón al aparecer. */
   warm(styleIndex: number): void {
     const st = STADIUMS[styleIndex];
-    for (const r of st.rivals) {
+    for (const r of new Set([st.nation, ...st.rivals])) {
       this.make(`wall:${r}`);
       this.make(`runner:${r}`);
     }
@@ -135,7 +154,7 @@ export class Obstacles {
   }
 
   spawn(kind: ObstacleKind, lane: number, z: number, opts: SpawnOptions = {}): void {
-    const th = this.theme;
+    const th = this.themeFor(this.styleAt(z) ?? this.fallbackStyle);
     const key = kind === 'truck' ? `truck${opts.variant ?? 0}:${th.nation}` : kind === 'wall' || kind === 'runner' ? `${kind}:${th.rival}` : kind;
     let item = this.items.find((o) => !o.active && (o.group.userData.key as string) === key);
     if (!item) {
@@ -357,6 +376,7 @@ function defender(i: number, x: number, pose: (r: Rig) => void, kit: Kit): THREE
   pose(rig);
   // Los defensores miran hacia +z (hacia el jugador).
   rig.root.rotation.y = Math.PI;
+  rig.root.scale.setScalar(DEFENDER_SCALE);
   rig.root.position.x = x;
   const pal = makePalette(DEF_HAIRS[i % 3], kit);
   const skin = new THREE.Color(DEF_SKINS[i % 3]);
@@ -369,7 +389,7 @@ function defender(i: number, x: number, pose: (r: Rig) => void, kit: Kit): THREE
 
 /** Barrera de 3 defensores con las manos adelante (como en un tiro libre). */
 function buildWall(kit: Kit): THREE.BufferGeometry {
-  const geos = [-0.62, 0, 0.62].map((x, i) =>
+  const geos = [-0.56, 0, 0.56].map((x, i) =>
     defender(i, x, (r) => {
       const [AL, AR] = r.arms;
       AL.shoulder.rotation.set(0.3, 0, 0.12);

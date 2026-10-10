@@ -100,7 +100,7 @@ export class Character implements Avatar {
       const m = (o as THREE.Mesh).material as THREE.Material | undefined;
       if (m && (m as THREE.MeshStandardMaterial).isMeshStandardMaterial) mats.add(m);
     });
-    for (const m of mats) withRim(m as THREE.MeshStandardMaterial, 0xd6ecff, 0.42);
+    for (const m of mats) if (!m.userData.noRim) withRim(m as THREE.MeshStandardMaterial, 0xd6ecff, 0.42);
     this.head.scale.setScalar(STYLE.head);
     for (const l of this.legs) l.hip.scale.set(STYLE.limbXZ, 1, STYLE.limbXZ);
     for (const a of this.arms) a.shoulder.scale.set(STYLE.limbXZ, 1, STYLE.limbXZ);

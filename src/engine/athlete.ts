@@ -1,7 +1,9 @@
 import * as THREE from 'three';
+import { MathUtils } from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { Painted, ellipsoid, loft, tube, xf, type Palette, type Part, type Section } from './body';
 import { pbrVertexColors } from './materials';
+import { hairStrandTexture } from './textures';
 import type { HairStyleId } from '../config/cosmetics';
 
 /**
@@ -153,9 +155,10 @@ function headAt(y: number): { rx: number; zf: number; zb: number } {
  * Casquete de pelo que sigue exactamente la forma de la cabeza con un espesor `t`.
  * El borde inferior (línea de nacimiento) sigue `hairline(az)`; az = 0 al frente, ±π atrás.
  */
-function hairShell(t: number, hairline: (az: number) => number, radial: number, rows: number, extra?: (az: number, u: number) => number): THREE.BufferGeometry {
+function hairShell(t: number, hairline: (az: number) => number, radial: number, rows: number, extra?: (az: number, u: number) => number, taper = 0.3, uvRep = 1.5, lift?: (az: number, u: number) => number): THREE.BufferGeometry {
   const top = HEAD[HEAD.length - 1].y;
   const verts: number[] = [];
+  const uvs: number[] = [];
   const idx: number[] = [];
   for (let j = 0; j <= radial; j++) {
     const phi = (j / radial) * Math.PI * 2; // phi = π es el frente
@@ -168,11 +171,17 @@ function hairShell(t: number, hairline: (az: number) => number, radial: number, 
       const sec = headAt(Math.min(y, top));
       const shrink = y > top ? Math.max(0, 1 - (y - top) / t) : 1; // se cierra en la coronilla
       // `extra` = grosor adicional según la zona (volumen del jopo, flequillo, etc.)
-      const tt = t + (extra ? extra(az, u) : 0);
+      // El grosor se afina hacia el borde (línea del pelo): sin cortes duros, el pelo "nace" de la piel.
+      const edge = taper > 0 ? 0.05 + 0.95 * MathUtils.smoothstep(u, 0, taper) : 1;
+      const tt = (t + (extra ? extra(az, u) : 0)) * edge;
       const rx = (sec.rx + tt) * shrink;
       const zc = (sec.zf + sec.zb) / 2;
       const rz = ((sec.zb - sec.zf) / 2 + tt) * shrink;
-      verts.push(rx * Math.sin(phi), y, zc + rz * Math.cos(phi));
+      // `lift` sube (y) y adelanta (z) la superficie: sirve para el tupé / pompadour sin apilar bolas.
+      const lf = lift ? lift(az, u) : 0;
+      verts.push(rx * Math.sin(phi), y + lf, zc + rz * Math.cos(phi) - lf * 0.55 * Math.max(0, Math.cos(az)));
+      // u: alrededor de la cabeza (las hebras se repiten 1.5 veces); v: de la línea del pelo (0) a la coronilla (1).
+      uvs.push((j / radial) * uvRep, u * (uvRep > 3 ? uvRep / 3 : 2.4));
     }
   }
   const H = rows + 1;
@@ -185,97 +194,141 @@ function hairShell(t: number, hairline: (az: number) => number, radial: number, 
   }
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
+  g.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
   g.setIndex(idx);
   g.computeVertexNormals();
   return g;
 }
 
-/** Cresta suave: una aleta de mechones superpuestos (altos al medio, bajos en las puntas) que sigue la curva de la cabeza. */
-function mohawkFin(): Part[] {
-  const parts: Part[] = [];
-  const N = 24;
-  for (let k = 0; k < N; k++) {
-    const t = k / (N - 1);
-    const a = -0.95 + 2.6 * t;
-    const h = 0.025 + 0.055 * Math.sin(Math.PI * t) ** 0.7;
-    const rc = 0.122 + h * 0.45;
-    parts.push({
-      geo: xf(ellipsoid(0.0145, h * 0.62, 0.03, 8, 5), [0, 0.12 + Math.cos(a) * rc, Math.sin(a) * rc], [a, 0, 0]),
-      key: 'hair',
-    });
-  }
-  return parts;
-}
+/** Línea del pelo con alturas distintas adelante (frente) y atrás (nuca). */
+const hairlineFB = (front: number, back: number) => (az: number) => {
+  const f = Math.pow((1 + Math.cos(az)) / 2, 0.75);
+  return natural(0)(az) + front * f + back * (1 - f);
+};
+
+/** Mechón: elipsoide achatado (largo en su eje z) que se coloca sobre la cabeza. */
+const lock = (x: number, y: number, z: number, rx: number, ry: number, rz: number, rot: [number, number, number], key = 'hair'): Part => {
+  const g = ellipsoid(rx, ry, rz, 10, 6);
+  // UV planas: las hebras corren a lo largo del mechón (eje z), no en rayos desde un polo (que parecen una vieira).
+  const pos = g.attributes.position;
+  const uv = g.attributes.uv;
+  for (let i = 0; i < pos.count; i++) uv.setXY(i, pos.getX(i) * 46 + x * 31, pos.getZ(i) * 3 + 0.5);
+  return { geo: xf(g, [x, y, z], rot), key };
+};
+
+const smooth = (a: number, b: number, x: number) => MathUtils.smoothstep(x, a, b);
 
 function hairParts(style: HairStyleId, detail: Detail): Part[] {
-  const radial = detail === 'hi' ? 40 : 14;
-  const rows = detail === 'hi' ? 16 : 6;
-  const shell = (t: number, lift: number, key: string) => ({
-    geo: hairShell(t, natural(lift), radial, rows),
+  const radial = detail === 'hi' ? 44 : 14;
+  const rows = detail === 'hi' ? 18 : 6;
+  /** Casquete que se afina en los bordes y pasa de piel a pelo. */
+  const cap = (t: number, hairline: (az: number) => number, key = 'hairFade', extra?: (az: number, u: number) => number, taper = 0.3, uvRep = 1.5, lift?: (az: number, u: number) => number) => ({
+    geo: hairShell(t, hairline, radial, rows, extra, taper, uvRep, lift),
     key,
   });
-  if (detail === 'lo') return [shell(0.01, 0, 'hair')];
+  if (detail === 'lo') return [cap(0.012, hairlineFB(-0.02, 0.02), 'hair', undefined, 0)];
 
   switch (style) {
     case 'corto': {
-      // Corto clásico: volumen arriba peinado hacia atrás y un mechón sobre la frente.
+      // Corto clásico con raya al costado: pegado abajo (nuca y costados que se afinan hacia la piel), con volumen arriba y flequillo en mechones.
+      const volume = (az: number, u: number) => 0.017 * smooth(0.25, 1, u) ** 1.1 + 0.004 * Math.sin(az * 5 + u * 6) * smooth(0.3, 1, u);
       return [
-        shell(0.011, -0.022, 'hair'),
-        { geo: xf(ellipsoid(0.058, 0.022, 0.09, 14, 8), [0.008, 0.226, -0.02], [-0.12, 0, -0.08]), key: 'hair' },
-        { geo: xf(ellipsoid(0.04, 0.018, 0.07, 12, 7), [-0.032, 0.222, 0.0], [0, 0, 0.3]), key: 'hairLight' },
-        { geo: xf(ellipsoid(0.05, 0.014, 0.034, 12, 7), [0.02, 0.205, -0.088], [-0.7, 0, -0.25]), key: 'hair' },
+        cap(0.007, hairlineFB(-0.024, 0.045), 'hairFade', volume, 0.35),
+        lock(0.004, 0.229, -0.04, 0.056, 0.016, 0.078, [-0.2, 0, -0.07]),
+        // Flequillo: mechones que salen de la raya (derecha) y caen hacia la izquierda de la frente.
+        lock(-0.05, 0.212, -0.08, 0.02, 0.011, 0.04, [-0.62, 0, 0.55]),
+        lock(-0.028, 0.208, -0.09, 0.024, 0.011, 0.044, [-0.72, 0, 0.35], 'hairLight'),
+        lock(-0.004, 0.205, -0.094, 0.026, 0.011, 0.044, [-0.8, 0, 0.12]),
+        lock(0.02, 0.208, -0.09, 0.024, 0.011, 0.042, [-0.7, 0, -0.15], 'hairLight'),
+        lock(0.044, 0.214, -0.078, 0.02, 0.011, 0.038, [-0.6, 0, -0.4]),
       ];
     }
     case 'rapado': {
-      // Rapado con degradé (fade): más corto abajo, un poco más largo arriba.
-      return [
-        { geo: hairShell(0.0035, (az) => natural(-0.02)(az) * 0.9, radial, rows), key: 'stubLo' },
-        { geo: hairShell(0.0065, (az) => 0.115 + 0.09 * Math.pow((1 + Math.cos(az)) / 2, 0.6), radial, rows), key: 'stubHi' },
-      ];
+      // Rapado con degradé: casi piel en la nuca y las patillas, un poco más de pelo cortísimo arriba.
+      return [cap(0.004, hairlineFB(-0.012, 0.012), 'stubFade', undefined, 0.5, 9)];
     }
     case 'jopo': {
-      // Jopo / tupé: costados bajos con degradé y volumen peinado hacia arriba y atrás.
+      // Jopo / tupé: costados y nuca rapados (pelo cortísimo) y arriba una masa de pelo que nace de ese rapado y se levanta sobre la frente.
+      const front = (az: number) => Math.pow((1 + Math.cos(az)) / 2, 1.3);
+      const vol = (az: number, u: number) => (0.01 + 0.026 * front(az)) * smooth(0.25, 1, u) ** 1.2;
+      const lift = (az: number, u: number) => 0.042 * front(az) ** 1.2 * Math.sin(Math.PI * Math.min(1, Math.max(0, (u - 0.15) / 0.85))) ** 1.1;
       return [
-        { geo: hairShell(0.0035, (az) => natural(-0.02)(az) * 0.9, radial, rows), key: 'stubLo' },
-        { geo: hairShell(0.0065, (az) => 0.12 + 0.09 * Math.pow((1 + Math.cos(az)) / 2, 0.6), radial, rows), key: 'stubHi' },
-        // Masa de pelo de arriba (casquete grueso) + el jopo levantado sobre la frente.
-        // Pelo de arriba: casquete y mechones anchos peinados hacia atrás, con el flequillo levantado (como el corto, pero con más volumen).
-        { geo: hairShell(0.014, (az) => 0.145 + 0.062 * Math.pow((1 + Math.cos(az)) / 2, 0.8), radial, rows), key: 'hair' },
-        { geo: xf(ellipsoid(0.066, 0.034, 0.1, 16, 9), [0.004, 0.232, -0.02], [-0.16, 0, -0.06]), key: 'hair' },
-        { geo: xf(ellipsoid(0.044, 0.024, 0.08, 12, 7), [-0.03, 0.236, -0.03], [-0.1, 0, 0.35]), key: 'hairLight' },
-        { geo: xf(ellipsoid(0.058, 0.026, 0.046, 12, 7), [0.012, 0.214, -0.098], [-0.78, 0, -0.2]), key: 'hair' },
+        cap(0.004, hairlineFB(-0.01, 0.012), 'stubFade', undefined, 0.5, 9),
+        cap(0.007, (az) => 0.145 + 0.05 * Math.pow((1 + Math.cos(az)) / 2, 0.8), 'hairOver', vol, 0.5, 1.5, lift),
+        // Dos mechones largos y chatos peinados de adelante hacia atrás sobre la coronilla.
+        lock(-0.022, 0.252, -0.02, 0.017, 0.01, 0.1, [-0.12, 0.08, 0.1]),
+        lock(0.022, 0.252, -0.02, 0.017, 0.01, 0.1, [-0.12, -0.08, -0.1], 'hairLight'),
       ];
     }
     case 'cresta': {
-      // Cresta con laterales rapados.
-      return [
-        { geo: hairShell(0.0035, (az) => natural(0.03)(az) * 0.92, radial, rows), key: 'stubLo' },
-        { geo: hairShell(0.0065, (az) => 0.13 + 0.08 * Math.pow((1 + Math.cos(az)) / 2, 0.6), radial, rows), key: 'stubHi' },
-        ...mohawkFin(),
-      ];
+      // Cresta punk: laterales rapados con degradé y una fila de puntas de pelo en el medio.
+      return [cap(0.004, hairlineFB(0.0, 0.015), 'stubFade', undefined, 0.5, 9), ...mohawkSpikes()];
     }
     case 'rulos': {
-      // Rulos: base de pelo del mismo color (densa) y rizos chicos y desparejos arriba, sin verse como bolitas.
-      const parts: Part[] = [shell(0.009, 0.0, 'hair')];
-      const hl = natural(0.02);
+      // Rulos: cúpula de rizos en anillo (cada uno con su tamaño y giro) sobre una base de pelo corto.
+      const parts: Part[] = [cap(0.016, hairlineFB(-0.012, 0.04), 'hairFade', (_az, u) => 0.012 * smooth(0.3, 1, u), 0.3)];
+      const hl = hairlineFB(0.0, 0.04);
       const golden = Math.PI * (3 - Math.sqrt(5));
-      const curl = ellipsoid(0.021, 0.017, 0.021, 6, 4);
       const N = 150;
       for (let i = 0; i < N; i++) {
         const t = i / (N - 1);
-        const uy = 1 - t * 0.95; // 1 arriba → 0 ecuador
+        const uy = 1 - t * 0.9; // 1 arriba → 0.1 casi el ecuador
         const r = Math.sqrt(Math.max(0, 1 - uy * uy));
         const az = i * golden;
-        const x = Math.cos(az) * r * 0.108;
-        const z = 0.004 + Math.sin(az) * r * 0.124;
-        const y = 0.12 + uy * 0.15;
-        if (y < hl(Math.atan2(x, -(z - 0.004))) + 0.01) continue;
-        const j = 0.8 + ((i * 37) % 10) / 22;
-        parts.push({ geo: xf(curl, [x, y, z], [i, i * 2, i * 3], [j, j * 0.9, j]), key: i % 3 === 0 ? 'hairLight' : 'hair' });
+        const jx = (((i * 53) % 17) / 17 - 0.5) * 0.01;
+        const jz = (((i * 29) % 13) / 13 - 0.5) * 0.01;
+        const x = Math.cos(az) * r * 0.118 + jx;
+        const z = 0.004 + Math.sin(az) * r * 0.136 + jz;
+        const y = 0.112 + uy * 0.165;
+        if (y < hl(Math.atan2(x, -(z - 0.004))) + 0.014) continue;
+        const rad = 0.019 + (((i * 37) % 11) / 11) * 0.013;
+        parts.push({ geo: xf(curlBall(i), [x, y, z], [i * 1.7, i * 2.3, i * 0.9], [rad, rad * 0.88, rad * 1.05]), key: i % 4 === 0 ? 'hairLight' : 'hair' });
       }
       return parts;
     }
   }
+}
+
+/** Rizo: bolita de pelo con UV planas giradas al azar (cada rizo con hebras en otra dirección, sin el patrón de "piña"). */
+const CURL = ellipsoid(1, 1, 1, 9, 7);
+function curlBall(seed: number): THREE.BufferGeometry {
+  const g = CURL.clone();
+  const pos = g.attributes.position;
+  const uv = g.attributes.uv;
+  const th = seed * 2.4;
+  const c = Math.cos(th);
+  const sn = Math.sin(th);
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i);
+    const y = pos.getY(i);
+    uv.setXY(i, (x * c + y * sn) * 0.5 + seed * 0.13, (-x * sn + y * c) * 0.45 + 0.5);
+  }
+  return g;
+}
+
+/** Cresta punk: fila de puntas (conos curvados hacia atrás) desde la frente hasta la coronilla. */
+function mohawkSpikes(): Part[] {
+  const parts: Part[] = [];
+  const N = 10;
+  for (let k = 0; k < N; k++) {
+    const t = k / (N - 1);
+    const a = -0.85 + 1.95 * t; // ángulo sobre la cabeza (0 = arriba)
+    const h = 0.05 + 0.038 * Math.sin(Math.PI * (0.12 + 0.76 * t));
+    const rc = 0.126;
+    const cone = new THREE.ConeGeometry(0.0185 - 0.003 * Math.abs(t - 0.5), h, 7, 1);
+    cone.translate(0, h / 2 - 0.008, 0);
+    parts.push({
+      geo: xf(cone, [0, 0.12 + Math.cos(a) * rc, Math.sin(a) * rc], [a + 0.18, 0, 0]),
+      key: k % 3 === 1 ? 'hairLight' : 'hair',
+    });
+  }
+  // Base de la cresta: aleta baja que une las puntas (sin huecos entre ellas).
+  for (let k = 0; k < 10; k++) {
+    const t = k / 9;
+    const a = -0.85 + 1.8 * t;
+    parts.push({ geo: xf(ellipsoid(0.015, 0.018, 0.024, 8, 5), [0, 0.12 + Math.cos(a) * 0.126, Math.sin(a) * 0.126], [a, 0, 0]), key: 'hair' });
+  }
+  return parts;
 }
 
 // ---------- Cuerpo ----------
@@ -481,7 +534,8 @@ export function buildRig(detail: Detail, opts: RigOptions = {}): Rig {
   add(head, headParts(R + 4, detail));
 
   // Peinados (sólo el elegido se ve). El pelo es mate, sin brillo de plástico.
-  const hairMat = pbrVertexColors({ roughness: 0.82, envMapIntensity: 0.3 });
+  const hairMat = pbrVertexColors({ roughness: 0.7, envMapIntensity: 0.45, map: hairStrandTexture() });
+  hairMat.userData.noRim = true; // sin halo blanco en los bordes (en los rulos se veía como burbujas)
   const hairStyles = new Map<HairStyleId, Painted>();
   const styles: HairStyleId[] = detail === 'hi' ? ['corto', 'rapado', 'jopo', 'cresta', 'rulos'] : ['corto'];
   for (const st of styles) {

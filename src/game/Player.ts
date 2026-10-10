@@ -8,6 +8,8 @@ import { blobTexture } from '../engine/textures';
 const P = CONFIG.player;
 /** Radio de la pelota (m): una pelota real mide 0,11; un poco más grande para que se lea en pantalla. */
 const BALL_R = 0.14;
+/** Escala visual del jugador (la caja de colisión no cambia). */
+const PLAYER_SCALE = 0.86;
 
 /**
  * Lógica de movimiento del jugador: 3 carriles, salto, barrida y caída rápida.
@@ -49,7 +51,7 @@ export class Player {
   constructor(scene: THREE.Scene) {
     this.group.add(this.character.root);
     // Escala visual (la caja de colisión no cambia): un atleta real se ve chico a la distancia de la cámara.
-    this.character.root.scale.setScalar(0.98);
+    this.character.root.scale.setScalar(PLAYER_SCALE);
     scene.add(this.group, this.ball);
 
     this.shadow = new THREE.Mesh(
@@ -113,7 +115,7 @@ export class Player {
   useAvatar(avatar: Avatar): void {
     this.group.remove(this.character.root);
     this.character = avatar;
-    avatar.root.scale.setScalar(0.98);
+    avatar.root.scale.setScalar(PLAYER_SCALE);
     this.group.add(avatar.root);
   }
 

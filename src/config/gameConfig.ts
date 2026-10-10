@@ -62,6 +62,9 @@ export const CONFIG = {
   speed: {
     start: 18,
     max: 38,
+    /** Arranque tranquilo: los primeros metros se corre a esta fracción de la velocidad y se acelera suave hasta la normal. */
+    openingMeters: 450,
+    openingFactor: 0.78,
     /** Aumento suave por cada metro recorrido. */
     increasePerMeter: 0.0036,
     /** Cada X metros hay un salto de velocidad notorio ("¡MÁS RÁPIDO!"). */
@@ -84,6 +87,12 @@ export const CONFIG = {
     warmupGapSeconds: [1.1, 1.6] as [number, number],
     /** Metros hasta llegar a la dificultad máxima (después del arranque). */
     metersToMaxDifficulty: 6000,
+    /** Una fila con tantos obstáculos (o más) es "densa": la siguiente es liviana y viene más lejos. */
+    denseRowCount: 3,
+    /** Multiplicador de la distancia hasta la próxima fila después de una densa. */
+    afterDenseGap: 1.7,
+    /** Mínimo de metros entre dos filas "llenas" (3-4 carriles bloqueados de punta a punta). */
+    fullRowEveryMeters: 450,
     /** Tiempo humano para cambiar de carril (seg): el generador nunca pide más que esto entre dos filas. */
     secondsPerLane: 0.28,
     /** Obstáculos que vienen hacia vos (defensor corriendo, pelota gigante, camión en contra): desde estos metros. */
