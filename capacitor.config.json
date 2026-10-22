@@ -1,0 +1,15 @@
+{
+  "appId": "com.lucasac4.relevodeluz",
+  "appName": "Relevo de Luz",
+  "webDir": "dist-app",
+  "android": {
+    "backgroundColor": "#040918"
+  },
+  "plugins": {
+    "SystemBars": {
+      "insetsHandling": "css",
+      "initialViewportFitValueHint": "cover",
+      "style": "DARK"
+    }
+  }
+}

@@ -1,3 +1,16 @@
+# Juegos para Telegram Mini Apps
+
+Este repo publica dos juegos en el mismo sitio:
+
+| Juego | Ruta | Docs |
+|---|---|---|
+| ✨ **Relevo de Luz** — un toque, un relevo, una más (Canvas 2D, ~50 KB · también APK de Android) | `/relevo/` | [`docs/RELEVO.md`](docs/RELEVO.md) |
+| ⚽ **Proyecto Golazo** — endless runner 3D | `/` | abajo |
+
+Relevo de Luz en local: `npm run dev` y abrir `http://localhost:5173/relevo/`. Todo lo ajustable está en [`relevo/src/config.ts`](relevo/src/config.ts).
+
+---
+
 # ⚽ Proyecto Golazo
 
 Endless runner futbolístico **3D** (estilo Subway Surfers) para **Telegram Mini Apps**.
