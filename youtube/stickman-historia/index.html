@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <script src="assets/gsap.min.js"></script>
+    <script src="assets/rig.js"></script>
+    <style>
+      @font-face {
+        font-family: "Shantell Sans";
+        src: url("assets/fonts/ShantellSans-latin.woff2") format("woff2");
+        font-weight: 300 800;
+        font-display: block;
+      }
+      :root {
+        --paper: #ffffff;
+        --ink: #1f1f1f;
+      }
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: var(--paper);
+      }
+      #root {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        background: var(--paper);
+        font-family: "Shantell Sans", sans-serif;
+      }
+      #stage {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 1920px;
+        height: 1080px;
+      }
+    </style>
+  </head>
+  <body>
+    <div
+      id="root"
+      data-composition-id="main"
+      data-start="0"
+      data-duration="18"
+      data-width="1920"
+      data-height="1080"
+    >
+      <svg
+        id="stage"
+        class="clip"
+        data-start="0"
+        data-duration="18"
+        data-track-index="0"
+        data-layout-allow-overflow
+        viewBox="0 0 1920 1080"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <g id="layer"></g>
+      </svg>
+    </div>
+    <script>
+      const R = window.Rig;
+      const { kf, prog, C } = R;
+      const DUR = 18;
+      const GROUND = 860;
+      const layer = document.getElementById("layer");
+
+      function soldierAt(t) {
+        // walk in from the left, stop at center-left
+        const x = kf(t, [[0.6, -160], [4.4, 880, "out"]]);
+        const amt = kf(t, [[0, 1], [3.9, 1], [4.5, 0, "out"]]);
+        const w = R.walk((x + 160) / 52, amt);
+        const p = {
+          x, y: GROUND, s: 1.35, f: 1, seed: 7, accent: C.blue, hat: "shako",
+          legF: w.legF, legB: w.legB, armF: w.armF, armB: w.armB, bob: w.bob,
+          lean: 0.06 * amt, look: kf(t, [[0, 0.85], [5.7, 0.85], [6.05, 0.08], [10.7, 0.08], [11.0, 0.9], [14.1, 0.9], [14.45, 0.1]]),
+          eyes: "open", worry: 0, mouth: 0.1, tilt: 0,
+        };
+        // idle breath once he is standing
+        p.bob += Math.sin(t * 2.3) * 2 * (1 - amt);
+
+        // the bullet: anticipation, duck, recover
+        const duck = kf(t, [[4.6, 0], [4.78, 1, "out"], [5.3, 1], [5.75, 0]]);
+        p.bob += duck * 46;
+        p.lean += duck * 0.5;
+        p.squash = duck * 0.06 + kf(t, [[5.75, 0], [5.85, -0.04, "out"], [6.0, 0]]);
+        p.legF = R.lerp(p.legF, { a: 0.62, b: 1.15 }, duck);
+        p.legB = R.lerp(p.legB, { a: -0.05, b: 0.95 }, duck);
+        p.armF = R.lerp(p.armF, { a: 2.7, b: 0.9 }, duck);
+        p.armB = R.lerp(p.armB, { a: 2.4, b: 1.0 }, duck);
+        if (t > 4.5 && t < 5.7) p.eyes = "wide";
+        p.mouthO = t > 4.6 && t < 5.5 ? 1 : 0;
+
+        // the thinking pose (reference image): hand on chin, worried
+        p.chinHand = kf(t, [[6.1, 0], [6.7, 1, "out"], [14.2, 1], [14.6, 0]]);
+        p.worry = kf(t, [[5.85, 0], [6.3, 1], [10.8, 1], [11.0, 0.2], [13.9, 0.2], [14.3, 0]]);
+        p.tilt = kf(t, [[6.2, 0], [6.7, -0.14], [10.8, -0.14], [11.0, 0], [16.2, 0], [16.6, -0.28, "out"]]);
+        p.sweat = kf(t, [[6.0, 0], [6.35, 1], [8.6, 1], [9.0, 0]]);
+        p.browsUp = kf(t, [[10.8, 0], [10.95, 1, "out"], [12.6, 1], [12.9, 0], [16.3, 0], [16.6, 1]]);
+        if (t > 10.82 && t < 11.25) p.mouthO = 1;
+        if (t > 14.4) p.mouth = 0.35;
+        // blinks
+        [8.2, 12.1, 15.3, 17.4].forEach((b) => { if (t > b && t < b + 0.12) p.eyes = "closed"; });
+        return p;
+      }
+
+      function renderAt(t) {
+        let o = "";
+        // ground draws in, sun pops in, sun leaves for the timeline
+        o += R.ground(t, GROUND, 100, 1820, R.prog(t, 0, 0.8, "out"));
+        const sunSc = kf(t, [[0.25, 0], [0.7, 1, "back"], [13.6, 1], [13.95, 0, "in"]]);
+        o += R.sun(t, 1660, 200, 70, sunSc);
+
+        // place line, top-left
+        const placeOp = kf(t, [[13.6, 1], [13.95, 0]]);
+        o += R.write(t, "Rusia, verano de 1812", 160, 190, 0.5, 1.7, { size: 64, weight: 760, opacity: placeOp, rot: -2 });
+
+        const sp = soldierAt(t);
+        o += R.hatch(t, sp.x - 4, GROUND, 70, 5, Math.min(1, R.prog(t, 0.6, 1.2)));
+
+        // snowman "General Invierno" drops in
+        if (t > 10.35) {
+          const y = kf(t, [[10.35, -520], [10.85, GROUND, "in"]]);
+          const squash = kf(t, [[10.85, 0], [10.95, 0.18, "out"], [11.2, -0.06], [11.4, 0]]);
+          const sad = kf(t, [[13.6, 0], [14.0, 1]]);
+          o += R.hatch(t, 1420, GROUND, 110, 6, R.prog(t, 10.8, 11.0));
+          o += R.snowman(t, { x: 1420, y, s: 1.05, squash, sad, wave: kf(t, [[11.4, 0], [11.7, 1], [12.0, 0], [12.3, 1], [12.6, 0]]), hatTip: squash });
+          o += R.write(t, "General Invierno", 1420, 965, 11.3, 12.3, { size: 58, anchor: "middle", rot: -1.5 });
+          // red strike: one scribble over him and his name
+          const zz = [[1255, 470], [1590, 560], [1250, 650], [1600, 740], [1255, 830], [1610, 935]];
+          o += R.scribble(t, zz, R.prog(t, 12.9, 13.6, "inOut"), C.red, 14);
+        }
+
+        o += R.stickman(t, sp);
+
+        // the Russian bullet: whizzes in from the right, misses the ducked head
+        if (t > 4.55 && t < 5.2) o += R.bullet(t, kf(t, [[4.55, 2050], [5.2, -250, "lin"]]), 470);
+
+        // the "?" over his head
+        const q = kf(t, [[7.0, 0], [7.35, 1, "back"], [10.2, 1], [10.45, 0, "in"]]);
+        if (q > 0.01) {
+          const bobq = Math.sin(t * 3) * 5;
+          o += `<g transform="translate(${sp.x + 95} ${GROUND - 545 + bobq}) scale(${q}) rotate(${Math.sin(t * 2) * 6})">` +
+            `<text x="0" y="0" font-family="${R.FONT}" font-weight="800" font-size="150" text-anchor="middle" fill="${C.red}" stroke="${C.ink}" stroke-width="5" paint-order="stroke">?</text></g>`;
+        }
+
+        // timeline June → November, the snow only comes at the very end
+        if (t > 14.2) {
+          const x0 = 430, x1 = 1490, y = 210;
+          const dp = R.prog(t, 14.3, 15.0, "out");
+          o += R.ground(t, y, x0, x1, dp, 61);
+          const months = ["jun", "jul", "ago", "sep", "oct", "nov"];
+          months.forEach((m, i) => {
+            const mx = x0 + ((x1 - x0) * i) / 5;
+            const appear = 14.3 + 0.7 * (i / 5);
+            if (t > appear) {
+              o += R.path(R.wob([[mx, y - 16], [mx, y + 16]], R.boilRng(t, 70 + i), 1), { w: 5 });
+              o += R.write(t, m, mx, y + 70, appear, appear + 0.25, { size: 44, anchor: "middle", weight: 600 });
+            }
+          });
+          // a marker travels the months
+          const mp = R.prog(t, 15.0, 16.4, "inOut");
+          if (t > 15.0) {
+            const mx = x0 + (x1 - x0) * mp;
+            o += R.path(R.blob(mx, y, 15, 15, R.boilRng(t, 80), 1, 10), { fill: C.blue, w: 4 });
+          }
+          o += R.sun(t, x0, y - 85, 26, kf(t, [[14.4, 0], [14.7, 1, "back"]]), 81);
+          o += R.snowflake(t, x1, y - 90, 40, kf(t, [[16.35, 0], [16.75, 1, "back"]]), 82);
+        }
+
+        layer.innerHTML = o;
+      }
+
+      window.addEventListener("hf-seek", (e) => renderAt(e.detail.time));
+
+      const tl = gsap.timeline({ paused: true });
+      const clock = { t: 0 };
+      tl.to(clock, { t: DUR, duration: DUR, ease: "none", onUpdate: () => renderAt(clock.t) }, 0);
+      window.__timelines = window.__timelines || {};
+      window.__timelines["main"] = tl;
+      renderAt(0);
+    </script>
+  </body>
+</html>
