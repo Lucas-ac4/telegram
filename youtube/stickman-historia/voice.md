@@ -1,10 +1,10 @@
 # voice.md — Historia con Stickman (PROVISIONAL)
 
-Hecho sin videos del creador. Canal nuevo. Cambiar cuando haya 3 videos grabados.
+Basado en el guion que escribió Lucas (Edison vs Tesla). Ajustar cuando haya 3 videos grabados.
 
 ## Quién habla
 - Narrador en off. Nunca aparece en cámara. Los stickman actúan, la voz cuenta.
-- Español neutro latino, trato de "tú". (Cambiar a voseo si el canal va a público argentino.)
+- Español neutro con toques rioplatenses: trato de "tú" ("usas", "suscríbete") pero dice "acá", "plata".
 - Tono: amigo que sabe mucha historia y te la cuenta en una mesa. Curioso, un poco irónico.
 
 ## Cómo habla
@@ -12,6 +12,8 @@ Hecho sin videos del creador. Canal nuevo. Cambiar cuando haya 3 videos grabados
 - Verbos concretos: "marchó", "se murió", "quemó". No "acaeció", "se produjo".
 - Humor seco, sobre lo absurdo de la situación. Nunca burla de víctimas.
 - Preguntas al espectador para abrir cada parte.
+- Frases de él: "La respuesta corta es…", "Acá está el problema de fondo", "literalmente", "Si esta te voló la cabeza".
+- Formato fuerte: desarmar leyendas (mito vs. lo que pasó de verdad).
 
 ## Palabras que NO usa
 - "Hola a todos, bienvenidos", "en el video de hoy", "sin más preámbulos"
