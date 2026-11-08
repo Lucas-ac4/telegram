@@ -387,7 +387,7 @@
         const xi = ex + inner * 8, xo = ex - inner * 8, by = ey - 19 - up;
         o += path(`M${xo} ${by + w * 2} L${xi} ${by - w * 7}`, { w: 4 });
       }
-      if (p.blush !== false) o += `<ellipse cx="${(hc[0] + sd * r * 0.58 + ox * 0.8).toFixed(1)}" cy="${(hc[1] + r * 0.3).toFixed(1)}" rx="10" ry="5.5" fill="${BLUSH}" opacity=".75"/>`;
+      if (p.blush) o += `<ellipse cx="${(hc[0] + sd * r * 0.58 + ox * 0.8).toFixed(1)}" cy="${(hc[1] + r * 0.3).toFixed(1)}" rx="10" ry="5.5" fill="${BLUSH}" opacity=".75"/>`;
     });
     const mx = hc[0] + ox * 1.05, my = hc[1] + r * 0.4, mw = r * 0.18;
     if ((p.mouthO || 0) > 0.5) o += `<ellipse cx="${mx}" cy="${my + 2}" rx="7" ry="9" fill="#7a2a2a" stroke="${C.ink}" stroke-width="3.5"/>`;
@@ -569,7 +569,6 @@
     const ex = hx - 2 + look * 8;
     if (p.blink) g += path(`M${ex - 6} ${hy - 4} L${ex + 6} ${hy - 4}`, { w: 3.5 });
     else g += `<ellipse cx="${ex}" cy="${hy - 4}" rx="4" ry="5" fill="${C.ink}"/>` + path(`M${ex - 7} ${hy - 10} L${ex + 7} ${hy - 8}`, { w: 3 });
-    g += `<ellipse cx="${hx + 8}" cy="${hy + 4}" rx="6" ry="3.5" fill="#f5a3a0" opacity=".8"/>`;
     const ch = Math.sin((p.chew || 0) * Math.PI * 2) * 2;
     g += path(`M${hx + 6} ${hy + 8 + ch} Q${hx + 14} ${hy + 6} ${hx + 21} ${hy + 8 - ch}`, { w: 3.5 });
     const s = p.s || 1, f = p.f || 1;

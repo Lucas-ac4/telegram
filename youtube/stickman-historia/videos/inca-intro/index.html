@@ -83,6 +83,10 @@
           <clipPath id="spread"><circle id="spread-c" cx="0" cy="0" r="0" /></clipPath>
           <clipPath id="tawa-clip"><path id="tawa-path" d="" /></clipPath>
         </defs>
+        <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#9fd3f0" />
+          <stop offset="1" stop-color="#e9f5fb" />
+        </linearGradient>
         <g id="layer"></g>
       </svg>
     </div>
@@ -177,8 +181,17 @@
         return p;
       }
 
+      // static backdrops (no animation: the characters are the show)
+      const BG_A =
+        `<rect x="0" y="0" width="1920" height="1080" fill="url(#sky)"/>` +
+        `<path d="M0 700 L180 560 L330 640 L520 470 L700 610 L860 520 L1040 640 L1220 500 L1420 620 L1600 480 L1780 600 L1920 540 L1920 ${GROUND} L0 ${GROUND}Z" fill="#b9c7d6" stroke="#8fa1b5" stroke-width="4" stroke-linejoin="round"/>` +
+        `<path d="M520 470 L470 512 L500 508 L520 488 L548 510 L575 500Z M1600 480 L1556 516 L1584 512 L1600 496 L1626 514 L1650 504Z M1220 500 L1180 534 L1206 530 L1220 516 L1240 530 L1262 522Z" fill="#ffffff"/>` +
+        `<path d="M0 790 Q300 740 640 780 T1300 770 T1920 760 L1920 ${GROUND} L0 ${GROUND}Z" fill="#c9d79a"/>` +
+        `<rect x="0" y="${GROUND}" width="1920" height="${1080 - GROUND}" fill="#d9c58e"/>`;
+      const BG_B = `<rect x="0" y="0" width="1920" height="1080" fill="#cfe7f4"/>`;
+
       function sceneA(t) {
-        let o = R.ground(t, GROUND, 60, 1860, prog(t, 0, 0.6, "out"));
+        let o = BG_A + R.ground(t, GROUND, 0, 1920, prog(t, 0, 0.6, "out"));
         o += R.write(t, "1532", 120, 150, 0.3, 1.0, { size: 84, weight: 800, rot: -3 });
 
         // the army builds up left to right
@@ -266,10 +279,10 @@
       }
 
       function sceneB(t) {
-        let o = "";
+        let o = BG_B;
         // continent outline draws itself
         const dp = prog(t, 12.5, 14.6, "inOut");
-        o += `<path d="${SA_D}" fill="${mix("#ffffff", "#f6f3ea", dp)}" stroke="${C.ink}" stroke-width="5" stroke-linejoin="round" stroke-dasharray="${SA_LEN.toFixed(1)}" stroke-dashoffset="${(SA_LEN * (1 - dp)).toFixed(1)}"/>`;
+        o += `<path d="${SA_D}" fill="${mix("#cfe7f4", "#f1e7c8", dp)}" stroke="${C.ink}" stroke-width="5" stroke-linejoin="round" stroke-dasharray="${SA_LEN.toFixed(1)}" stroke-dashoffset="${(SA_LEN * (1 - dp)).toFixed(1)}"/>`;
 
         // the empire spreads from Cusco, then cracks and greys out
         const sp = prog(t, 16.5, 19.0, "inOut");
@@ -309,7 +322,7 @@
         const sy = kf(t, [[25.0, -220], [25.7, 150, "out"]]);
         if (t > 25.0) {
           const look = kf(t, [[26.6, 0], [27.0, -1]]), down = kf(t, [[26.6, 0], [27.0, 1]]);
-          o += R.sun(t, 1150, sy, 78, 1, 905, { look, down, lids: 0, mouth: 1, blush: true });
+          o += R.sun(t, 1150, sy, 78, 1, 905, { look, down, lids: 0, mouth: 1 });
         }
         if (t > 26.4) {
           const lp = kf(t, [[26.4, 0], [26.8, 1, "back"]]);
