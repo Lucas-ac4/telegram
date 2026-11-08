@@ -161,9 +161,39 @@
       );
     }
     out += path(wob(leg(legF), rng), { w: W });
+    // tunic (unku / coat): covers torso and the top of the legs
+    if (p.tunic) {
+      const tf = p.tunic;
+      const top = [neck[0], neck[1] + 4], bot = [hip[0], hip[1] + 22];
+      const tw = 24, bw = 36;
+      out += path(wob([[top[0] - tw, top[1]], [bot[0] - bw, bot[1]], [bot[0] + bw, bot[1]], [top[0] + tw, top[1]], [top[0] - tw, top[1]]], rng, 1), { fill: tf.fill, w: 5 });
+      if (tf.band) {
+        // tocapu: a row of little squares across the waist
+        const by = top[1] + (bot[1] - top[1]) * 0.58, n = 5, cw = (2 * 30) / n;
+        for (let i = 0; i < n; i++) {
+          const bx = top[0] - 30 + i * cw + (bot[0] - top[0]) * 0.58;
+          out += `<rect x="${bx.toFixed(1)}" y="${(by - cw / 2).toFixed(1)}" width="${cw.toFixed(1)}" height="${cw.toFixed(1)}" fill="${i % 2 ? tf.band[0] : tf.band[1]}" stroke="${C.ink}" stroke-width="2"/>`;
+        }
+      }
+    }
     // head
+    if (p.beard) {
+      const look = p.look == null ? 0.5 : p.look, ox = look * L.head * 0.42;
+      out += path(`M${hc[0] - L.head * 0.85 + ox * 0.5} ${hc[1] + L.head * 0.05} Q${hc[0] + ox} ${hc[1] + L.head * 1.9} ${hc[0] + L.head * 0.85 + ox * 0.5} ${hc[1] + L.head * 0.05}Z`, { fill: p.beard, w: 4.5 });
+    }
     out += path(blob(hc[0], hc[1], L.head, L.head * 1.02, rng), { fill: C.paper, w: W });
+    if (p.beard) {
+      // beard over the jaw, mouth stays visible on top
+      const look = p.look == null ? 0.5 : p.look, ox = look * L.head * 0.42;
+      out += path(`M${hc[0] - L.head * 0.8 + ox * 0.5} ${hc[1] + L.head * 0.2} Q${hc[0] + ox} ${hc[1] + L.head * 1.75} ${hc[0] + L.head * 0.8 + ox * 0.5} ${hc[1] + L.head * 0.2} Q${hc[0] + ox} ${hc[1] + L.head * 0.75} ${hc[0] - L.head * 0.8 + ox * 0.5} ${hc[1] + L.head * 0.2}Z`, { fill: p.beard, w: 4 });
+    }
     out += face(t, p, hc, rng);
+    if (p.earSpools) {
+      const look = p.look == null ? 0.5 : p.look, ox = look * L.head * 0.42;
+      [-1, 1].forEach((sd) => {
+        out += `<circle cx="${(hc[0] + sd * L.head * 0.97 + ox * 0.3).toFixed(1)}" cy="${(hc[1] + L.head * 0.12).toFixed(1)}" r="8" fill="${C.sun}" stroke="${C.ink}" stroke-width="3"/>`;
+      });
+    }
     out += hat(p, hc, lean + tilt, rng);
     out += path(wob(armF, rng), { w: W });
     if (p.sweat > 0.01) {
@@ -227,6 +257,29 @@
       g += path(blob(0, -r * 0.85, r * 1.08, r * 0.62, rng, 1.2, 12), { fill: C.red, w: 5 });
       g += path(wob([[-r * 1.15, -r * 0.55], [r * 1.15, -r * 0.55]], rng, 1.2), { w: 9, stroke: "#8a5a3c" });
       g += path(blob(-r * 0.95, -r * 0.05, r * 0.25, r * 0.45, rng, 0.8, 9), { fill: "#8a5a3c", w: 4 });
+    } else if (p.hat === "mascaipacha") {
+      // Sapa Inca: braided llautu band, red fringe over the brow, two feathers
+      const look = p.look == null ? 0.5 : p.look, ox = look * r * 0.42;
+      g += path(`M${-r * 1.0} ${-r * 0.5} Q0 ${-r * 0.72} ${r * 1.0} ${-r * 0.5}`, { w: 11, stroke: "#7a3b1f" });
+      g += `<path d="M${-r * 1.0} ${-r * 0.5} Q0 ${-r * 0.72} ${r * 1.0} ${-r * 0.5}" fill="none" stroke="${C.sun}" stroke-width="5" stroke-dasharray="7 7"/>`;
+      const fx0 = -r * 0.42 + ox, fx1 = r * 0.42 + ox;
+      g += path(wob([[fx0, -r * 0.58], [fx0 + 3, -r * 0.3], [fx1 - 3, -r * 0.3], [fx1, -r * 0.58]], rng, 0.6), { fill: C.red, w: 3.5 });
+      for (let i = 1; i < 5; i++) {
+        const x = fx0 + ((fx1 - fx0) * i) / 5;
+        g += `<path d="M${x.toFixed(1)} ${(-r * 0.56).toFixed(1)} L${x.toFixed(1)} ${(-r * 0.33).toFixed(1)}" stroke="#7d1010" stroke-width="2"/>`;
+      }
+      // two short feathers on a little rod, leaning back together (not bunny ears)
+      g += path(`M${r * 0.05} ${-r * 0.68} L${-r * 0.05} ${-r * 1.08}`, { w: 4, stroke: "#7a3b1f" });
+      [[-0.12, -32, C.ink], [0.04, -12, C.paper]].forEach(([dx, rot, fill]) => {
+        g += `<g transform="translate(${r * dx} ${-r * 1.05}) rotate(${rot})"><path d="M0 0 Q${r * 0.2} ${-r * 0.25} 0 ${-r * 0.55} Q${-r * 0.2} ${-r * 0.25} 0 0Z" fill="${fill}" stroke="${C.ink}" stroke-width="3"/></g>`;
+      });
+    } else if (p.hat === "morion") {
+      // Spanish conquistador helmet: dome, comb, upturned crescent brim
+      const steel = "#9aa6b2";
+      g += path(`M${-r * 0.62} ${-r * 0.95} Q0 ${-r * 1.95} ${r * 0.62} ${-r * 0.95}Z`, { fill: steel, w: 4 });
+      g += path(`M${-r * 0.92} ${-r * 0.55} Q${-r * 0.9} ${-r * 1.5} 0 ${-r * 1.45} Q${r * 0.9} ${-r * 1.5} ${r * 0.92} ${-r * 0.55}Z`, { fill: steel, w: 4.5 });
+      g += path(`M${-r * 1.6} ${-r * 0.95} Q0 ${-r * 0.05} ${r * 1.6} ${-r * 0.95} Q0 ${-r * 0.42} ${-r * 1.6} ${-r * 0.95}Z`, { fill: steel, w: 4.5 });
+      g += `<path d="M${-r * 0.35} ${-r * 1.25} Q0 ${-r * 1.38} ${r * 0.35} ${-r * 1.25}" fill="none" stroke="#fff" stroke-width="3" opacity=".8"/>`;
     }
     return `<g transform="translate(${hc[0]} ${hc[1]}) rotate(${deg.toFixed(2)})">${g}</g>`;
   }
@@ -252,10 +305,22 @@
     }
     return o;
   }
-  function sun(t, cx, cy, r, sc = 1, seed = 9) {
+  function sun(t, cx, cy, r, sc = 1, seed = 9, face = null) {
     if (sc <= 0.01) return "";
     const rng = boilRng(t, seed);
     let o = path(blob(0, 0, r, r, rng, 1.6, 16), { fill: C.sun, w: 5 });
+    if (face) {
+      // face: {look: -1..1 (x), down: 0..1, lids: 0..1 (bored), mouth: -1..1}
+      const lx = (face.look || 0) * r * 0.18, dy = (face.down || 0) * r * 0.18;
+      [-1, 1].forEach((sd) => {
+        const ex = sd * r * 0.33 + lx, ey = -r * 0.1 + dy;
+        o += `<ellipse cx="${ex}" cy="${ey}" rx="${r * 0.09}" ry="${r * 0.12}" fill="${C.ink}"/>`;
+        const lid = face.lids || 0;
+        if (lid > 0.01) o += `<rect x="${ex - r * 0.14}" y="${ey - r * 0.16}" width="${r * 0.28}" height="${r * 0.16 * lid}" fill="${C.sun}"/>` + path(`M${ex - r * 0.14} ${ey - r * 0.16 + r * 0.16 * lid} L${ex + r * 0.14} ${ey - r * 0.16 + r * 0.16 * lid}`, { w: 3.5 });
+      });
+      const m = face.mouth || 0;
+      o += path(`M${-r * 0.22 + lx} ${r * 0.32 + dy} Q${lx} ${r * 0.32 + dy + m * r * 0.18} ${r * 0.22 + lx} ${r * 0.32 + dy}`, { w: 4 });
+    }
     const rot = t * 0.25;
     for (let i = 0; i < 12; i++) {
       const a = rot + (i / 12) * Math.PI * 2;
@@ -345,5 +410,53 @@
     };
   }
 
-  window.Rig = { C, FONT, kf, prog, clamp, lerp, E, stickman, snowman, ground, hatch, sun, bullet, scribble, write, snowflake, walk, boilRng, wob, blob, path };
+  // a light crowd figure (armies, villages): far cheaper than stickman()
+  // o: {seed, band (head colour), helmet:'morion'|'llautu', spear, slump:0..1, sw (stroke)}
+  function mini(t, x, y, s, o = {}) {
+    const rng = boilRng(t, o.seed || 1);
+    const sl = o.slump || 0;
+    const hipY = -40, neck = [sl * 14, hipY - 34 + sl * 8], hc = [neck[0] + sl * 6, neck[1] - 12 + sl * 4];
+    const w = o.sw || 4;
+    let g = "";
+    g += path(wob([[-7, 0], [0, hipY], [7, 0]], rng, 0.9), { w });
+    g += path(wob([[0, hipY], neck], rng, 0.9), { w });
+    const arm = o.spear ? [[-12, hipY - 14], [neck[0], neck[1] + 6], [12, hipY - 18]] : [[-11, hipY - 6 + sl * 8], [neck[0], neck[1] + 6], [11, hipY - 6 + sl * 8]];
+    g += path(wob(arm, rng, 0.9), { w });
+    if (o.spear) g += path(wob([[12, hipY + 4], [16, hipY - 72]], rng, 0.8), { w: w * 0.8, stroke: "#6b4a2f" }) + `<path d="M${16 - 4} ${hipY - 70} L16 ${hipY - 84} L${16 + 4} ${hipY - 70}Z" fill="${o.tip || "#888"}" stroke="${C.ink}" stroke-width="2"/>`;
+    g += path(blob(hc[0], hc[1], 10, 10, rng, 0.7, 9), { fill: o.skin || C.paper, w: w * 0.9 });
+    if (o.helmet === "morion") g += `<path d="M${hc[0] - 15} ${hc[1] - 5} Q${hc[0]} ${hc[1] + 3} ${hc[0] + 15} ${hc[1] - 5} Q${hc[0]} ${hc[1] - 22} ${hc[0] - 15} ${hc[1] - 5}Z" fill="#9aa6b2" stroke="${C.ink}" stroke-width="2.5"/>`;
+    else if (o.band) g += `<path d="M${hc[0] - 10} ${hc[1] - 4} L${hc[0] + 10} ${hc[1] - 4}" stroke="${o.band}" stroke-width="5"/>`;
+    return `<g transform="translate(${x.toFixed(1)} ${y.toFixed(1)}) scale(${s})">${g}</g>`;
+  }
+
+  // the recurring llama. p: {x, y, s, f, seed, chew:0..1, look:0..1 (0 = at camera), blink}
+  function llama(t, p) {
+    const rng = boilRng(t, p.seed || 91);
+    const wool = "#f3eadb";
+    let g = "";
+    // legs
+    [[-38, 0.9], [-22, 1], [22, 0.9], [38, 1]].forEach(([lx, sh], i) => {
+      g += path(wob([[lx, -60], [lx + (i % 2 ? 2 : -2), 0]], rng, 0.9), { w: 6, stroke: i % 2 ? C.ink : "#555" });
+    });
+    // tail + body
+    g += path(blob(-62, -86, 10, 13, rng, 0.8, 8), { fill: wool, w: 4 });
+    g += path(blob(0, -82, 60, 32, rng, 1.6, 14), { fill: wool, w: 5.5 });
+    // neck
+    g += path(`M28 -96 Q40 -140 36 -178 L64 -178 Q66 -130 54 -86Z`, { fill: wool, w: 5.5 });
+    // head
+    const hx = 54, hy = -190;
+    g += path(blob(hx, hy, 24, 16, rng, 0.9, 10), { fill: wool, w: 5 });
+    g += path(blob(hx - 13, hy - 24, 5, 12, rng, 0.6, 8), { fill: wool, w: 4 });
+    g += path(blob(hx + 3, hy - 26, 5, 12, rng, 0.6, 8), { fill: wool, w: 4 });
+    const look = p.look == null ? 0 : p.look;
+    const ex = hx - 2 + look * 8;
+    if (p.blink) g += path(`M${ex - 6} ${hy - 4} L${ex + 6} ${hy - 4}`, { w: 3.5 });
+    else g += `<ellipse cx="${ex}" cy="${hy - 4}" rx="4" ry="5" fill="${C.ink}"/>` + path(`M${ex - 7} ${hy - 10} L${ex + 7} ${hy - 8}`, { w: 3 });
+    const ch = Math.sin((p.chew || 0) * Math.PI * 2) * 2;
+    g += path(`M${hx + 6} ${hy + 8 + ch} Q${hx + 14} ${hy + 6} ${hx + 21} ${hy + 8 - ch}`, { w: 3.5 });
+    const s = p.s || 1, f = p.f || 1;
+    return `<g transform="translate(${p.x.toFixed(1)} ${p.y.toFixed(1)}) scale(${(s * f).toFixed(3)} ${s.toFixed(3)})">${g}</g>`;
+  }
+
+  window.Rig = { C, FONT, kf, prog, clamp, lerp, E, stickman, snowman, ground, hatch, sun, bullet, scribble, write, snowflake, walk, boilRng, wob, blob, path, mini, llama };
 })();
