@@ -34,7 +34,7 @@ VERDICT       79  STRONG
 
 > Crees que Edison mató a esta elefanta para arruinar a Tesla. Pero Edison perdió esa guerra diez años antes de que ella muriera. ¿Entonces por qué lo crees?
 >
-> La guerra de las corrientes sí fue sucia. A fines de 1880, la gente de Edison electrocutaba animales frente a periodistas para que el público le tuviera miedo a la corriente alterna de Westinghouse y Tesla. Pero en 1893 la alterna ganó: iluminó la Exposición de Chicago, y Edison quedó afuera.
+> La guerra de las corrientes sí fue sucia. A fines de la década de 1880, el bando de Edison electrocutaba animales frente a periodistas para que el público le tuviera miedo a la corriente alterna de Westinghouse y Tesla. Pero en 1893 la alterna ganó: iluminó la Exposición de Chicago, y Edison quedó afuera.
 >
 > Topsy murió en enero de 1903, en un parque de Coney Island. El parque decidió sacrificarla en público. Y la compañía de cine de Edison la filmó.
 >
