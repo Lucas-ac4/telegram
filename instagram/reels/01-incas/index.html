@@ -1,0 +1,393 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1080, height=1920" />
+    <script src="assets/gsap.min.js"></script>
+    <script src="assets/rig.js"></script>
+    <style>
+      @font-face {
+        font-family: "Shantell Sans";
+        src: url("assets/fonts/ShantellSans-latin.woff2") format("woff2");
+        font-weight: 300 800;
+        font-display: block;
+      }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1080px; height: 1920px; overflow: hidden; background: #cfe7f4; }
+      #root { position: relative; width: 100%; height: 100%; background: #cfe7f4; }
+      #stage { position: absolute; left: 0; top: 0; width: 1080px; height: 1920px; }
+    </style>
+  </head>
+  <body>
+    <!-- Reel 1: TODAS LAS CIVILIZACIONES DE AMÉRICA, parte 1: LOS INCAS.
+         Guion: instagram/guiones/01-incas.md. Subtítulos con tiempos estimados
+         (~2,6 palabras/s); al grabar la voz, ajustar BLOCKS a la narración real. -->
+    <div id="root" data-composition-id="main" data-start="0" data-duration="81" data-width="1080" data-height="1920">
+      <svg id="stage" class="clip" data-start="0" data-duration="81" data-track-index="0" data-layout-allow-overflow
+        viewBox="0 0 1080 1920" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#9fd3f0" /><stop offset="1" stop-color="#e9f5fb" />
+          </linearGradient>
+          <clipPath id="spread"><circle id="spread-c" cx="0" cy="0" r="0" /></clipPath>
+        </defs>
+        <g id="layer"></g>
+      </svg>
+    </div>
+    <script>
+      const R = window.Rig;
+      R.setStill(true);
+      const { kf, prog, C } = R;
+      const DUR = 81, W = 1080, GROUND = 1250;
+      const GOLD = "#e8b330", GOLD_DARK = "#b8860b", STEEL = "#8a96a3", INCA_RED = "#c62828", ANDEAN = "#e9b98f";
+      const layer = document.getElementById("layer");
+      const spreadC = document.getElementById("spread-c");
+      const FONT = R.FONT;
+
+      // ---------- narration blocks (seconds) ----------
+      const BLOCKS = [
+        [2.0, 12.0, "Crees que 168 españoles con armas de fuego derrotaron a los incas en 1532. Pero los incas ya se estaban muriendo antes de que llegara Pizarro. ¿Por qué?"],
+        [12.0, 30.0, "Todo empezó en Cusco, un reino chiquito en los Andes. Hacia 1438, un príncipe llamado Pachacútec salvó la ciudad de una invasión. Y en menos de cien años, él y sus descendientes armaron el imperio más grande de América: más de cuatro mil kilómetros, de Ecuador a Chile."],
+        [30.0, 44.5, "Y funcionaba sin dinero: los impuestos se pagaban con trabajo. Sin escritura: las cuentas se guardaban en cuerdas con nudos, los quipus. Y sin ruedas, pero con unos treinta mil kilómetros de caminos."],
+        [44.5, 57.5, "Hasta que llegó una enfermedad desde el norte, probablemente viruela. Mató al emperador y a su heredero. Y dos de sus hijos, Huáscar y Atahualpa, se pelearon el trono en una guerra civil."],
+        [57.5, 69.5, "Atahualpa ganó. Y justo ahí apareció Pizarro. En Cajamarca lo capturó en una emboscada. Atahualpa pagó un rescate de una habitación llena de oro, y aun así lo ejecutaron."],
+        [69.5, 77.5, "Así que no fueron 168 hombres: fueron una epidemia, una guerra civil y miles de aliados indígenas que odiaban a los incas."],
+        [77.5, 80.8, "En la parte 2: el imperio que construyó su capital en medio de un lago."],
+      ];
+      const KEY = new Set(["168", "1532", "pizarro", "cusco", "1438", "pachacútec", "américa", "dinero", "trabajo", "escritura", "quipus", "ruedas", "caminos", "viruela", "huáscar", "atahualpa", "civil", "cajamarca", "oro", "ejecutaron", "epidemia", "aliados", "lago", "muriendo"]);
+      const WORDS = [];
+      BLOCKS.forEach(([a, b, txt]) => {
+        const ws = txt.split(/\s+/);
+        const span = (b - 0.35 - a) / ws.length;
+        ws.forEach((w, i) => WORDS.push({ w, t: a + i * span, key: KEY.has(w.toLowerCase().replace(/[^\wáéíóúñü]/g, "")) }));
+      });
+      // captions: chunks of 3 words, the word being said pops; keywords in yellow
+      function captions(t) {
+        let idx = -1;
+        for (let i = 0; i < WORDS.length; i++) if (WORDS[i].t <= t) idx = i;
+        if (idx < 0) return "";
+        const blockEnd = BLOCKS.find(([a, b]) => t >= a && t < b);
+        if (!blockEnd) return "";
+        const c0 = idx - (idx % 3), chunk = WORDS.slice(c0, c0 + 3).filter((w) => w.t >= blockEnd[0] - 0.01);
+        if (!chunk.length) return "";
+        const esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;");
+        const spans = chunk.filter((w, i) => c0 + i <= idx).map((w) => `<tspan fill="${w.key ? "#ffd23f" : "#ffffff"}">${esc(w.w)} </tspan>`).join("");
+        const pop = 1 + 0.06 * (1 - prog(t, WORDS[idx].t, WORDS[idx].t + 0.12, "out"));
+        return `<g transform="translate(540 1440) scale(${pop.toFixed(3)})"><text x="0" y="0" text-anchor="middle" font-family="${FONT}" font-weight="800" font-size="70" stroke="#1f1f1f" stroke-width="12" paint-order="stroke" stroke-linejoin="round">${spans}</text></g>`;
+      }
+
+      // big top title, popped in
+      function title(t, txt, a, b, y = 270, size = 92, fill = "#1f1f1f") {
+        const sc = kf(t, [[a, 0], [a + 0.3, 1, "back"], [b - 0.25, 1], [b, 0, "in"]]);
+        if (sc <= 0.01) return "";
+        return `<g transform="translate(540 ${y}) scale(${sc.toFixed(3)})"><text x="0" y="0" text-anchor="middle" font-family="${FONT}" font-weight="800" font-size="${size}" fill="${fill}" stroke="#ffffff" stroke-width="14" paint-order="stroke" stroke-linejoin="round">${txt}</text></g>`;
+      }
+
+      // ---------- backdrops ----------
+      const BG_SKY = `<rect width="1080" height="1920" fill="url(#sky)"/>` +
+        `<path d="M0 1010 L140 880 L260 960 L420 820 L560 940 L700 840 L860 960 L1080 860 L1080 ${GROUND} L0 ${GROUND}Z" fill="#b9c7d6" stroke="#8fa1b5" stroke-width="4" stroke-linejoin="round"/>` +
+        `<path d="M420 820 L384 852 L404 850 L420 836 L440 852 L458 846Z M700 840 L664 872 L684 868 L700 856 L720 870 L738 864Z" fill="#fff"/>` +
+        `<path d="M0 1120 Q270 1080 540 1110 T1080 1100 L1080 ${GROUND} L0 ${GROUND}Z" fill="#c9d79a"/>` +
+        `<rect x="0" y="${GROUND}" width="1080" height="${1920 - GROUND}" fill="#d9c58e"/>`;
+      const BG_SEA = `<rect width="1080" height="1920" fill="#cfe7f4"/>`;
+      const BG_SOFT = `<rect width="1080" height="1920" fill="#e7f0e1"/>`;
+
+      // ---------- shared layouts (seeded once) ----------
+      const rng0 = R.boilRng(0, 777);
+      const army = [];
+      for (let row = 3; row >= 0; row--) {
+        const s = 0.95 - row * 0.09, y = GROUND - row * 40;
+        for (let x = 40 + (row % 2) * 22; x < 560; x += 46 * s) army.push({ x: x + (rng0() - 0.5) * 8, y, s, row, seed: 100 + army.length, red: rng0() < 0.5, spear: rng0() < 0.6, sick: rng0() < 0.45 });
+      }
+      const spaniards = [];
+      for (let row = 1; row >= 0; row--) for (let i = 0; i < 6; i++) spaniards.push({ x: 820 + i * 38 + (row % 2) * 18, y: GROUND - row * 30, s: 0.58 - row * 0.05, seed: 500 + spaniards.length });
+
+      // ---------- South America (vertical framing) ----------
+      const SA = [[-77,8.5],[-75.5,10.8],[-72,11.8],[-71,12.4],[-68,10.6],[-64,10.7],[-61.5,10.6],[-60,8.5],[-57,6],[-54,5.6],[-51.5,4.2],[-50,1.8],[-48.5,-1],[-44.5,-2.5],[-40,-2.8],[-37,-4.8],[-35,-6.5],[-35,-9],[-37,-11],[-39,-13.5],[-39,-17.5],[-40.5,-20.5],[-42,-23],[-45,-23.8],[-48.5,-26],[-48.7,-28.5],[-50.5,-31],[-53,-34],[-55,-35],[-57.5,-35.2],[-56.7,-36.5],[-57.5,-38.2],[-62,-39],[-62.3,-41],[-65,-42.5],[-65.2,-45],[-67.5,-46.5],[-66,-48],[-68.5,-50.5],[-69,-52],[-68.5,-54.5],[-71,-55],[-74,-52.5],[-75.5,-48],[-74,-44],[-73.5,-40],[-73.5,-37],[-72,-33],[-71.5,-30],[-71,-26],[-70.4,-23],[-70.2,-18.5],[-71.5,-17.3],[-75,-15.4],[-76.3,-13.5],[-78,-10.5],[-79.5,-7.5],[-81,-5.5],[-80.5,-3],[-80.3,-0.5],[-80,1],[-79,1.8],[-77.5,3.5],[-77.4,6.5],[-77,8.5]];
+      const TAWA = [[-78.5,1.5],[-80,1],[-80.3,-0.5],[-80.5,-3],[-81,-5.5],[-79.5,-7.5],[-78,-10.5],[-76.3,-13.5],[-75,-15.4],[-71.5,-17.3],[-70.2,-18.5],[-70.4,-23],[-71,-26],[-71.5,-30],[-72,-33],[-72.3,-35.5],[-70,-35],[-68.5,-33],[-66,-28],[-65,-24],[-64,-20],[-64.5,-17],[-67,-14],[-71,-12],[-73.5,-9],[-76,-6],[-77.5,-3],[-77.5,0],[-77,1.5],[-78.5,1.5]];
+      const K = 13, MX = 228, MY = 400;
+      const proj = ([lon, lat]) => [MX + (lon + 82) * K, MY + (13 - lat) * K];
+      const dOf = (pts) => "M" + pts.map((p) => p[0].toFixed(1) + " " + p[1].toFixed(1)).join(" L") + "Z";
+      const SA_D = dOf(SA.map(proj)), TAWA_D = dOf(TAWA.map(proj));
+      const SA_LEN = SA.map(proj).reduce((a, p, i, arr) => (i ? a + Math.hypot(p[0] - arr[i - 1][0], p[1] - arr[i - 1][1]) : 0), 0) * 1.03;
+      const CUSCO = proj([-72, -13.5]);
+      function mix(a, b, p) {
+        const h = (c) => [1, 3, 5].map((i) => parseInt(c.slice(i, i + 2), 16));
+        const A = h(a), B = h(b);
+        return "#" + A.map((v, i) => Math.round(v + (B[i] - v) * p).toString(16).padStart(2, "0")).join("");
+      }
+      function map(t, o) {
+        const dp = o.draw == null ? 1 : o.draw;
+        let s = `<path d="${SA_D}" fill="${mix("#cfe7f4", "#f1e7c8", dp)}" stroke="#1f1f1f" stroke-width="5" stroke-linejoin="round" stroke-dasharray="${SA_LEN.toFixed(0)}" stroke-dashoffset="${(SA_LEN * (1 - dp)).toFixed(0)}"/>`;
+        if (o.spread > 0) {
+          spreadC.setAttribute("cx", CUSCO[0]); spreadC.setAttribute("cy", CUSCO[1]); spreadC.setAttribute("r", (o.spread * 330).toFixed(1));
+          s += `<path d="${TAWA_D}" clip-path="url(#spread)" fill="${mix(GOLD, "#bdb6a4", o.grey || 0)}" stroke="${GOLD_DARK}" stroke-width="4"/>`;
+        }
+        if (o.cusco) {
+          const pulse = 1 + 0.18 * Math.max(0, Math.sin(t * 5));
+          s += `<circle cx="${CUSCO[0]}" cy="${CUSCO[1]}" r="${(14 * o.cusco * pulse).toFixed(1)}" fill="${INCA_RED}" stroke="#1f1f1f" stroke-width="4"/>`;
+          s += R.write(t, "Cusco", CUSCO[0] - 26, CUSCO[1] + 10, o.cuscoAt, o.cuscoAt + 0.5, { size: 50, weight: 760, anchor: "end" });
+        }
+        return s;
+      }
+
+      // ---------- characters ----------
+      const sapa = (o) => ({ s: 1.5, f: 1, seed: 21, hat: "mascaipacha", earSpools: true, skin: ANDEAN, shoe: "#c79a5b", tunic: { fill: INCA_RED, band: [GOLD, C.ink] }, look: 0.3, mouth: 0.3, ...R.walk(0, 0), ...o });
+      const piz = (o) => ({ s: 1.15, f: -1, seed: 31, hat: "morion", beard: "#8a8a8a", shoe: "#3a2a20", legs: "#5a4632", tunic: { fill: STEEL, sash: "#a51d2d" }, look: 0.8, mouth: 0.2, ...R.walk(0, 0), ...o });
+      function pop(t, at) { return kf(t, [[at, 0], [at + 0.3, 1, "back"]]); }
+      function popIn(p, t, at) { const k = pop(t, at); p.squash = (p.squash || 0) + (1 - k) * 0.5; p.y += (1 - k) * 40; return k > 0.01; }
+
+      // ---------- props ----------
+      function borla(x, y, sc, rot = 0) {
+        return `<g transform="translate(${x} ${y}) rotate(${rot}) scale(${sc})">` +
+          `<path d="M-60 0 Q0 -16 60 0" fill="none" stroke="#1f1f1f" stroke-width="16" stroke-linecap="round"/><path d="M-60 0 Q0 -16 60 0" fill="none" stroke="${GOLD}" stroke-width="9" stroke-linecap="round"/>` +
+          `<path d="M-26 -6 L-24 34 L24 34 L26 -6Z" fill="${INCA_RED}" stroke="#1f1f1f" stroke-width="4" stroke-linejoin="round"/>` +
+          [-12, 0, 12].map((x2) => `<path d="M${x2} -2 L${x2} 32" stroke="#7d1010" stroke-width="3"/>`).join("") + `</g>`;
+      }
+      function coin(t, x, y, sc) {
+        if (sc <= 0.01) return "";
+        const rng = R.boilRng(t, 701);
+        return `<g transform="translate(${x} ${y}) scale(${sc})">` + R.path(R.blob(0, 0, 70, 70, rng, 1, 14), { fill: GOLD, w: 7 }) + R.path(R.blob(0, 0, 50, 50, rng, 1, 12), { w: 5 }) + `<text x="0" y="25" font-family="${FONT}" font-weight="800" font-size="72" text-anchor="middle" fill="#1f1f1f">$</text></g>`;
+      }
+      function cross(t, x, y, pr, seed, sz = 80) {
+        return R.scribble(t, [[x - sz, y - sz], [x + sz, y + sz]], prog(pr, 0, 0.5), C.red, 16, seed) + R.scribble(t, [[x + sz, y - sz], [x - sz, y + sz]], prog(pr, 0.5, 1), C.red, 16, seed + 1);
+      }
+      function quipu(t, x, y, sc, knots) {
+        if (sc <= 0.01) return "";
+        let g = `<path d="M-120 0 L120 0" stroke="#1f1f1f" stroke-width="14" stroke-linecap="round"/><path d="M-120 0 L120 0" stroke="#8a5a3c" stroke-width="8" stroke-linecap="round"/>`;
+        const cols = [INCA_RED, GOLD, "#2e9e5b", "#1f6fb2", INCA_RED, GOLD, "#2e9e5b"];
+        cols.forEach((c, i) => {
+          const x2 = -105 + i * 35, len = 120 + (i % 3) * 30;
+          g += `<path d="M${x2} 4 Q${x2 + 6} ${len / 2} ${x2} ${len}" fill="none" stroke="#1f1f1f" stroke-width="9" stroke-linecap="round"/><path d="M${x2} 4 Q${x2 + 6} ${len / 2} ${x2} ${len}" fill="none" stroke="${c}" stroke-width="5" stroke-linecap="round"/>`;
+          const kn = Math.min(3, Math.floor(knots + (i % 3)));
+          for (let k = 0; k < kn; k++) g += `<circle cx="${x2 + 3}" cy="${30 + k * 26}" r="7" fill="${c}" stroke="#1f1f1f" stroke-width="3"/>`;
+        });
+        return `<g transform="translate(${x} ${y}) scale(${sc})">${g}</g>`;
+      }
+
+      // ---------- scenes ----------
+      function sCover(t, zoom) {
+        // 3x3 grid of civilizations; the Inca (center) gets the zoom
+        const cells = [
+          ["Olmecas", { hat: "cap", hatColor: "#7a6a58", tunic: { fill: "#c9a46b" }, skin: "#d9a37a" }],
+          ["Mayas", { hat: "plumes", plumes: ["#2e9e5b", "#1f6fb2", "#2e9e5b"], hatColor: GOLD, tunic: { fill: "#2e9e5b" }, skin: "#d9a37a" }],
+          ["Teotihuacanos", { hat: "cap", hatColor: INCA_RED, tunic: { fill: "#e07b39" }, skin: "#d9a37a" }],
+          ["Mexicas", { hat: "plumes", plumes: ["#2e9e5b", "#d7263d", "#1f6fb2", "#d7263d", "#2e9e5b"], hatColor: GOLD, tunic: { fill: "#1f6fb2" }, skin: "#d9a37a" }],
+          ["Incas", { hat: "mascaipacha", earSpools: true, tunic: { fill: INCA_RED, band: [GOLD, C.ink] }, skin: ANDEAN }],
+          ["Muiscas", { hat: "cap", hatColor: GOLD, tunic: { fill: "#f2e6c9" }, skin: "#d9a37a" }],
+          ["Taínos", { hat: "band", hatColor: "#e07b39", plumes: [INCA_RED], tunic: { fill: "#f2e6c9" }, skin: "#c98f68" }],
+          ["Mapuches", { hat: "band", hatColor: "#c0c6cc", tunic: { fill: "#1f3d7a" }, skin: "#d9a37a" }],
+          ["Guaraníes", { hat: "plumes", plumes: ["#ffd23f", "#d7263d", "#ffd23f"], hatColor: "#e07b39", tunic: { fill: "#f2e6c9" }, skin: "#c98f68" }],
+        ];
+        let g = BG_SOFT + `<text x="540" y="220" text-anchor="middle" font-family="${FONT}" font-weight="800" font-size="74" fill="#1f1f1f">TODAS LAS</text><text x="540" y="310" text-anchor="middle" font-family="${FONT}" font-weight="800" font-size="74" fill="#1f1f1f">CIVILIZACIONES</text><text x="540" y="400" text-anchor="middle" font-family="${FONT}" font-weight="800" font-size="74" fill="${INCA_RED}">DE AMÉRICA</text>`;
+        cells.forEach(([name, o], i) => {
+          const cx = 200 + (i % 3) * 340, cy = 720 + Math.floor(i / 3) * 360;
+          const hl = i === 4 ? 1 : 0;
+          g += `<rect x="${cx - 155}" y="${cy - 230}" width="310" height="330" rx="26" fill="${hl ? "#fff3cf" : "#ffffff"}" stroke="#1f1f1f" stroke-width="${hl ? 7 : 4}"/>`;
+          g += R.chibi(t, { x: cx, y: cy + 40, s: 0.78, seed: 300 + i, look: 0.1, mouth: 0.35, ...R.walk(0, 0), ...o });
+          g += `<text x="${cx}" y="${cy + 88}" text-anchor="middle" font-family="${FONT}" font-weight="800" font-size="36" fill="#1f1f1f">${name}</text>`;
+        });
+        const z = 1 + zoom * 1.9;
+        const ox = 540 - 540 * z, oy = 1080 - 1080 * z;
+        return `<g transform="translate(${ox.toFixed(1)} ${oy.toFixed(1)}) scale(${z.toFixed(3)})">${g}</g>`;
+      }
+
+      function sHook(t) {
+        let o = BG_SKY + R.ground(t, GROUND, 0, 1080, 1);
+        army.forEach((a, i) => {
+          const at = 2.6 + (a.x / 560) * 1.0 + a.row * 0.06;
+          const k = pop(t, at);
+          if (k <= 0.01) return;
+          const slump = a.sick ? kf(t, [[7.0 + (i % 7) * 0.2, 0], [8.0 + (i % 7) * 0.2, 1]]) * 0.9 : 0;
+          o += R.mini(t, a.x, a.y + (1 - k) * 18, a.s * k, { seed: a.seed, band: GOLD, cloth: a.red ? INCA_RED : "#f2e6c9", spear: a.spear, tip: GOLD, slump, skin: ANDEAN, look: 0.6 });
+        });
+        const hz = kf(t, [[6.4, 0], [7.2, 1], [11.6, 1], [12, 0]]);
+        if (hz > 0.01) for (let i = 0; i < 30; i++) {
+          const x = (i * 97 + (t - 6.4) * (30 + (i % 5) * 8)) % 600, y = 1000 + ((i * 53) % 220);
+          o += `<circle cx="${x.toFixed(1)}" cy="${y}" r="${4 + (i % 4)}" fill="#7d7d7d" opacity="${(0.35 * hz).toFixed(2)}"/>`;
+        }
+        spaniards.forEach((sp, i) => { const k = pop(t, 2.2 + i * 0.05); if (k > 0.01) o += R.mini(t, sp.x, sp.y + (1 - k) * 12, sp.s * k, { seed: sp.seed, helmet: "morion", spear: true, tip: "#c9d1d9", cloth: STEEL, look: -0.6 }); });
+        // Pizarro
+        const pz = piz({ x: 740, y: GROUND });
+        const sh = kf(t, [[10.6, 0], [10.9, 1, "out"]]);
+        pz.look = R.lerp(0.8, 0.05, sh); pz.armF = R.lerp(pz.armF, { a: 1.35, b: 0.95 }, sh); pz.armB = R.lerp(pz.armB, { a: -1.35, b: -0.95 }, sh); pz.browsUp = sh;
+        if (popIn(pz, t, 2.1)) o += R.chibi(t, pz);
+        // Sapa Inca, coughing
+        const sp = sapa({ x: 470, y: GROUND });
+        let cough = 0;
+        [6.6, 7.3, 8.1].forEach((c) => (cough = Math.max(cough, kf(t, [[c, 0], [c + 0.08, 1, "out"], [c + 0.4, 0]]))));
+        sp.lean = cough * 0.3; sp.chinHand = kf(t, [[6.45, 0], [6.6, 1, "out"], [8.8, 1], [9.2, 0]]);
+        sp.worry = kf(t, [[6.5, 0], [6.9, 1]]); sp.sweat = kf(t, [[7, 0], [7.4, 1]]);
+        if (cough > 0.4) { sp.eyes = "closed"; sp.mouthO = 1; }
+        if (popIn(sp, t, 3.4)) o += R.chibi(t, sp);
+        o += title(t, "MILLONES", 3.4, 12.0, 260, 120, GOLD_DARK) + title(t, "vs.", 3.0, 12.0, 360, 64) + title(t, "168", 2.3, 12.0, 500, 140, STEEL);
+        const q = kf(t, [[11.0, 0], [11.3, 1, "back"]]);
+        if (q > 0.01) o += `<g transform="translate(760 760) scale(${q})"><text x="0" y="0" font-family="${FONT}" font-weight="800" font-size="150" text-anchor="middle" fill="${C.red}" stroke="#1f1f1f" stroke-width="6" paint-order="stroke">?</text></g>`;
+        return o;
+      }
+
+      function sEmpire(t) {
+        let o = BG_SEA + map(t, { draw: prog(t, 12.1, 13.6), cusco: pop(t, 13.6), cuscoAt: 13.8, spread: prog(t, 21.5, 26.5) });
+        o += title(t, "1438", 15.0, 30.0, 230, 110);
+        // Pachacútec saves Cusco
+        const pa = sapa({ x: 860, y: 1290, s: 1.05, f: -1, tunic: { fill: INCA_RED, band: [GOLD, C.ink] }, look: 0.5 });
+        pa.armF = R.lerp(pa.armF, { a: 2.6, b: 0.2 }, kf(t, [[18.0, 0], [18.4, 1, "out"], [21.0, 1], [21.4, 0]]));
+        pa.mouth = 0.6;
+        if (popIn(pa, t, 16.0)) o += R.chibi(t, pa);
+        o += title(t, "+4.000 KM", 26.5, 30.0, 360, 96, GOLD_DARK);
+        return o;
+      }
+
+      function sNoMoney(t) {
+        let o = BG_SOFT;
+        // row 1: no money
+        const c1 = pop(t, 30.2);
+        o += coin(t, 300, 500, c1);
+        if (t > 30.6) o += cross(t, 300, 500, prog(t, 30.6, 31.2, "lin"), 711);
+        o += R.write(t, "sin dinero", 640, 525, 30.4, 31.0, { size: 64, weight: 800 });
+        // row 2: quipu + offended llama
+        o += quipu(t, 300, 690, pop(t, 33.6), prog(t, 34.5, 37.5) * 3);
+        o += R.write(t, "sin escritura", 600, 740, 33.8, 34.6, { size: 64, weight: 800 });
+        if (t > 35.0) {
+          const k = pop(t, 35.0);
+          o += R.llama(t, { x: 880, y: 960, s: 0.85 * k, f: -1, seed: 91, look: kf(t, [[36.5, 1], [36.9, 0]]), chew: t > 37 ? (t - 37) * 1.4 : 0 });
+          o += R.write(t, "+1 llama", 300, 945, 36.0, 36.6, { size: 46, weight: 800, fill: INCA_RED, anchor: "middle" });
+        }
+        // row 3: roads and a running chasqui
+        if (t > 38.2) {
+          const k = pop(t, 38.2);
+          o += `<path d="M60 1290 Q540 1230 1020 1290" fill="none" stroke="#c9a46b" stroke-width="44" stroke-linecap="round" opacity="${k}"/>`;
+          o += `<path d="M60 1290 Q540 1230 1020 1290" fill="none" stroke="#fff" stroke-width="5" stroke-dasharray="26 22" stroke-dashoffset="${(t * 160).toFixed(0)}" opacity="${k}"/>`;
+          const w = R.walk(t * 13, 1.3);
+          o += R.chibi(t, { x: 380, y: 1285, s: 0.95 * k, f: 1, seed: 41, hat: "band", hatColor: "#ffffff", skin: ANDEAN, shoe: "#c79a5b", tunic: { fill: "#f2e6c9" }, look: 0.8, lean: 0.22, mouth: 0.5, ...w });
+          o += title(t, "≈30.000 KM DE CAMINOS", 40.5, 44.5, 260, 72, GOLD_DARK);
+        }
+        return o;
+      }
+
+      function sCivilWar(t) {
+        if (t < 50.0) {
+          // the sickness arrives from the north
+          let o = BG_SEA + map(t, { spread: 1, grey: prog(t, 45.2, 48.5) });
+          for (let i = 0; i < 40; i++) {
+            const k = prog(t, 45.0 + (i % 10) * 0.25, 46.0 + (i % 10) * 0.25);
+            if (k <= 0) continue;
+            const x = 420 + ((i * 61) % 260), y = 470 + (i % 10) * 34 + ((i * 17) % 30);
+            o += `<circle cx="${x}" cy="${y}" r="${6 * k}" fill="#6f6f6f" opacity=".55"/>`;
+          }
+          o += title(t, "¿VIRUELA?", 45.6, 50.0, 260, 100, "#555555");
+          return o;
+        }
+        // two brothers pull the crown
+        let o = BG_SKY + R.ground(t, GROUND, 0, 1080, 1);
+        const pull = Math.sin((t - 50) * 3.2) * 18;
+        const hu = sapa({ x: 270 + pull, y: GROUND, s: 1.3, f: 1, seed: 61, tunic: { fill: INCA_RED, band: [GOLD, C.ink] }, look: 0.7, lean: -0.25, worry: 0.7, armF: { a: 1.5, b: 0.05 }, armB: { a: 1.3, b: 0.2 } });
+        const at = sapa({ x: 810 + pull, y: GROUND, s: 1.3, f: -1, seed: 62, tunic: { fill: "#1f6fb2", band: [GOLD, C.ink] }, look: 0.7, lean: -0.25, worry: 0.7, armF: { a: 1.5, b: 0.05 }, armB: { a: 1.3, b: 0.2 } });
+        if (popIn(hu, t, 50.2)) o += R.chibi(t, hu);
+        if (popIn(at, t, 50.5)) o += R.chibi(t, at);
+        if (t > 50.6) o += borla(540 + pull, GROUND - 205, 1.3, pull * 0.6);
+        o += title(t, "HUÁSCAR", 52.8, 57.5, 470, 64, INCA_RED);
+        o += title(t, "ATAHUALPA", 53.6, 57.5, 560, 64, "#1f6fb2");
+        o += title(t, "GUERRA CIVIL", 55.4, 57.5, 260, 96);
+        return o;
+      }
+
+      function sCajamarca(t) {
+        let o = BG_SKY + R.ground(t, GROUND, 0, 1080, 1);
+        if (t < 66.0) {
+          const at = sapa({ x: 330, y: GROUND, s: 1.4, f: 1, seed: 62, tunic: { fill: "#1f6fb2", band: [GOLD, C.ink] }, look: 0.4 });
+          const win = kf(t, [[57.6, 0], [57.9, 1, "out"], [59.4, 1], [59.8, 0]]);
+          at.armF = R.lerp(at.armF, { a: 2.9, b: 0.1 }, win); at.mouth = 0.8 - kf(t, [[60, 0], [60.4, 1]]) * 0.8;
+          const tied = t > 63.6;
+          if (tied) { at.armF = { a: 0.15, b: 0.1 }; at.armB = { a: -0.15, b: -0.1 }; at.worry = 1; at.sweat = 1; }
+          o += R.chibi(t, at);
+          if (win > 0.05) o += borla(330 + 150 * 0.0, GROUND - 470 - win * 20, 0.9 * win, 0);
+          if (tied) o += `<path d="M250 ${GROUND - 140} Q330 ${GROUND - 120} 410 ${GROUND - 140} M245 ${GROUND - 105} Q330 ${GROUND - 85} 415 ${GROUND - 105}" fill="none" stroke="#8a5a3c" stroke-width="12" stroke-linecap="round"/>`;
+          const pz = piz({ x: kf(t, [[59.8, 1250], [61.0, 790, "out"]]), y: GROUND, s: 1.2 });
+          if (t > 59.8) o += R.chibi(t, pz);
+          o += title(t, "CAJAMARCA, 1532", 60.6, 66.0, 260, 84);
+          // ambush: a smoke puff hides the moment
+          const smoke = kf(t, [[62.6, 0], [63.0, 1, "out"], [63.9, 1], [64.4, 0]]);
+          if (smoke > 0.01) for (let i = 0; i < 9; i++) {
+            const a = (i / 9) * Math.PI * 2;
+            o += `<circle cx="${(560 + Math.cos(a) * 170 * smoke).toFixed(1)}" cy="${(GROUND - 260 + Math.sin(a) * 140 * smoke).toFixed(1)}" r="${(120 * smoke).toFixed(1)}" fill="#ececec" stroke="#1f1f1f" stroke-width="5"/>`;
+          }
+          if (smoke > 0.6) o += `<text x="560" y="${GROUND - 220}" text-anchor="middle" font-family="${FONT}" font-weight="800" font-size="130" fill="${C.red}" stroke="#1f1f1f" stroke-width="6" paint-order="stroke">¡BUM!</text>`;
+          return o;
+        }
+        // the ransom room fills with gold
+        o = `<rect width="1080" height="1920" fill="#e9dcc3"/>`;
+        const fill = prog(t, 66.2, 68.6, "inOut");
+        const top = 1300 - 620 * fill;
+        o += `<rect x="140" y="${top.toFixed(1)}" width="800" height="${(1300 - top).toFixed(1)}" fill="${GOLD}"/>`;
+        for (let i = 0; i < 14; i++) o += `<circle cx="${180 + i * 55}" cy="${(top + 10 + (i % 3) * 8).toFixed(1)}" r="26" fill="${GOLD}" stroke="${GOLD_DARK}" stroke-width="4"/>`;
+        o += `<path d="M140 520 L140 1300 L940 1300 L940 520" fill="none" stroke="#1f1f1f" stroke-width="10" stroke-linejoin="round"/>`;
+        o += `<path d="M150 680 L930 680" stroke="${C.red}" stroke-width="10" stroke-dasharray="30 18"/>`;
+        o += title(t, "RESCATE", 66.3, 69.5, 300, 110, GOLD_DARK);
+        return o;
+      }
+
+      function sScale(t) {
+        let o = BG_SOFT;
+        const ang = kf(t, [[69.6, -0.2], [73.6, -0.2], [74.3, 0.22, "back"]]);
+        const px = 540, py = 640, half = 360;
+        const L = [px - Math.cos(ang) * half, py + Math.sin(ang) * half], Rr = [px + Math.cos(ang) * half, py - Math.sin(ang) * half];
+        o += `<path d="M${px} 1300 L${px} ${py}" stroke="#1f1f1f" stroke-width="16" stroke-linecap="round"/><path d="M${px - 120} 1300 L${px + 120} 1300" stroke="#1f1f1f" stroke-width="16" stroke-linecap="round"/>`;
+        o += `<path d="M${L[0]} ${L[1]} L${Rr[0]} ${Rr[1]}" stroke="#8a5a3c" stroke-width="18" stroke-linecap="round"/>`;
+        const plate = ([x, y], inner) => `<path d="M${x} ${y} L${x - 130} ${y + 230} M${x} ${y} L${x + 130} ${y + 230}" stroke="#1f1f1f" stroke-width="4"/>` + inner + `<path d="M${x - 160} ${y + 230} Q${x} ${y + 290} ${x + 160} ${y + 230}Z" fill="${GOLD}" stroke="#1f1f1f" stroke-width="6"/>`;
+        // left: the 168, plus what really helped them
+        let left = "";
+        for (let i = 0; i < 5; i++) left += R.mini(t, L[0] - 90 + i * 45, L[1] + 232, 0.5, { seed: 600 + i, helmet: "morion", cloth: STEEL, spear: true, tip: "#c9d1d9" });
+        const adds = [[70.6, "virus"], [71.8, "crown"], [72.8, "allies"]];
+        adds.forEach(([at, kind], j) => {
+          const k = pop(t, at);
+          if (k <= 0.01) return;
+          const dy = (1 - prog(t, at, at + 0.4, "in")) * -300;
+          if (kind === "virus") left += `<circle cx="${L[0] - 60}" cy="${L[1] + 150 + dy}" r="${55 * k}" fill="#7d7d7d" stroke="#1f1f1f" stroke-width="5"/><text x="${L[0] - 60}" y="${L[1] + 165 + dy}" text-anchor="middle" font-family="${FONT}" font-weight="800" font-size="34" fill="#fff">virus</text>`;
+          if (kind === "crown") left += borla(L[0] + 70, L[1] + 140 + dy, 0.9 * k, -18);
+          if (kind === "allies") for (let i = 0; i < 6; i++) left += R.mini(t, L[0] - 120 + i * 48, L[1] + 232 + dy * 0.3, 0.6 * k, { seed: 650 + i, band: "#2e9e5b", cloth: i % 2 ? "#e07b39" : "#2e9e5b", spear: true, tip: GOLD, skin: ANDEAN });
+        });
+        o += plate(L, left);
+        let right = "";
+        for (let i = 0; i < 7; i++) right += R.mini(t, Rr[0] - 135 + i * 45, Rr[1] + 232, 0.62, { seed: 700 + i, band: GOLD, cloth: i % 2 ? INCA_RED : "#f2e6c9", spear: true, tip: GOLD, skin: ANDEAN });
+        o += plate(Rr, right);
+        o += R.write(t, "virus", L[0] - 60, L[1] + 330, 70.8, 71.2, { size: 1 }); // spacer (invisible size)
+        o += title(t, "NO FUERON", 74.4, 77.5, 230, 96) + title(t, "SOLO 168", 74.7, 77.5, 340, 110, C.red);
+        return o;
+      }
+
+      function sNext(t) {
+        // back to the grid: Incas done, Mexicas next
+        const k = kf(t, [[77.8, 0], [78.2, 1, "back"]]);
+        let g = sCover(t, 0);
+        g += `<rect x="45" y="850" width="310" height="330" rx="26" fill="none" stroke="${C.red}" stroke-width="${(12 * k).toFixed(1)}"/>`;
+        g += R.scribble(t, [[470, 1010], [530, 1070], [640, 930]], prog(t, 78.0, 78.4), "#2e9e5b", 16, 801);
+        let o = `<rect width="1080" height="1920" fill="#e7f0e1"/><g transform="translate(97 0) scale(0.82)">${g}</g>`;
+        o += title(t, "PARTE 2: MEXICAS →", 78.6, 81.5, 1650, 84, C.red);
+        return o;
+      }
+
+      function renderAt(t) {
+        let o;
+        if (t < 2.0) o = sCover(t, prog(t, 1.2, 2.0, "in"));
+        else if (t < 12.0) o = sHook(t);
+        else if (t < 30.0) o = sEmpire(t);
+        else if (t < 44.5) o = sNoMoney(t);
+        else if (t < 57.5) o = sCivilWar(t);
+        else if (t < 69.5) o = sCajamarca(t);
+        else if (t < 77.5) o = sScale(t);
+        else o = sNext(t);
+        if (t < 2.0) o += title(t, "PARTE 1: LOS INCAS", 1.3, 2.05, 1600, 84, INCA_RED);
+        layer.innerHTML = o + captions(t);
+      }
+
+      window.addEventListener("hf-seek", (e) => renderAt(e.detail.time));
+      const tl = gsap.timeline({ paused: true });
+      const clock = { t: 0 };
+      tl.to(clock, { t: DUR, duration: DUR, ease: "none", onUpdate: () => renderAt(clock.t) }, 0);
+      window.__timelines = window.__timelines || {};
+      window.__timelines["main"] = tl;
+      renderAt(0);
+    </script>
+  </body>
+</html>

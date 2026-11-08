@@ -279,6 +279,21 @@
       [[-0.12, -32, C.ink], [0.04, -12, C.paper]].forEach(([dx, rot, fill]) => {
         g += `<g transform="translate(${r * dx} ${-r * 1.05}) rotate(${rot})"><path d="M0 0 Q${r * 0.2} ${-r * 0.25} 0 ${-r * 0.55} Q${-r * 0.2} ${-r * 0.25} 0 0Z" fill="${fill}" stroke="${C.ink}" stroke-width="3"/></g>`;
       });
+    } else if (p.hat === "cap") {
+      g += path(`M${-r * 0.96} ${-r * 0.3} Q${-r * 0.98} ${-r * 1.22} 0 ${-r * 1.22} Q${r * 0.98} ${-r * 1.22} ${r * 0.96} ${-r * 0.3} Q0 ${-r * 0.55} ${-r * 0.96} ${-r * 0.3}Z`, { fill: p.hatColor || "#8a5a3c", w: 4.5 });
+    } else if (p.hat === "band") {
+      g += path(`M${-r * 1.0} ${-r * 0.45} Q0 ${-r * 0.68} ${r * 1.0} ${-r * 0.45}`, { w: 13, stroke: C.ink });
+      g += path(`M${-r * 1.0} ${-r * 0.45} Q0 ${-r * 0.68} ${r * 1.0} ${-r * 0.45}`, { w: 8, stroke: p.hatColor || "#c0c6cc" });
+      if (p.plumes) g += `<g transform="translate(${r * 0.5} ${-r * 0.75}) rotate(25)"><path d="M0 0 Q${r * 0.2} ${-r * 0.35} 0 ${-r * 0.75} Q${-r * 0.2} ${-r * 0.35} 0 0Z" fill="${p.plumes[0]}" stroke="${C.ink}" stroke-width="3.5"/></g>`;
+    } else if (p.hat === "plumes") {
+      const cols = p.plumes || ["#2e9e5b", "#1f6fb2", "#2e9e5b", "#d7263d", "#2e9e5b"];
+      const n = cols.length;
+      cols.forEach((col, i) => {
+        const a = -55 + (110 * i) / Math.max(1, n - 1);
+        g += `<g transform="translate(0 ${-r * 0.7}) rotate(${a})"><path d="M0 0 Q${r * 0.24} ${-r * 0.55} 0 ${-r * 1.15} Q${-r * 0.24} ${-r * 0.55} 0 0Z" fill="${col}" stroke="${C.ink}" stroke-width="3.5"/></g>`;
+      });
+      g += path(`M${-r * 1.0} ${-r * 0.45} Q0 ${-r * 0.7} ${r * 1.0} ${-r * 0.45}`, { w: 14, stroke: C.ink });
+      g += path(`M${-r * 1.0} ${-r * 0.45} Q0 ${-r * 0.7} ${r * 1.0} ${-r * 0.45}`, { w: 9, stroke: p.hatColor || C.sun });
     } else if (p.hat === "morion") {
       // Spanish conquistador helmet: tall comb, round dome, brim turned up at both ends
       const steel = "#9aa6b2";
