@@ -25,7 +25,10 @@
       return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
     };
   }
-  const boilRng = (t, seed) => mulberry32(seed * 9973 + Math.floor(t * 12) * 7919 + 17);
+  // STILL: lines stay put (no boil). ROUGH: how hand-drawn a line looks (1 = sketchy, ~0.3 = clean)
+  let STILL = false, ROUGH = 1;
+  function setStill(on, rough = 0.3) { STILL = on; ROUGH = on ? rough : 1; }
+  const boilRng = (t, seed) => mulberry32(seed * 9973 + (STILL ? 0 : Math.floor(t * 12) * 7919) + 17);
   const E = {
     lin: (x) => x,
     inOut: (x) => (x < 0.5 ? 2 * x * x : 1 - Math.pow(-2 * x + 2, 2) / 2),
@@ -64,6 +67,7 @@
   // ---------- hand-drawn primitives ----------
   // A wobbly stroke through points: each point jitters, each segment bows a little.
   function wob(pts, rng, amp = 1.6) {
+    amp *= ROUGH;
     const j = pts.map(([x, y]) => [x + (rng() - 0.5) * 2 * amp, y + (rng() - 0.5) * 2 * amp]);
     let d = `M${j[0][0].toFixed(1)} ${j[0][1].toFixed(1)}`;
     for (let i = 1; i < j.length; i++) {
@@ -71,6 +75,7 @@
       const mx = (x0 + x1) / 2, my = (y0 + y1) / 2;
       const len = Math.hypot(x1 - x0, y1 - y0) || 1;
       const bow = (rng() - 0.5) * Math.min(6, len * 0.06) * (amp / 1.6);
+    // (amp already scaled by ROUGH)
       const cx = mx + (-(y1 - y0) / len) * bow, cy = my + ((x1 - x0) / len) * bow;
       d += ` Q${cx.toFixed(1)} ${cy.toFixed(1)} ${x1.toFixed(1)} ${y1.toFixed(1)}`;
     }
@@ -78,6 +83,7 @@
   }
   // A wobbly closed ellipse.
   function blob(cx, cy, rx, ry, rng, amp = 1.4, n = 14) {
+    amp *= ROUGH;
     const pts = [];
     const off = rng() * Math.PI * 2;
     for (let i = 0; i <= n; i++) {
@@ -242,7 +248,7 @@
 
   function hat(p, hc, ang, rng) {
     if (!p.hat) return "";
-    const r = L.head;
+    const r = p._r || L.head;
     const deg = (ang * 180) / Math.PI;
     let g = "";
     if (p.hat === "shako") {
@@ -274,14 +280,120 @@
         g += `<g transform="translate(${r * dx} ${-r * 1.05}) rotate(${rot})"><path d="M0 0 Q${r * 0.2} ${-r * 0.25} 0 ${-r * 0.55} Q${-r * 0.2} ${-r * 0.25} 0 0Z" fill="${fill}" stroke="${C.ink}" stroke-width="3"/></g>`;
       });
     } else if (p.hat === "morion") {
-      // Spanish conquistador helmet: dome, comb, upturned crescent brim
+      // Spanish conquistador helmet: tall comb, round dome, brim turned up at both ends
       const steel = "#9aa6b2";
-      g += path(`M${-r * 0.62} ${-r * 0.95} Q0 ${-r * 1.95} ${r * 0.62} ${-r * 0.95}Z`, { fill: steel, w: 4 });
-      g += path(`M${-r * 0.92} ${-r * 0.55} Q${-r * 0.9} ${-r * 1.5} 0 ${-r * 1.45} Q${r * 0.9} ${-r * 1.5} ${r * 0.92} ${-r * 0.55}Z`, { fill: steel, w: 4.5 });
-      g += path(`M${-r * 1.6} ${-r * 0.95} Q0 ${-r * 0.05} ${r * 1.6} ${-r * 0.95} Q0 ${-r * 0.42} ${-r * 1.6} ${-r * 0.95}Z`, { fill: steel, w: 4.5 });
-      g += `<path d="M${-r * 0.35} ${-r * 1.25} Q0 ${-r * 1.38} ${r * 0.35} ${-r * 1.25}" fill="none" stroke="#fff" stroke-width="3" opacity=".8"/>`;
+      g += path(`M${-r * 0.55} ${-r * 1.15} Q0 ${-r * 1.95} ${r * 0.55} ${-r * 1.15} Q0 ${-r * 1.32} ${-r * 0.55} ${-r * 1.15}Z`, { fill: steel, w: 4.5 });
+      g += path(`M${-r * 0.86} ${-r * 0.55} Q${-r * 0.86} ${-r * 1.38} 0 ${-r * 1.38} Q${r * 0.86} ${-r * 1.38} ${r * 0.86} ${-r * 0.55}Z`, { fill: steel, w: 4.5 });
+      g += path(`M${-r * 1.38} ${-r * 1.05} Q${-r * 0.95} ${-r * 0.42} 0 ${-r * 0.46} Q${r * 0.95} ${-r * 0.42} ${r * 1.38} ${-r * 1.05} Q${r * 0.9} ${-r * 0.66} 0 ${-r * 0.68} Q${-r * 0.9} ${-r * 0.66} ${-r * 1.38} ${-r * 1.05}Z`, { fill: steel, w: 4.5 });
+      g += `<path d="M${-r * 0.4} ${-r * 1.05} Q${-r * 0.3} ${-r * 1.25} 0 ${-r * 1.27}" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" opacity=".8"/>`;
     }
     return `<g transform="translate(${hc[0]} ${hc[1]}) rotate(${deg.toFixed(2)})">${g}</g>`;
+  }
+
+
+  // ---------- chibi: the channel's character style ----------
+  // Big round head, small filled body, chunky limbs with hands and shoes, blush.
+  // Same params as stickman() plus: skin, shoe, blush (bool, default true).
+  const LC = { head: 52, torso: 60, up: 34, fore: 32, thigh: 36, shin: 36 };
+  const SKIN = "#fde3cc", BLUSH = "#f5a3a0";
+  function chibi(t, p) {
+    const rng = boilRng(t, p.seed || 1);
+    const f = p.f || 1, s = p.s || 1, sq = p.squash || 0;
+    const skin = p.skin || SKIN, shoe = p.shoe || "#4a3426";
+    const legB = p.legB || { a: -0.14, b: 0 }, legF = p.legF || { a: 0.14, b: 0 };
+    const hip = [0, -(LC.thigh + LC.shin) * 0.98 + (p.bob || 0)];
+    const lean = p.lean || 0, tilt = p.tilt || 0;
+    const neck = [hip[0] + Math.sin(lean) * LC.torso, hip[1] - Math.cos(lean) * LC.torso];
+    const r = LC.head;
+    const hc = [neck[0] + Math.sin(lean + tilt) * r * 0.86, neck[1] - Math.cos(lean + tilt) * r * 0.86];
+    const sh = [neck[0] - Math.sin(lean) * 14, neck[1] + Math.cos(lean) * 14];
+    const look = p.look == null ? 0.5 : p.look, ox = look * r * 0.35;
+    const LW = 10, OW = 5.5;
+
+    const leg = (g) => {
+      const k = [hip[0] + dir(g.a)[0] * LC.thigh, hip[1] + dir(g.a)[1] * LC.thigh];
+      const ft = [k[0] + dir(g.a - g.b)[0] * LC.shin, k[1] + dir(g.a - g.b)[1] * LC.shin];
+      return [hip, k, ft];
+    };
+    const arm = (g) => {
+      const el = [sh[0] + dir(g.a)[0] * LC.up, sh[1] + dir(g.a)[1] * LC.up];
+      const hd = [el[0] + dir(g.a + g.b)[0] * LC.fore, el[1] + dir(g.a + g.b)[1] * LC.fore];
+      return [sh, el, hd];
+    };
+    let armF = arm(p.armF || { a: 0.25, b: 0.15 });
+    const chin = p.chinHand || 0;
+    if (chin > 0) {
+      const T = [hc[0] + r * 0.42 + ox * 0.6, hc[1] + r * 0.8];
+      const el2 = [sh[0] + Math.sin(0.55) * LC.up, sh[1] + Math.cos(0.55) * LC.up];
+      armF = [sh, lerp(armF[1], el2, chin), lerp(armF[2], T, chin)];
+    }
+    const armB = arm(p.armB || { a: -0.25, b: -0.15 });
+    const limb = (pts, col) => path(wob(pts, rng, 0.8), { w: LW + OW, stroke: C.ink }) + path(wob(pts, rng, 0), { w: LW, stroke: col });
+    const foot = (ft, k) => `<ellipse cx="${(ft[0] + 7).toFixed(1)}" cy="${(ft[1] - 2).toFixed(1)}" rx="15" ry="8" fill="${shoe}" stroke="${C.ink}" stroke-width="4.5" transform="rotate(${(((ft[0] - k[0]) * 0.6) | 0) * 0} ${ft[0]} ${ft[1]})"/>`;
+    const hand = (hd) => `<circle cx="${hd[2][0].toFixed(1)}" cy="${hd[2][1].toFixed(1)}" r="9" fill="${skin}" stroke="${C.ink}" stroke-width="4.5"/>`;
+    const legCol = p.legs || "#3b3b3b";
+    const sleeve = (p.tunic && p.tunic.sleeve) || (p.tunic && p.tunic.fill) || "#ffffff";
+
+    let out = "";
+    const lB = leg(legB), lF = leg(legF);
+    out += limb(lB, legCol) + foot(lB[2], lB[1]);
+    out += limb(armB, sleeve) + hand(armB);
+    out += limb(lF, legCol) + foot(lF[2], lF[1]);
+    // body: a rounded tunic from the shoulders to below the hip
+    const tf = p.tunic || { fill: "#ffffff" };
+    const top = [neck[0], neck[1] - 6], bot = [hip[0], hip[1] + 18];
+    const tw = 26, bw = 38;
+    out += path(`M${top[0] - tw} ${top[1] + 8} Q${top[0] - tw} ${top[1]} ${top[0] - tw + 10} ${top[1]} L${top[0] + tw - 10} ${top[1]} Q${top[0] + tw} ${top[1]} ${top[0] + tw} ${top[1] + 8} L${bot[0] + bw} ${bot[1] - 6} Q${bot[0] + bw} ${bot[1]} ${bot[0] + bw - 8} ${bot[1]} L${bot[0] - bw + 8} ${bot[1]} Q${bot[0] - bw} ${bot[1]} ${bot[0] - bw} ${bot[1] - 6}Z`, { fill: tf.fill, w: OW });
+    if (tf.band) {
+      const by = top[1] + (bot[1] - top[1]) * 0.6, n = 6, cw = 64 / n;
+      const bx0 = top[0] + (bot[0] - top[0]) * 0.6 - 32;
+      for (let i = 0; i < n; i++) out += `<rect x="${(bx0 + i * cw).toFixed(1)}" y="${(by - cw / 2).toFixed(1)}" width="${cw.toFixed(1)}" height="${cw.toFixed(1)}" fill="${i % 2 ? tf.band[0] : tf.band[1]}" stroke="${C.ink}" stroke-width="2"/>`;
+    }
+    if (tf.sash) out += path(`M${top[0] - tw + 4} ${top[1] + 4} L${bot[0] + bw - 10} ${bot[1] - 4}`, { w: 12, stroke: tf.sash });
+    const frontArmOverHead = chin > 0.5;
+    if (!frontArmOverHead) out += limb(armF, sleeve) + hand(armF);
+    // head
+    out += path(blob(hc[0], hc[1], r, r * 0.96, rng, 0.6, 16), { fill: skin, w: OW });
+    if (p.beard) {
+      // chin beard below the mouth, so the smile stays visible
+      const bx = hc[0] + ox * 0.5, by = hc[1];
+      out += path(`M${bx - r * 0.72} ${by + r * 0.22} Q${bx} ${by + r * 1.42} ${bx + r * 0.72} ${by + r * 0.22} Q${bx + r * 0.42} ${by + r * 0.56} ${bx} ${by + r * 0.56} Q${bx - r * 0.42} ${by + r * 0.56} ${bx - r * 0.72} ${by + r * 0.22}Z`, { fill: p.beard, w: 4 });
+      out += path(`M${bx - r * 0.24} ${by + r * 0.3} Q${bx} ${by + r * 0.2} ${bx + r * 0.24} ${by + r * 0.3}`, { w: 7, stroke: p.beard });
+    }
+    out += chibiFace(p, hc, r, ox);
+    if (p.earSpools) [-1, 1].forEach((sd) => (out += `<circle cx="${(hc[0] + sd * r * 0.97 + ox * 0.25).toFixed(1)}" cy="${(hc[1] + r * 0.14).toFixed(1)}" r="10" fill="${C.sun}" stroke="${C.ink}" stroke-width="4"/>`));
+    out += hat({ ...p, _r: r }, hc, lean + tilt, rng);
+    if (frontArmOverHead) out += limb(armF, sleeve) + hand(armF);
+    if (p.sweat > 0.01) {
+      const a = p.sweat, sx = hc[0] - r * 0.92, sy = hc[1] - r * 0.15;
+      out += `<path d="M${sx} ${sy - 14} Q${sx - 8} ${sy} ${sx} ${sy + 7} Q${sx + 8} ${sy} ${sx} ${sy - 14}Z" fill="#8fd0ff" stroke="${C.ink}" stroke-width="3.5" opacity="${a}"/>`;
+    }
+    const sy = 1 - sq, sx = 1 + sq * 0.8;
+    return `<g transform="translate(${p.x.toFixed(1)} ${p.y.toFixed(1)}) scale(${(s * sx * f).toFixed(3)} ${(s * sy).toFixed(3)})">${out}</g>`;
+  }
+
+  function chibiFace(p, hc, r, ox) {
+    let o = "";
+    const ey = hc[1] + r * 0.02, gap = r * 0.34;
+    const eyes = p.eyes || "open";
+    [-1, 1].forEach((sd, i) => {
+      const ex = hc[0] + sd * gap * (1 - Math.abs(ox) / r * 0.5) + ox;
+      if (eyes === "closed") o += path(`M${ex - 8} ${ey} Q${ex} ${ey + 5} ${ex + 8} ${ey}`, { w: 4.5 });
+      else if (eyes === "wide") o += `<circle cx="${ex}" cy="${ey}" r="11" fill="#fff" stroke="${C.ink}" stroke-width="3.5"/><circle cx="${ex + ox * 0.08}" cy="${ey}" r="5" fill="${C.ink}"/>`;
+      else o += `<ellipse cx="${ex}" cy="${ey}" rx="6.5" ry="8.5" fill="${C.ink}"/><circle cx="${ex - 2}" cy="${ey - 3.5}" r="2.4" fill="#fff"/>`;
+      const w = p.worry || 0, up = (p.browsUp || 0) * 6;
+      if (w > 0.05 || up > 0.3) {
+        const inner = sd === -1 ? 1 : -1; // inner end of the brow
+        const xi = ex + inner * 8, xo = ex - inner * 8, by = ey - 19 - up;
+        o += path(`M${xo} ${by + w * 2} L${xi} ${by - w * 7}`, { w: 4 });
+      }
+      if (p.blush !== false) o += `<ellipse cx="${(hc[0] + sd * r * 0.58 + ox * 0.8).toFixed(1)}" cy="${(hc[1] + r * 0.3).toFixed(1)}" rx="10" ry="5.5" fill="${BLUSH}" opacity=".75"/>`;
+    });
+    const mx = hc[0] + ox * 1.05, my = hc[1] + r * 0.4, mw = r * 0.18;
+    if ((p.mouthO || 0) > 0.5) o += `<ellipse cx="${mx}" cy="${my + 2}" rx="7" ry="9" fill="#7a2a2a" stroke="${C.ink}" stroke-width="3.5"/>`;
+    else if ((p.worry || 0) > 0.6) o += path(`M${mx - mw} ${my} Q${mx - mw / 2} ${my - 5} ${mx} ${my} Q${mx + mw / 2} ${my + 5} ${mx + mw} ${my}`, { w: 4.5 });
+    else { const m = p.mouth == null ? 0.4 : p.mouth; o += path(`M${mx - mw} ${my} Q${mx} ${my + m * 14} ${mx + mw} ${my}`, { w: 4.5 }); }
+    return o;
   }
 
   // ---------- props ----------
@@ -315,6 +427,7 @@
       [-1, 1].forEach((sd) => {
         const ex = sd * r * 0.33 + lx, ey = -r * 0.1 + dy;
         o += `<ellipse cx="${ex}" cy="${ey}" rx="${r * 0.09}" ry="${r * 0.12}" fill="${C.ink}"/>`;
+        if (face.blush) o += `<circle cx="${ex - r * 0.03}" cy="${ey - r * 0.05}" r="${r * 0.035}" fill="#fff"/><ellipse cx="${ex + sd * r * 0.12}" cy="${ey + r * 0.24}" rx="${r * 0.14}" ry="${r * 0.08}" fill="#f28b6e" opacity=".7"/>`;
         const lid = face.lids || 0;
         if (lid > 0.01) o += `<rect x="${ex - r * 0.14}" y="${ey - r * 0.16}" width="${r * 0.28}" height="${r * 0.16 * lid}" fill="${C.sun}"/>` + path(`M${ex - r * 0.14} ${ey - r * 0.16 + r * 0.16 * lid} L${ex + r * 0.14} ${ey - r * 0.16 + r * 0.16 * lid}`, { w: 3.5 });
       });
@@ -410,22 +523,26 @@
     };
   }
 
-  // a light crowd figure (armies, villages): far cheaper than stickman()
-  // o: {seed, band (head colour), helmet:'morion'|'llautu', spear, slump:0..1, sw (stroke)}
+  // a light crowd figure (armies, villages) in the chibi style: far cheaper than chibi()
+  // o: {seed, cloth, band, helmet:'morion', spear, tip, slump:0..1, skin, look}
   function mini(t, x, y, s, o = {}) {
     const rng = boilRng(t, o.seed || 1);
     const sl = o.slump || 0;
-    const hipY = -40, neck = [sl * 14, hipY - 34 + sl * 8], hc = [neck[0] + sl * 6, neck[1] - 12 + sl * 4];
-    const w = o.sw || 4;
+    const hip = [0, -24], neck = [sl * 10, -50 + sl * 6], hc = [neck[0] + sl * 5, neck[1] - 15 + sl * 3];
+    const skin = o.skin || SKIN, cloth = o.cloth || "#ffffff";
     let g = "";
-    g += path(wob([[-7, 0], [0, hipY], [7, 0]], rng, 0.9), { w });
-    g += path(wob([[0, hipY], neck], rng, 0.9), { w });
-    const arm = o.spear ? [[-12, hipY - 14], [neck[0], neck[1] + 6], [12, hipY - 18]] : [[-11, hipY - 6 + sl * 8], [neck[0], neck[1] + 6], [11, hipY - 6 + sl * 8]];
-    g += path(wob(arm, rng, 0.9), { w });
-    if (o.spear) g += path(wob([[12, hipY + 4], [16, hipY - 72]], rng, 0.8), { w: w * 0.8, stroke: "#6b4a2f" }) + `<path d="M${16 - 4} ${hipY - 70} L16 ${hipY - 84} L${16 + 4} ${hipY - 70}Z" fill="${o.tip || "#888"}" stroke="${C.ink}" stroke-width="2"/>`;
-    g += path(blob(hc[0], hc[1], 10, 10, rng, 0.7, 9), { fill: o.skin || C.paper, w: w * 0.9 });
-    if (o.helmet === "morion") g += `<path d="M${hc[0] - 15} ${hc[1] - 5} Q${hc[0]} ${hc[1] + 3} ${hc[0] + 15} ${hc[1] - 5} Q${hc[0]} ${hc[1] - 22} ${hc[0] - 15} ${hc[1] - 5}Z" fill="#9aa6b2" stroke="${C.ink}" stroke-width="2.5"/>`;
-    else if (o.band) g += `<path d="M${hc[0] - 10} ${hc[1] - 4} L${hc[0] + 10} ${hc[1] - 4}" stroke="${o.band}" stroke-width="5"/>`;
+    const lm = (pts, col, w = 6) => path(wob(pts, rng, 0.5), { w: w + 3.5, stroke: C.ink }) + path(wob(pts, rng, 0), { w, stroke: col });
+    g += lm([hip, [-6, 0]], "#3b3b3b") + lm([hip, [6, 0]], "#3b3b3b");
+    if (o.spear) {
+      g += path(`M14 -10 L17 -94`, { w: 4, stroke: "#6b4a2f" }) + `<path d="M12 -90 L17 -106 L22 -90Z" fill="${o.tip || "#888"}" stroke="${C.ink}" stroke-width="2.5"/>`;
+    }
+    g += `<path d="M${neck[0] - 13} ${neck[1] - 2} L${neck[0] + 13} ${neck[1] - 2} L17 -18 L-17 -18Z" fill="${cloth}" stroke="${C.ink}" stroke-width="3.5" stroke-linejoin="round"/>`;
+    g += lm([[neck[0] + 9, neck[1] + 4], [15, -34 + sl * 6]], cloth, 5);
+    g += `<circle cx="${hc[0]}" cy="${hc[1]}" r="15" fill="${skin}" stroke="${C.ink}" stroke-width="3.5"/>`;
+    const lx = (o.look || 0.3) * 5;
+    g += `<ellipse cx="${hc[0] - 5 + lx}" cy="${hc[1] + 1}" rx="2.2" ry="3" fill="${C.ink}"/><ellipse cx="${hc[0] + 5 + lx}" cy="${hc[1] + 1}" rx="2.2" ry="3" fill="${C.ink}"/>`;
+    if (o.helmet === "morion") g += `<path d="M${hc[0] - 22} ${hc[1] - 8} Q${hc[0]} ${hc[1] + 2} ${hc[0] + 22} ${hc[1] - 8} Q${hc[0]} ${hc[1] - 32} ${hc[0] - 22} ${hc[1] - 8}Z" fill="#9aa6b2" stroke="${C.ink}" stroke-width="3"/>`;
+    else if (o.band) g += `<path d="M${hc[0] - 14} ${hc[1] - 7} Q${hc[0]} ${hc[1] - 11} ${hc[0] + 14} ${hc[1] - 7}" fill="none" stroke="${o.band}" stroke-width="6"/>`;
     return `<g transform="translate(${x.toFixed(1)} ${y.toFixed(1)}) scale(${s})">${g}</g>`;
   }
 
@@ -452,11 +569,12 @@
     const ex = hx - 2 + look * 8;
     if (p.blink) g += path(`M${ex - 6} ${hy - 4} L${ex + 6} ${hy - 4}`, { w: 3.5 });
     else g += `<ellipse cx="${ex}" cy="${hy - 4}" rx="4" ry="5" fill="${C.ink}"/>` + path(`M${ex - 7} ${hy - 10} L${ex + 7} ${hy - 8}`, { w: 3 });
+    g += `<ellipse cx="${hx + 8}" cy="${hy + 4}" rx="6" ry="3.5" fill="#f5a3a0" opacity=".8"/>`;
     const ch = Math.sin((p.chew || 0) * Math.PI * 2) * 2;
     g += path(`M${hx + 6} ${hy + 8 + ch} Q${hx + 14} ${hy + 6} ${hx + 21} ${hy + 8 - ch}`, { w: 3.5 });
     const s = p.s || 1, f = p.f || 1;
     return `<g transform="translate(${p.x.toFixed(1)} ${p.y.toFixed(1)}) scale(${(s * f).toFixed(3)} ${s.toFixed(3)})">${g}</g>`;
   }
 
-  window.Rig = { C, FONT, kf, prog, clamp, lerp, E, stickman, snowman, ground, hatch, sun, bullet, scribble, write, snowflake, walk, boilRng, wob, blob, path, mini, llama };
+  window.Rig = { setStill, chibi, C, FONT, kf, prog, clamp, lerp, E, stickman, snowman, ground, hatch, sun, bullet, scribble, write, snowflake, walk, boilRng, wob, blob, path, mini, llama };
 })();
