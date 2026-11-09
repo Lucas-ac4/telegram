@@ -22,8 +22,9 @@
     <!-- Siglos en Palitos — Reel 1: TODAS LAS CIVILIZACIONES DE AMÉRICA, parte 1: LOS INCAS.
          Guion: instagram/guiones/01-incas.md. Subtítulos con tiempos estimados
          (~2,6 palabras/s); al grabar la voz, ajustar BLOCKS a la narración real. -->
-    <div id="root" data-composition-id="main" data-start="0" data-duration="83" data-width="1080" data-height="1920">
-      <svg id="stage" class="clip" data-start="0" data-duration="83" data-track-index="0" data-layout-allow-overflow
+    <div id="root" data-composition-id="main" data-start="0" data-duration="83.5" data-width="1080" data-height="1920">
+      <audio id="narracion" src="assets/narracion.mp3" data-start="2.0" data-track-index="2" data-volume="1"></audio>
+      <svg id="stage" class="clip" data-start="0" data-duration="83.5" data-track-index="0" data-layout-allow-overflow
         viewBox="0 0 1080 1920" xmlns="http://www.w3.org/2000/svg">
         <defs>
           <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
@@ -38,7 +39,7 @@
       const R = window.Rig;
       R.setStill(true);
       const { kf, prog, C } = R;
-      const DUR = 83, W = 1080, GROUND = 1250;
+      const DUR = 83.5, W = 1080, GROUND = 1250;
       const GOLD = "#e8b330", GOLD_DARK = "#b8860b", STEEL = "#8a96a3", INCA_RED = "#c62828", ANDEAN = "#e9b98f";
       const layer = document.getElementById("layer");
       const spreadC = document.getElementById("spread-c");
@@ -48,13 +49,13 @@
       // narration at ~2.75 words/s (a brisk Shorts pace). Scenes were drawn on the
       // older timing (OLD_BLOCKS); warp() maps each new block onto its old one.
       const BLOCKS = [
-        [2.0, 12.53, "Crees que 168 españoles con armas de fuego derrotaron a los incas en 1532. ¿Pero sabías que los incas ya se estaban muriendo antes de que llegara Pizarro?"],
-        [12.53, 30.7, "Todo empezó en Cusco, un reino chiquito en los Andes. Hacia 1438, un príncipe llamado Pachacútec salvó a la ciudad de una invasión. Y en menos de cien años, él y sus descendientes armaron el imperio más grande de América: más de cuatro mil kilómetros, de Ecuador a Chile."],
-        [30.7, 49.23, "Y funcionaba sin dinero: los impuestos se pagaban con trabajo. Y sin escritura: inventaron un sistema llamado quipus, donde la información se guardaba en cuerdas con nudos. Y no tenían ruedas, pero sí un sistema de postas: corredores que se pasaban los mensajes por hasta 40 mil kilómetros de caminos."],
-        [49.23, 61.22, "Hasta que llegó una enfermedad desde el norte, probablemente viruela, que mató al emperador y a su heredero. Sus otros hijos, Huáscar y Atahualpa, se pelearon el trono en una guerra civil."],
-        [61.22, 72.11, "Atahualpa ganó. Y justo ahí apareció Pizarro. En Cajamarca lo capturó en una emboscada. Atahualpa pagó un rescate de una habitación llena de oro, y aun así lo ejecutaron."],
-        [72.11, 80.46, "Así que no fueron 168 hombres. Fue una epidemia, una guerra civil y miles de aliados indígenas que odiaban a los incas."],
-        [80.46, 82.6, "Si te gustó, dale like."],
+        [1.95, 13.23, "Crees que 168 españoles con armas de fuego derrotaron a los incas en 1532. ¿Pero sabías que los incas ya se estaban muriendo antes de que llegara Pizarro?"],
+        [13.23, 32.2, "Todo empezó en Cusco, un reino chiquito en los Andes. Hacia 1438, un príncipe llamado Pachacútec salvó a la ciudad de una invasión. Y en menos de cien años, él y sus descendientes armaron el imperio más grande de América: más de cuatro mil kilómetros, de Ecuador a Chile."],
+        [32.2, 50.4, "Y funcionaba sin dinero: los impuestos se pagaban con trabajo. Y sin escritura: inventaron un sistema llamado quipus, donde la información se guardaba en cuerdas con nudos. Y no tenían ruedas, pero sí un sistema de postas: corredores que se pasaban los mensajes por hasta 40 mil kilómetros de caminos."],
+        [50.4, 61.29, "Hasta que llegó una enfermedad desde el norte, probablemente viruela, que mató al emperador y a su heredero. Sus otros hijos, Huáscar y Atahualpa, se pelearon el trono en una guerra civil."],
+        [61.29, 72.44, "Atahualpa ganó. Y justo ahí apareció Pizarro. En Cajamarca lo capturó en una emboscada. Atahualpa pagó un rescate de una habitación llena de oro, y aun así lo ejecutaron."],
+        [72.44, 80.71, "Así que no fueron 168 hombres. Fue una epidemia, una guerra civil y miles de aliados indígenas que odiaban a los incas."],
+        [80.71, 82.5, "Si te gustó, dale like."],
       ];
       const OLD_BLOCKS = [[2, 12], [12, 30], [30, 44.5], [44.5, 57.5], [57.5, 69.5], [69.5, 77.5], [77.5, 81]];
       function warp(t) {
@@ -66,11 +67,13 @@
         return OLD_BLOCKS[OLD_BLOCKS.length - 1][1];
       }
       const KEY = new Set(["168", "1532", "pizarro", "cusco", "1438", "pachacútec", "américa", "40", "caminos", "ruedas", "caballos", "postas", "viruela", "huáscar", "atahualpa", "civil", "cajamarca", "oro", "ejecutaron", "epidemia", "aliados", "like", "muriendo", "postas", "nudos"]);
+      // start time of every caption word, from the ElevenLabs narration (seconds)
+      const WT = [2.0, 2.252, 2.388, 3.461, 4.055, 4.229, 4.507, 4.636, 5.121, 5.838, 5.916, 6.09, 6.471, 6.633, 8.52, 9.06, 9.66, 9.757, 9.951, 10.39, 10.545, 10.688, 11.075, 11.553, 11.838, 11.928, 12.091, 12.51, 13.283, 13.643, 14.005, 14.095, 14.806, 14.961, 15.323, 15.788, 15.878, 16.053, 16.743, 17.103, 19.003, 19.184, 19.654, 20.088, 21.019, 21.445, 21.51, 21.617, 21.975, 22.065, 22.22, 23.082, 23.296, 23.399, 23.683, 23.812, 24.123, 24.743, 24.956, 25.043, 25.179, 26.061, 26.475, 26.578, 27.069, 27.357, 27.715, 27.825, 28.758, 28.926, 29.074, 29.398, 29.65, 30.607, 30.736, 31.395, 31.589, 32.25, 32.487, 33.04, 33.27, 33.951, 34.106, 34.559, 34.668, 35.114, 35.298, 36.041, 36.271, 36.501, 37.243, 38.048, 38.2, 38.586, 39.031, 39.896, 40.116, 40.219, 40.814, 40.917, 41.357, 41.459, 41.834, 42.028, 42.765, 42.958, 43.12, 43.488, 44.178, 44.354, 44.484, 44.593, 45.052, 45.202, 45.999, 46.503, 46.612, 46.755, 47.142, 47.319, 47.84, 47.995, 48.24, 48.722, 48.887, 49.533, 49.643, 50.45, 50.799, 50.904, 51.206, 51.374, 51.904, 52.124, 52.253, 52.925, 53.629, 54.366, 54.482, 54.76, 54.863, 55.393, 55.471, 55.561, 55.684, 56.419, 56.768, 57.092, 57.621, 58.073, 58.164, 59.094, 59.224, 59.612, 59.714, 60.024, 60.167, 60.328, 60.671, 61.337, 62.125, 62.726, 62.992, 63.366, 63.599, 64.052, 64.874, 65.116, 65.646, 65.744, 66.136, 66.26, 66.356, 67.234, 67.929, 68.207, 68.305, 68.775, 68.918, 69.085, 69.732, 70.068, 70.197, 70.778, 70.875, 71.127, 71.411, 71.562, 72.492, 72.864, 72.948, 73.055, 73.426, 74.541, 75.301, 75.611, 75.789, 76.639, 76.858, 77.213, 77.782, 77.95, 78.235, 78.325, 78.732, 79.255, 79.41, 79.798, 79.876, 80.05, 80.762, 81.027, 81.228, 81.841, 82.112];
       const WORDS = [];
       BLOCKS.forEach(([a, b, txt]) => {
         const ws = txt.split(/\s+/);
         const span = (b - 0.35 - a) / ws.length;
-        ws.forEach((w, i) => WORDS.push({ w, t: a + i * span, key: KEY.has(w.toLowerCase().replace(/[^\wáéíóúñü]/g, "")) }));
+        ws.forEach((w, i) => WORDS.push({ w, t: WT[WORDS.length] ?? a + i * span, key: KEY.has(w.toLowerCase().replace(/[^\wáéíóúñü]/g, "")) }));
       });
       // captions: chunks of 3 words, the word being said pops; keywords in yellow
       function captions(t) {
