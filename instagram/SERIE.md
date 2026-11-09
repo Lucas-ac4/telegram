@@ -8,7 +8,7 @@ Usuario libre en YouTube al 9/11/2026: `@siglosdepalitos` (falta revisar Instagr
 | Parte | Civilización | Estado |
 |---|---|---|
 | 1 | Incas | Guion + Reel animado (`reels/01-incas/out/reel-01-incas.mp4`); falta la voz |
-| 2 | Mexicas | Próximo guion |
+| 2 | Mexicas | Guion listo (`guiones/02-mexicas.md`, 9.05/10); falta animar |
 | 3 | Mayas | — |
 | 4 | Taínos | — |
 | 5 | Mapuches | — |
@@ -35,3 +35,9 @@ Usuario libre en YouTube al 9/11/2026: `@siglosdepalitos` (falta revisar Instagr
 Escenarios de pago: US$0,01 / 0,04 / 0,07 por cada 1.000 vistas (fuentes de 2026; para público latinoamericano, lo más probable es la parte baja o media).
 Las vistas pagan recién después de entrar al programa de socios (1.000 suscriptores + 10 M de vistas de Shorts en 90 días).
 Música: usar música propia o libre de derechos. Si un Short usa música con licencia, parte de la plata va a los dueños de la canción.
+
+## Formato fijo de cada Short
+
+- Portada: grilla de las 6 civilizaciones, las ya hechas con ✓, zoom a la de hoy y "PARTE N: …".
+- Hook con datos concretos, que rompa un mito, puntuado con hookscore (traducción al inglés).
+- Cierre: **"Si te gustó, dale like"** + pulgar arriba. No anunciar la parte siguiente en voz.
