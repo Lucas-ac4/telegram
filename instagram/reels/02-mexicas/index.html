@@ -22,8 +22,8 @@
     <!-- Siglos en Palitos — Short 2: LAS CIVILIZACIONES DE AMÉRICA, parte 2: LOS MEXICAS.
          Guion: instagram/guiones/02-mexicas.md. Every scene is timed as a fraction of its
          narration block, so voice/tools/sincronizar.py can retime the whole Short from the voice. -->
-    <div id="root" data-composition-id="main" data-start="0" data-duration="83" data-width="1080" data-height="1920">
-      <svg id="stage" class="clip" data-start="0" data-duration="83" data-track-index="0" data-layout-allow-overflow
+    <div id="root" data-composition-id="main" data-start="0" data-duration="81.9" data-width="1080" data-height="1920">
+      <svg id="stage" class="clip" data-start="0" data-duration="81.9" data-track-index="0" data-layout-allow-overflow
         viewBox="0 0 1080 1920" xmlns="http://www.w3.org/2000/svg">
         <defs>
           <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
@@ -37,21 +37,21 @@
       const R = window.Rig;
       R.setStill(true);
       const { kf, prog, C } = R;
-      const DUR = 83, W = 1080, GROUND = 1250, GY = 920; // GY: street level in the cross-section scenes
+      const DUR = 81.9, W = 1080, GROUND = 1250, GY = 920; // GY: street level in the cross-section scenes
       const GOLD = "#e8b330", GOLD_DARK = "#b8860b", STEEL = "#8a96a3", RED = "#c62828", BLUE = "#1f6fb2", GREEN = "#2e9e5b", SKIN = "#d9a37a";
       const layer = document.getElementById("layer");
       const FONT = R.FONT;
 
       // ---------- narration blocks (seconds) ----------
       const BLOCKS = [
-        [2.0, 9.99, "¿Conoces a los aztecas? ¿Sabías que ese nunca fue su nombre, y que su capital nunca murió en 1521? ¿Por qué?"],
-        [9.99, 29.25, "Se llamaban mexicas, y hoy te cuento su historia. Se dice que 500 españoles borraron su capital del mapa, pero veamos qué pasó. Según su leyenda, debían fundar su ciudad donde vieran un águila sobre un nopal. La vieron en una isla, en medio de un lago. Ahí, hacia 1325, nació Tenochtitlan."],
-        [29.25, 37.6, "Empezaron como un pueblo chico. Pero en 1428 se aliaron con dos ciudades vecinas y empezaron a cobrarle tributo a medio México."],
-        [37.6, 47.04, "Su capital no se parecía a nada: calzadas sobre el agua, un acueducto y cultivos en el lago. Los españoles, al verla, creyeron que soñaban."],
-        [47.04, 60.48, "Hernán Cortés llegó en 1519 con unos 500 hombres. Pero no estaba solo: miles de tlaxcaltecas, que odiaban a los mexicas, se unieron a él. Y la viruela hizo el resto: mató hasta al nuevo emperador."],
-        [60.48, 68.46, "En 1521, después de meses de guerra, Tenochtitlan cayó. Los españoles construyeron encima, con las mismas piedras: la Ciudad de México."],
-        [68.46, 80.09, "Por eso hoy millones caminan sobre la vieja Tenochtitlan sin saberlo. En 1978, unos obreros de la compañía de luz cavaron en pleno centro y se toparon con el Templo Mayor."],
-        [80.09, 82.25, "Si te gustó, dale like."],
+        [2.0, 9.26, "¿Conoces a los aztecas? ¿Sabías que ese nunca fue su nombre, y que su capital nunca murió en 1521?"],
+        [9.26, 28.88, "Se llamaban mexicas, y hoy te cuento su historia. Te dicen que 500 españoles borraron su capital del mapa, pero veamos qué pasó. Según su leyenda, debían fundar la ciudad en donde vieran un águila sobre un nopal. La vieron en una isla, en medio de un lago. Ahí, hacia 1325, nació Tenochtitlan."],
+        [28.88, 37.23, "Empezaron como un pueblo chico. Pero en 1428 se aliaron con dos ciudades vecinas y empezaron a cobrarle tributo a medio México."],
+        [37.23, 45.95, "Su capital no se parecía a nada: calzadas sobre el agua, un acueducto y cultivos en el lago. Los españoles creían que soñaban."],
+        [45.95, 59.39, "Hernán Cortés llegó en 1519 con unos 500 hombres. Pero no estaba solo: miles de tlaxcaltecas, que odiaban a los mexicas, se unieron a él. Y la viruela hizo el resto: mató hasta al nuevo emperador."],
+        [59.39, 67.37, "En 1521, después de meses de guerra, Tenochtitlan cayó. Los españoles construyeron encima, con las mismas piedras: la Ciudad de México."],
+        [67.37, 79.0, "Por eso hoy millones caminan sobre la vieja Tenochtitlan sin saberlo. En 1978, unos obreros de la compañía de luz cavaron en pleno centro y se toparon con el Templo Mayor."],
+        [79.0, 81.16, "Si te gustó, dale like."],
       ];
       // time at fraction f (0..1) of narration block i
       const at = (i, f) => BLOCKS[i][0] + f * (BLOCKS[i][1] - BLOCKS[i][0]);
@@ -229,29 +229,30 @@
       // ---------- scenes (timed by fractions of their narration block) ----------
       function sHook(t) {
         const i = 0;
-        if (t < at(i, 0.52)) {
+        if (t < at(i, 0.58)) {
           // "¿Conoces a los aztecas?" -> the name gets crossed out
           let o = BG_SOFT;
           const m = mexica({ x: 540, y: 1300, s: 1.5, mouth: 0.5 });
           if (popIn(m, t, at(i, 0.02))) o += R.chibi(t, m);
-          o += title(t, "¿AZTECAS?", at(i, 0.04), at(i, 0.52), 560, 130, "#1f1f1f");
-          if (t > at(i, 0.22)) o += R.scribble(t, [[200, 540], [880, 530]], prog(t, at(i, 0.22), at(i, 0.32)), C.red, 20, 901);
+          o += title(t, "¿AZTECAS?", at(i, 0.04), at(i, 0.58), 560, 130, "#1f1f1f");
+          if (t > at(i, 0.24)) o += R.scribble(t, [[200, 540], [880, 530]], prog(t, at(i, 0.24), at(i, 0.36)), C.red, 20, 901);
           if (t > at(i, 0.3)) { m.worry = 0.6; }
           return o;
         }
-        if (t < at(i, 0.9)) {
+        if (t < at(i, 0.84)) {
           // "...y que su capital nunca murió en 1521"
           let o = BG_LAKE + city(t);
-          o += title(t, "1521", at(i, 0.6), at(i, 0.9), 320, 130);
+          o += title(t, "1521", at(i, 0.62), at(i, 0.84), 320, 130);
           return o;
         }
         // "¿Por qué?": people walking over the buried city
         let o = crossSection(t, 1, 0);
         for (let j = 0; j < 4; j++) {
-          const x = ((t - at(i, 0.9)) * 90 + j * 280) % 1250 - 100;
+          const x = ((t - at(i, 0.84)) * 90 + j * 280) % 1250 - 100;
           o += R.chibi(t, { x, y: GY, s: 0.75, f: 1, seed: 600 + j, tunic: { fill: ["#e07b39", "#2e9e5b", "#1f6fb2", "#c62828"][j] }, legs: "#2b3a55", look: 0.8, mouth: 0.4, ...R.walk(t * 9 + j, 1) });
         }
-        o += title(t, "¿POR QUÉ?", at(i, 0.9), at(i, 1.0) + 0.3, 300, 110, RED);
+        // the question stays on screen even though it is not spoken
+        o += title(t, "¿POR QUÉ?", at(i, 0.84), at(i, 1.0) + 0.3, 300, 110, RED);
         return o;
       }
 
