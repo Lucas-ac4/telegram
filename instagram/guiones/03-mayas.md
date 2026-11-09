@@ -1,5 +1,31 @@
 # Short 3: LAS CIVILIZACIONES DE AMÉRICA, parte 3: LOS MAYAS
 
+## ✅ Versión de Lucas, ajustada a 1:26 (la que se anima)
+
+Hook hablado: 70. Al final del hook se muestra **"¿POR QUÉ?" escrito en pantalla, sin decirlo**, como en el Short 2.
+Nota de voz: decir **"Pero eran unos genios"** con tono entusiasta (en ElevenLabs v3 se marca con una etiqueta de emoción).
+220 palabras ≈ 1:26.
+
+Los mayas: seguro oíste hablar de ellos. Pero ¿sabías que nunca desaparecieron, y que nunca predijeron el fin del mundo en 2012?
+
+Hoy te cuento su historia. Los mayas nunca fueron un imperio: eran decenas de ciudades, como Tikal o Calakmul, que vivían peleándose entre ellas.
+
+Pero eran unos genios: tenían escritura con cientos de símbolos, usaban el cero mucho antes que Europa y seguían el movimiento de Venus con una precisión asombrosa.
+
+Hacia el año 900, sus grandes ciudades del sur quedaron abandonadas, probablemente por sequías, guerras y demasiada gente. Pero no desaparecieron: se mudaron al norte, a ciudades como Chichén Itzá.
+
+¿Y lo del fin del mundo? Tenían calendarios larguísimos, y uno cerraba un ciclo en diciembre de 2012. No era el fin del mundo: era como el cuentakilómetros de un auto que pasa de 99.999 a 100.000.
+
+A los españoles les costó vencerlos, porque estaban divididos en muchas ciudades: a los aztecas los vencieron en dos años, a los mayas les llevó casi 175. El último reino maya cayó en 1697. Y en 1562, un fraile quemó decenas de sus libros: hoy sobreviven solo cuatro.
+
+Pero los mayas nunca desaparecieron: millones viven hoy en México, Guatemala, Belice y Honduras, y hablan unas 30 lenguas mayas. Nos acompañan hasta el día de hoy.
+
+Si te gustó, dale like.
+
+---
+
+## Historial: primera versión (Claude)
+
 Canal: **Siglos en Palitos**. Formato: vertical 9:16, ~1:20, voz en off + subtítulos palabra por palabra.
 
 ## Portada (0 a 0:02)
