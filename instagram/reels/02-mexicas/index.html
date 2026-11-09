@@ -22,8 +22,9 @@
     <!-- Siglos en Palitos — Short 2: LAS CIVILIZACIONES DE AMÉRICA, parte 2: LOS MEXICAS.
          Guion: instagram/guiones/02-mexicas.md. Every scene is timed as a fraction of its
          narration block, so voice/tools/sincronizar.py can retime the whole Short from the voice. -->
-    <div id="root" data-composition-id="main" data-start="0" data-duration="81.9" data-width="1080" data-height="1920">
-      <svg id="stage" class="clip" data-start="0" data-duration="81.9" data-track-index="0" data-layout-allow-overflow
+    <div id="root" data-composition-id="main" data-start="0" data-duration="82.5" data-width="1080" data-height="1920">
+      <audio id="narracion" src="assets/narracion.mp3" data-start="2.0" data-track-index="2" data-volume="1"></audio>
+      <svg id="stage" class="clip" data-start="0" data-duration="82.5" data-track-index="0" data-layout-allow-overflow
         viewBox="0 0 1080 1920" xmlns="http://www.w3.org/2000/svg">
         <defs>
           <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
@@ -37,31 +38,33 @@
       const R = window.Rig;
       R.setStill(true);
       const { kf, prog, C } = R;
-      const DUR = 81.9, W = 1080, GROUND = 1250, GY = 920; // GY: street level in the cross-section scenes
+      const DUR = 82.5, W = 1080, GROUND = 1250, GY = 920; // GY: street level in the cross-section scenes
       const GOLD = "#e8b330", GOLD_DARK = "#b8860b", STEEL = "#8a96a3", RED = "#c62828", BLUE = "#1f6fb2", GREEN = "#2e9e5b", SKIN = "#d9a37a";
       const layer = document.getElementById("layer");
       const FONT = R.FONT;
 
       // ---------- narration blocks (seconds) ----------
       const BLOCKS = [
-        [2.0, 9.26, "¿Conoces a los aztecas? ¿Sabías que ese nunca fue su nombre, y que su capital nunca murió en 1521?"],
-        [9.26, 28.88, "Se llamaban mexicas, y hoy te cuento su historia. Te dicen que 500 españoles borraron su capital del mapa, pero veamos qué pasó. Según su leyenda, debían fundar la ciudad en donde vieran un águila sobre un nopal. La vieron en una isla, en medio de un lago. Ahí, hacia 1325, nació Tenochtitlan."],
-        [28.88, 37.23, "Empezaron como un pueblo chico. Pero en 1428 se aliaron con dos ciudades vecinas y empezaron a cobrarle tributo a medio México."],
-        [37.23, 45.95, "Su capital no se parecía a nada: calzadas sobre el agua, un acueducto y cultivos en el lago. Los españoles creían que soñaban."],
-        [45.95, 59.39, "Hernán Cortés llegó en 1519 con unos 500 hombres. Pero no estaba solo: miles de tlaxcaltecas, que odiaban a los mexicas, se unieron a él. Y la viruela hizo el resto: mató hasta al nuevo emperador."],
-        [59.39, 67.37, "En 1521, después de meses de guerra, Tenochtitlan cayó. Los españoles construyeron encima, con las mismas piedras: la Ciudad de México."],
-        [67.37, 79.0, "Por eso hoy millones caminan sobre la vieja Tenochtitlan sin saberlo. En 1978, unos obreros de la compañía de luz cavaron en pleno centro y se toparon con el Templo Mayor."],
-        [79.0, 81.16, "Si te gustó, dale like."],
+        [1.95, 9.5, "¿Conoces a los aztecas? ¿Sabías que ese nunca fue su nombre, y que su capital nunca murió en 1521?"],
+        [9.5, 29.24, "Se llamaban mexicas, y hoy te cuento su historia. Te dicen que 500 españoles borraron su capital del mapa, pero veamos qué pasó. Según su leyenda, debían fundar la ciudad en donde vieran un águila sobre un nopal. La vieron en una isla, en medio de un lago. Ahí, hacia 1325, nació Tenochtitlan."],
+        [29.24, 37.85, "Empezaron como un pueblo chico. Pero en 1428 se aliaron con dos ciudades vecinas y empezaron a cobrarle tributo a medio México."],
+        [37.85, 45.85, "Su capital no se parecía a nada: calzadas sobre el agua, un acueducto y cultivos en el lago. Los españoles creían que soñaban."],
+        [45.85, 58.92, "Hernán Cortés llegó en 1519 con unos 500 hombres. Pero no estaba solo: miles de tlaxcaltecas, que odiaban a los mexicas, se unieron a él. Y la viruela hizo el resto: mató hasta al nuevo emperador."],
+        [58.92, 68.45, "En 1521, después de meses de guerra, Tenochtitlan cayó. Los españoles construyeron encima, con las mismas piedras: la Ciudad de México."],
+        [68.45, 79.5, "Por eso hoy millones caminan sobre la vieja Tenochtitlan sin saberlo. En 1978, unos obreros de la compañía de luz cavaron en pleno centro y se toparon con el Templo Mayor."],
+        [79.5, 81.5, "Si te gustó, dale like."],
       ];
       // time at fraction f (0..1) of narration block i
       const at = (i, f) => BLOCKS[i][0] + f * (BLOCKS[i][1] - BLOCKS[i][0]);
 
       const KEY = new Set(["500", "1521", "azteca", "aztecas", "mexicas", "águila", "nopal", "lago", "1325", "tenochtitlan", "1428", "tributo", "calzadas", "acueducto", "chinampas", "soñando", "cortés", "1519", "tlaxcaltecas", "viruela", "emperador", "méxico", "encima", "saberlo", "guerra", "soñaban", "1978", "templo", "mayor", "like", "nunca"]);
+      // start time of every caption word, from the ElevenLabs narration (seconds)
+      const WT = [2.0, 2.484, 2.559, 2.72, 3.531, 4.077, 4.226, 4.568, 4.934, 5.151, 5.304, 6.034, 6.108, 6.245, 6.388, 7.102, 7.487, 7.834, 7.971, 9.554, 9.683, 10.157, 10.995, 11.107, 11.293, 11.467, 11.715, 11.872, 12.635, 12.84, 13.12, 13.225, 13.76, 14.413, 14.84, 14.946, 15.393, 15.62, 16.266, 16.435, 16.777, 16.907, 17.512, 17.944, 18.1, 18.826, 19.191, 19.485, 19.587, 19.956, 20.093, 20.324, 20.727, 20.95, 21.36, 21.596, 21.733, 22.433, 22.714, 23.024, 23.161, 23.372, 23.918, 24.067, 24.365, 24.49, 24.614, 25.243, 25.925, 26.149, 27.788, 28.179, 29.293, 29.84, 30.044, 30.137, 30.441, 31.085, 31.382, 31.469, 32.897, 33.183, 33.555, 33.704, 33.866, 34.319, 35.046, 35.195, 35.568, 35.661, 36.112, 36.611, 36.723, 37.17, 37.903, 38.169, 38.61, 38.759, 38.903, 39.418, 39.529, 40.174, 40.677, 40.889, 41.013, 41.658, 41.807, 42.317, 42.414, 42.925, 43.05, 43.137, 43.705, 44.042, 44.551, 44.924, 45.085, 45.9, 46.302, 46.719, 46.962, 47.099, 48.236, 48.463, 48.726, 49.279, 49.955, 50.241, 50.384, 50.713, 51.387, 51.722, 51.821, 52.908, 53.001, 53.374, 53.448, 53.616, 54.355, 54.504, 54.864, 55.001, 55.454, 55.669, 55.775, 56.211, 56.415, 56.538, 57.348, 57.702, 57.821, 57.919, 58.193, 58.969, 59.234, 60.752, 61.103, 61.215, 61.55, 61.653, 62.233, 62.904, 63.558, 63.862, 64.377, 64.986, 65.638, 65.787, 65.959, 66.331, 67.191, 67.294, 67.638, 67.762, 68.501, 68.774, 68.941, 69.15, 69.538, 69.904, 70.178, 70.283, 70.581, 71.326, 71.556, 72.313, 72.539, 74.35, 74.626, 74.912, 75.011, 75.163, 75.607, 75.781, 76.098, 76.65, 76.775, 77.058, 77.681, 77.818, 77.917, 78.334, 78.439, 78.583, 78.911, 79.549, 79.835, 79.995, 80.717, 81.068];
       const WORDS = [];
       BLOCKS.forEach(([a, b, txt]) => {
         const ws = txt.split(/\s+/);
         const span = (b - 0.35 - a) / ws.length;
-        ws.forEach((w, i) => WORDS.push({ w, t: a + i * span, key: KEY.has(w.toLowerCase().replace(/[^\wáéíóúñü]/g, "")) }));
+        ws.forEach((w, i) => WORDS.push({ w, t: WT[WORDS.length] ?? a + i * span, key: KEY.has(w.toLowerCase().replace(/[^\wáéíóúñü]/g, "")) }));
       });
       // captions: chunks of 3 words, word by word; keywords in yellow
       function captions(t) {
