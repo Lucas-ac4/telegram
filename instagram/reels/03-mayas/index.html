@@ -1,0 +1,403 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1080, height=1920" />
+    <script src="assets/gsap.min.js"></script>
+    <script src="assets/rig.js"></script>
+    <style>
+      @font-face {
+        font-family: "Shantell Sans";
+        src: url("assets/fonts/ShantellSans-latin.woff2") format("woff2");
+        font-weight: 300 800;
+        font-display: block;
+      }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1080px; height: 1920px; overflow: hidden; background: #e7f0e1; }
+      #root { position: relative; width: 100%; height: 100%; background: #e7f0e1; }
+      #stage { position: absolute; left: 0; top: 0; width: 1080px; height: 1920px; }
+    </style>
+  </head>
+  <body>
+    <!-- Siglos en Palitos — Short 3: LAS CIVILIZACIONES DE AMÉRICA, parte 3: LOS MAYAS.
+         Guion: instagram/guiones/03-mayas.md. Every scene is timed as a fraction of its
+         narration block, so voice/tools/sincronizar.py can retime the whole Short from the voice. -->
+    <div id="root" data-composition-id="main" data-start="0" data-duration="86" data-width="1080" data-height="1920">
+      <svg id="stage" class="clip" data-start="0" data-duration="86" data-track-index="0" data-layout-allow-overflow
+        viewBox="0 0 1080 1920" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#9fd3f0" /><stop offset="1" stop-color="#e9f5fb" />
+          </linearGradient>
+        </defs>
+        <g id="layer"></g>
+      </svg>
+    </div>
+    <script>
+      const R = window.Rig;
+      R.setStill(true);
+      const { kf, prog, C } = R;
+      const DUR = 86, W = 1080, GROUND = 1250, GY = 920; // GY: street level in the cross-section scenes
+      const GOLD = "#e8b330", GOLD_DARK = "#b8860b", STEEL = "#8a96a3", RED = "#c62828", BLUE = "#1f6fb2", GREEN = "#2e9e5b", SKIN = "#d9a37a";
+      const layer = document.getElementById("layer");
+      const FONT = R.FONT;
+
+      // ---------- narration blocks (seconds) ----------
+      const BLOCKS = [
+        [2.0, 10.35, "Los mayas: seguro oíste hablar de ellos. Pero ¿sabías que nunca desaparecieron, y que nunca predijeron el fin del mundo en 2012?"],
+        [10.35, 19.06, "Hoy vemos su historia. Los mayas nunca fueron un imperio: eran decenas de ciudades, como Tikal o Calakmul, que vivían peleándose entre ellas."],
+        [19.06, 29.6, "Eso sí, eran unos genios: tenían escritura con cientos de símbolos, usaban el cero mucho antes que Europa y seguían el movimiento de Venus con una precisión asombrosa."],
+        [29.6, 40.85, "Hacia el año 900, sus grandes ciudades del sur quedaron abandonadas, probablemente por sequías, guerras y demasiada gente. No se esfumaron: se mudaron al norte, a ciudades como Chichén Itzá."],
+        [40.85, 55.02, "¿Y lo del fin del mundo? Tenían calendarios muy largos, y uno cerraba un ciclo en diciembre de 2012. No era el fin del mundo: era como el cuentakilómetros de un auto que pasa de 99.999 a 100.000."],
+        [55.02, 72.83, "A los españoles les costó vencerlos, porque estaban divididos en muchas ciudades: a los aztecas los vencieron en dos años, a los mayas les llevó casi 175. El último reino maya cayó en 1697. Pero en 1562, un fraile quemó decenas de sus libros: hoy sobreviven solo cuatro."],
+        [72.83, 83.0, "Los mayas nunca desaparecieron: millones viven hoy en México, Guatemala, Belice y Honduras, y hablan unas 30 lenguas. Así que nos acompañan hasta el día de hoy."],
+        [83.0, 85.16, "Si te gustó, dale like."],
+      ];
+      // time at fraction f (0..1) of narration block i
+      const at = (i, f) => BLOCKS[i][0] + f * (BLOCKS[i][1] - BLOCKS[i][0]);
+
+      const KEY = new Set(["mayas", "desaparecieron", "2012", "imperio", "tikal", "calakmul", "genios", "escritura", "cero", "venus", "900", "sequías", "guerras", "esfumaron", "chichén", "itzá", "calendarios", "100.000", "175", "1697", "1562", "cuatro", "millones", "30", "lenguas", "hoy", "like"]);
+      const WORDS = [];
+      BLOCKS.forEach(([a, b, txt]) => {
+        const ws = txt.split(/\s+/);
+        const span = (b - 0.35 - a) / ws.length;
+        ws.forEach((w, i) => WORDS.push({ w, t: a + i * span, key: KEY.has(w.toLowerCase().replace(/[^\wáéíóúñü]/g, "")) }));
+      });
+      // captions: chunks of 3 words, word by word; keywords in yellow
+      function captions(t) {
+        let idx = -1;
+        for (let i = 0; i < WORDS.length; i++) if (WORDS[i].t <= t) idx = i;
+        if (idx < 0) return "";
+        const blockEnd = BLOCKS.find(([a, b]) => t >= a && t < b);
+        if (!blockEnd) return "";
+        const c0 = idx - (idx % 3), chunk = WORDS.slice(c0, c0 + 3).filter((w) => w.t >= blockEnd[0] - 0.01);
+        if (!chunk.length) return "";
+        const esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;");
+        const spans = chunk.filter((w, i) => c0 + i <= idx).map((w) => `<tspan fill="${w.key ? "#ffd23f" : "#ffffff"}">${esc(w.w)} </tspan>`).join("");
+        const pop = 1 + 0.06 * (1 - prog(t, WORDS[idx].t, WORDS[idx].t + 0.12, "out"));
+        return `<g transform="translate(540 1440) scale(${pop.toFixed(3)})"><text x="0" y="0" text-anchor="middle" font-family="${FONT}" font-weight="800" font-size="70" stroke="#1f1f1f" stroke-width="12" paint-order="stroke" stroke-linejoin="round">${spans}</text></g>`;
+      }
+      function title(t, txt, a, b, y = 270, size = 92, fill = "#1f1f1f") {
+        const sc = kf(t, [[a, 0], [a + 0.3, 1, "back"], [b - 0.25, 1], [b, 0, "in"]]);
+        if (sc <= 0.01) return "";
+        return `<g transform="translate(540 ${y}) scale(${sc.toFixed(3)})"><text x="0" y="0" text-anchor="middle" font-family="${FONT}" font-weight="800" font-size="${size}" fill="${fill}" stroke="#ffffff" stroke-width="14" paint-order="stroke" stroke-linejoin="round">${txt}</text></g>`;
+      }
+      function pop(t, a) { return kf(t, [[a, 0], [a + 0.3, 1, "back"]]); }
+      function popIn(p, t, a) { const k = pop(t, a); p.squash = (p.squash || 0) + (1 - k) * 0.5; p.y += (1 - k) * 40; return k > 0.01; }
+      function cross(t, x, y, pr, seed, sz = 80) {
+        return R.scribble(t, [[x - sz, y - sz], [x + sz, y + sz]], prog(pr, 0, 0.5), C.red, 16, seed) + R.scribble(t, [[x + sz, y - sz], [x - sz, y + sz]], prog(pr, 0.5, 1), C.red, 16, seed + 1);
+      }
+
+      // ---------- backdrops ----------
+      const BG_SOFT = `<rect width="1080" height="1920" fill="#e7f0e1"/>`;
+      const BG_SKY = `<rect width="1080" height="1920" fill="url(#sky)"/>` +
+        `<path d="M0 1010 L140 880 L260 960 L420 820 L560 940 L700 840 L860 960 L1080 860 L1080 ${GROUND} L0 ${GROUND}Z" fill="#b9c7d6" stroke="#8fa1b5" stroke-width="4" stroke-linejoin="round"/>` +
+        `<path d="M0 1120 Q270 1080 540 1110 T1080 1100 L1080 ${GROUND} L0 ${GROUND}Z" fill="#c9d79a"/>` +
+        `<rect x="0" y="${GROUND}" width="1080" height="${1920 - GROUND}" fill="#d9c58e"/>`;
+      // the Valley of Mexico: volcanoes and the lake
+      const BG_LAKE = `<rect width="1080" height="1920" fill="url(#sky)"/>` +
+        `<path d="M-20 900 L180 640 L250 640 L460 900Z" fill="#b9c7d6" stroke="#8fa1b5" stroke-width="4" stroke-linejoin="round"/><path d="M180 640 L250 640 L282 682 L148 682Z" fill="#fff"/>` +
+        `<path d="M560 900 L760 700 L820 700 L1100 900Z" fill="#c5d1de" stroke="#8fa1b5" stroke-width="4" stroke-linejoin="round"/><path d="M760 700 L820 700 L848 728 L734 728Z" fill="#fff"/>` +
+        `<rect x="0" y="880" width="1080" height="480" fill="#7cc0e8"/><path d="M0 880 L1080 880" stroke="#5aa0cf" stroke-width="6"/>` +
+        `<rect x="0" y="1340" width="1080" height="580" fill="#c9d79a"/><path d="M0 1340 Q540 1310 1080 1340" stroke="#1f1f1f" stroke-width="5" fill="none"/>`;
+
+      // ---------- props ----------
+      const BG_JUNGLE = `<rect width="1080" height="1920" fill="url(#sky)"/>` +
+        `<rect x="0" y="${GROUND}" width="1080" height="${1920 - GROUND}" fill="#b8a46a"/>` +
+        [[-40, 1150, 150], [120, 1110, 120], [930, 1140, 150], [1080, 1100, 130], [300, 1180, 90], [800, 1190, 90]].map(([x, y, r]) => `<circle cx="${x}" cy="${y}" r="${r}" fill="#3f8f4a" stroke="#1f1f1f" stroke-width="5"/>`).join("") +
+        `<path d="M0 ${GROUND} L1080 ${GROUND}" stroke="#1f1f1f" stroke-width="6"/>`;
+      function mayaPyramid(x, y, s, col = "#c9b27a") {
+        let g = "";
+        for (let i = 0; i < 6; i++) {
+          const w = 300 - i * 40, h = 40, yy = -i * h;
+          g += `<rect x="${-w / 2}" y="${yy - h}" width="${w}" height="${h}" fill="${col}" stroke="#1f1f1f" stroke-width="5"/>`;
+        }
+        g += `<rect x="-22" y="-240" width="44" height="240" fill="#b39c62" stroke="#1f1f1f" stroke-width="4"/>`;
+        g += `<rect x="-60" y="-320" width="120" height="80" fill="#e8d7b0" stroke="#1f1f1f" stroke-width="5"/><rect x="-18" y="-290" width="36" height="50" fill="#1f1f1f"/>`;
+        g += `<path d="M-50 -320 L-40 -360 L40 -360 L50 -320Z" fill="#c9b27a" stroke="#1f1f1f" stroke-width="5"/>`;
+        return `<g transform="translate(${x} ${y}) scale(${s})">${g}</g>`;
+      }
+      function glyph(x, y, s, k) {
+        if (s <= 0.01) return "";
+        const inner = [
+          `<circle cx="-14" cy="-10" r="9" fill="#1f1f1f"/><circle cx="14" cy="-10" r="9" fill="#1f1f1f"/><path d="M-20 16 Q0 30 20 16" stroke="#1f1f1f" stroke-width="6" fill="none"/>`,
+          `<path d="M-22 -20 L22 20 M-22 20 L22 -20" stroke="#1f1f1f" stroke-width="7"/>`,
+          `<circle cx="0" cy="0" r="18" fill="none" stroke="#1f1f1f" stroke-width="6"/><circle cx="0" cy="0" r="5" fill="#1f1f1f"/>`,
+          `<path d="M-24 -10 Q0 -34 24 -10 Q0 14 -24 -10Z" fill="none" stroke="#1f1f1f" stroke-width="6"/><path d="M-16 18 L16 18" stroke="#1f1f1f" stroke-width="6"/>`,
+        ][k % 4];
+        return `<g transform="translate(${x} ${y}) scale(${s})"><rect x="-44" y="-44" width="88" height="88" rx="22" fill="#e8d7b0" stroke="#1f1f1f" stroke-width="6"/>${inner}</g>`;
+      }
+      function shellZero(x, y, s) {
+        if (s <= 0.01) return "";
+        return `<g transform="translate(${x} ${y}) scale(${s})"><path d="M-90 20 Q-80 -60 0 -60 Q80 -60 90 20 Q0 50 -90 20Z" fill="#f4ede0" stroke="#1f1f1f" stroke-width="7"/><path d="M-50 0 Q-40 -30 -20 -36 M0 -10 Q0 -40 10 -50 M40 0 Q50 -30 60 -32" stroke="#1f1f1f" stroke-width="5" fill="none"/></g>`;
+      }
+      function star(t, x, y, s) {
+        if (s <= 0.01) return "";
+        const tw = 1 + 0.12 * Math.sin(t * 5);
+        let p = "";
+        for (let i = 0; i < 10; i++) { const a = (i / 10) * Math.PI * 2 - Math.PI / 2, r = i % 2 ? 26 : 64; p += `${i ? "L" : "M"}${(Math.cos(a) * r).toFixed(1)} ${(Math.sin(a) * r).toFixed(1)} `; }
+        return `<g transform="translate(${x} ${y}) scale(${(s * tw).toFixed(3)})"><path d="${p}Z" fill="#fff3a0" stroke="#1f1f1f" stroke-width="5"/></g>`;
+      }
+      function calendarWheel(t, x, y, s) {
+        if (s <= 0.01) return "";
+        let g = `<circle r="200" fill="#e8d7b0" stroke="#1f1f1f" stroke-width="8"/><circle r="120" fill="#d9c58e" stroke="#1f1f1f" stroke-width="6"/><circle r="50" fill="${GOLD}" stroke="#1f1f1f" stroke-width="6"/>`;
+        for (let i = 0; i < 20; i++) { const a = (i / 20) * Math.PI * 2; g += `<path d="M${(Math.cos(a) * 120).toFixed(1)} ${(Math.sin(a) * 120).toFixed(1)} L${(Math.cos(a) * 200).toFixed(1)} ${(Math.sin(a) * 200).toFixed(1)}" stroke="#1f1f1f" stroke-width="4"/>`; }
+        return `<g transform="translate(${x} ${y}) scale(${s}) rotate(${(t * 25).toFixed(1)})">${g}</g>`;
+      }
+      function odometer(x, y, val) {
+        const digits = val.split("");
+        let g = `<rect x="${-digits.length * 42}" y="-60" width="${digits.length * 84}" height="120" rx="18" fill="#1f1f1f"/>`;
+        digits.forEach((d, i) => {
+          const cx = -digits.length * 42 + 42 + i * 84;
+          g += d === "." ? `<circle cx="${cx}" cy="36" r="9" fill="#fff"/>` : `<rect x="${cx - 34}" y="-48" width="68" height="96" rx="8" fill="#f4ede0"/><text x="${cx}" y="30" text-anchor="middle" font-family="${FONT}" font-weight="800" font-size="76" fill="#1f1f1f">${d}</text>`;
+        });
+        return `<g transform="translate(${x} ${y})">${g}</g>`;
+      }
+      function bar(x, base, h, col, label, sc) {
+        if (sc <= 0.01) return "";
+        const hh = h * sc;
+        return `<rect x="${x - 90}" y="${base - hh}" width="180" height="${hh}" fill="${col}" stroke="#1f1f1f" stroke-width="6"/><text x="${x}" y="${base - hh - 24}" text-anchor="middle" font-family="${FONT}" font-weight="800" font-size="62" fill="#1f1f1f" stroke="#fff" stroke-width="10" paint-order="stroke">${label}</text>`;
+      }
+      function fire(t, x, y, s) {
+        if (s <= 0.01) return "";
+        const f = 1 + 0.08 * Math.sin(t * 14);
+        let g = `<path d="M-90 0 L90 0" stroke="#6b4a2f" stroke-width="22" stroke-linecap="round"/>`;
+        for (let i = 0; i < 4; i++) g += `<rect x="${-70 + i * 36}" y="${-28 - (i % 2) * 10}" width="40" height="28" rx="4" fill="${["#c62828", "#1f6fb2", "#2e9e5b", "#e8b330"][i]}" stroke="#1f1f1f" stroke-width="4"/>`;
+        g += `<path d="M-80 -10 Q-60 ${-150 * f} 0 ${-220 * f} Q60 ${-150 * f} 80 -10Z" fill="#f08a24" stroke="#1f1f1f" stroke-width="6"/><path d="M-40 -10 Q-20 ${-100 * f} 0 ${-140 * f} Q20 ${-100 * f} 40 -10Z" fill="#ffd23f"/>`;
+        return `<g transform="translate(${x} ${y}) scale(${s})">${g}</g>`;
+      }
+      function book(x, y, s, col) {
+        if (s <= 0.01) return "";
+        return `<g transform="translate(${x} ${y}) scale(${s})"><rect x="-40" y="-52" width="80" height="104" rx="8" fill="${col}" stroke="#1f1f1f" stroke-width="6"/><path d="M-26 -30 L26 -30 M-26 -10 L26 -10 M-26 10 L16 10" stroke="#1f1f1f" stroke-width="5"/></g>`;
+      }
+      // simplified Yucatán peninsula and Central America
+      function yucatanMap(t, o = {}) {
+        let g = `<rect width="1080" height="1920" fill="#cfe7f4"/>`;
+        g += `<path d="M120 1700 L140 1260 L260 1120 L380 1020 L420 820 L560 700 L760 690 L860 760 L820 900 L760 980 L740 1120 L820 1240 L900 1400 L960 1700Z" fill="#f1e7c8" stroke="#1f1f1f" stroke-width="6" stroke-linejoin="round"/>`;
+        const cities = o.cities || [];
+        cities.forEach(([name, x, y, k, col]) => {
+          if (k <= 0.01) return;
+          g += `<circle cx="${x}" cy="${y}" r="${16 * k}" fill="${col || RED}" stroke="#1f1f1f" stroke-width="4"/>`;
+          if (name) g += `<text x="${x + 26}" y="${y + 14}" font-family="${FONT}" font-weight="800" font-size="44" fill="#1f1f1f" stroke="#fff" stroke-width="8" paint-order="stroke" opacity="${k}">${name}</text>`;
+        });
+        return g;
+      }
+
+      // ---------- characters ----------
+      const maya = (o) => ({ s: 1.3, f: 1, seed: 21, hat: "plumes", plumes: ["#2e9e5b", "#1f6fb2", "#2e9e5b"], hatColor: GOLD, skin: SKIN, shoe: "#c79a5b", tunic: { fill: GREEN }, look: 0.3, mouth: 0.4, ...R.walk(0, 0), ...o });
+      const spaniard = (o) => ({ s: 1.15, f: -1, seed: 31, hat: "morion", beard: "#8a8a8a", shoe: "#3a2a20", legs: "#5a4632", tunic: { fill: STEEL, sash: "#a51d2d" }, look: 0.8, mouth: 0.2, ...R.walk(0, 0), ...o });
+
+      // ---------- the six parts of the series ----------
+      const CIVS = [
+        ["Incas", { hat: "mascaipacha", earSpools: true, tunic: { fill: RED, band: [GOLD, C.ink] }, skin: "#e9b98f" }],
+        ["Mexicas", { hat: "plumes", plumes: ["#2e9e5b", "#d7263d", "#1f6fb2", "#d7263d", "#2e9e5b"], hatColor: GOLD, tunic: { fill: BLUE }, skin: SKIN }],
+        ["Mayas", { hat: "plumes", plumes: ["#2e9e5b", "#1f6fb2", "#2e9e5b"], hatColor: GOLD, tunic: { fill: GREEN }, skin: SKIN }],
+        ["Taínos", { hat: "band", hatColor: "#e07b39", plumes: [RED], tunic: { fill: "#f2e6c9" }, skin: "#c98f68" }],
+        ["Mapuches", { hat: "band", hatColor: "#c0c6cc", tunic: { fill: "#1f3d7a" }, skin: SKIN }],
+        ["Guaraníes", { hat: "plumes", plumes: ["#ffd23f", "#d7263d", "#ffd23f"], hatColor: "#e07b39", tunic: { fill: "#f2e6c9" }, skin: "#c98f68" }],
+      ];
+      const PART = 2; // index of this Short in CIVS (Mayas)
+      const cellXY = (i) => [300 + (i % 2) * 480, 760 + Math.floor(i / 2) * 420];
+      function check(t, i, pr, seed) {
+        const [x, y] = cellXY(i);
+        return R.scribble(t, [[x - 70, y - 90], [x - 10, y - 30], [x + 110, y - 190]], pr, "#2e9e5b", 18, seed);
+      }
+      function sCover(t, zoom, extra = "") {
+        let g = BG_SOFT + `<text x="540" y="250" text-anchor="middle" font-family="${FONT}" font-weight="800" font-size="74" fill="#1f1f1f">LAS CIVILIZACIONES</text><text x="540" y="345" text-anchor="middle" font-family="${FONT}" font-weight="800" font-size="74" fill="${RED}">DE AMÉRICA</text>`;
+        CIVS.forEach(([name, o], i) => {
+          const [cx, cy] = cellXY(i), hl = i === PART;
+          g += `<rect x="${cx - 215}" y="${cy - 290}" width="430" height="390" rx="30" fill="${hl ? "#fff3cf" : "#ffffff"}" stroke="#1f1f1f" stroke-width="${hl ? 7 : 4}"/>`;
+          g += R.chibi(t, { x: cx, y: cy + 30, s: 0.95, seed: 300 + i, look: 0.1, mouth: 0.35, ...R.walk(0, 0), ...o });
+          g += `<text x="${cx}" y="${cy + 80}" text-anchor="middle" font-family="${FONT}" font-weight="800" font-size="44" fill="#1f1f1f">${name}</text>`;
+        });
+        for (let i = 0; i < PART; i++) g += check(t, i, 1, 810 + i * 3);
+        g += extra;
+        const [zx, zy] = cellXY(PART), z = 1 + zoom * 1.6;
+        return `<g transform="translate(${(zx - zx * z).toFixed(1)} ${(zy - 150 - (zy - 150) * z).toFixed(1)}) scale(${z.toFixed(3)})">${g}</g>` +
+          `<text x="540" y="1860" text-anchor="middle" font-family="${FONT}" font-weight="800" font-size="40" fill="#1f1f1f" opacity="${(1 - zoom).toFixed(2)}">Siglos en Palitos</text>`;
+      }
+
+      // ---------- scenes (timed by fractions of their narration block) ----------
+      function sHook(t) {
+        const i = 0;
+        let o = BG_JUNGLE + mayaPyramid(700, GROUND, 1.0);
+        const m = maya({ x: 300, y: GROUND, s: 1.4, mouth: 0.5 });
+        if (popIn(m, t, at(i, 0.02))) o += R.chibi(t, m);
+        o += title(t, "LOS MAYAS", at(i, 0.02), at(i, 0.32), 300, 120, GREEN);
+        o += title(t, "¿DESAPARECIERON?", at(i, 0.32), at(i, 0.58), 300, 84, "#1f1f1f");
+        if (t > at(i, 0.46) && t < at(i, 0.58)) o += R.scribble(t, [[150, 280], [930, 270]], prog(t, at(i, 0.46), at(i, 0.54)), C.red, 18, 911);
+        o += title(t, "¿FIN DEL MUNDO 2012?", at(i, 0.58), at(i, 0.95), 300, 72, "#1f1f1f");
+        if (t > at(i, 0.86) && t < at(i, 0.95)) o += R.scribble(t, [[120, 280], [960, 270]], prog(t, at(i, 0.86), at(i, 0.93)), C.red, 18, 913);
+        // the question stays on screen even though it is not spoken
+        o += title(t, "¿POR QUÉ?", at(i, 0.93), at(i, 1.0) + 0.6, 300, 120, RED);
+        return o;
+      }
+
+      function sCities(t) {
+        const i = 1;
+        if (t < at(i, 0.62)) {
+          // many independent cities, never one empire
+          const pts = [["", 470, 860], ["", 640, 800], ["", 330, 1140], ["", 700, 1250], ["", 540, 1500], ["", 760, 1460], ["", 420, 1350], ["Tikal", 560, 1180, GREEN], ["Calakmul", 500, 1000, BLUE]];
+          const cities = pts.map(([n, x, y, c], j) => [n, x, y, pop(t, at(i, 0.12) + j * 0.25), c || RED]);
+          let o = yucatanMap(t, { cities });
+          o += title(t, "NO ERAN UN IMPERIO", at(i, 0.2), at(i, 0.62), 300, 80, RED);
+          if (t < BLOCKS[i][0] + 0.6) o += title(t, "¿POR QUÉ?", BLOCKS[i][0] - 1, BLOCKS[i][0] + 0.6, 300, 120, RED);
+          return o;
+        }
+        // Tikal vs Calakmul: two kings glaring
+        let o = BG_JUNGLE;
+        const k1 = maya({ x: 300, y: GROUND, s: 1.35, seed: 41, plumes: ["#2e9e5b", "#ffd23f", "#2e9e5b", "#ffd23f", "#2e9e5b"], tunic: { fill: GREEN }, look: 0.8, mouth: -0.6, browsUp: 0, worry: 0 });
+        const k2 = maya({ x: 780, y: GROUND, s: 1.35, f: -1, seed: 42, plumes: ["#1f6fb2", "#d7263d", "#1f6fb2", "#d7263d", "#1f6fb2"], tunic: { fill: BLUE }, look: 0.8, mouth: -0.6 });
+        const shake = Math.sin(t * 20) * 3;
+        k1.x += shake; k2.x -= shake;
+        if (popIn(k1, t, at(i, 0.62))) o += R.chibi(t, k1);
+        if (popIn(k2, t, at(i, 0.66))) o += R.chibi(t, k2);
+        o += title(t, "TIKAL", at(i, 0.64), at(i, 1.0), 560, 70, GREEN) + title(t, "vs.", at(i, 0.7), at(i, 1.0), 640, 54) + title(t, "CALAKMUL", at(i, 0.72), at(i, 1.0), 720, 70, BLUE);
+        o += `<path d="M470 ${GROUND - 330} L520 ${GROUND - 300} L560 ${GROUND - 340} L600 ${GROUND - 300}" fill="none" stroke="${RED}" stroke-width="10" stroke-linecap="round" opacity="${prog(t, at(i, 0.75), at(i, 0.8))}"/>`;
+        return o;
+      }
+
+      function sGenius(t) {
+        const i = 2;
+        let o = BG_SOFT;
+        o += title(t, "¡UNOS GENIOS!", at(i, 0.0), at(i, 0.2), 300, 110, GOLD_DARK);
+        // writing: glyphs pop in
+        if (t < at(i, 0.45)) {
+          for (let j = 0; j < 6; j++) o += glyph(260 + (j % 3) * 280, 760 + Math.floor(j / 3) * 260, pop(t, at(i, 0.18) + j * 0.12), j);
+          o += title(t, "ESCRITURA", at(i, 0.2), at(i, 0.45), 300, 96);
+          return o;
+        }
+        if (t < at(i, 0.68)) {
+          o += shellZero(540, 900, 2.4 * pop(t, at(i, 0.45)));
+          o += title(t, "= 0", at(i, 0.5), at(i, 0.68), 1180, 130, RED);
+          o += title(t, "EL CERO", at(i, 0.45), at(i, 0.68), 300, 110);
+          return o;
+        }
+        // Venus: a priest points at the bright star
+        o = `<rect width="1080" height="1920" fill="#1f2a4a"/>` + [[120, 300], [880, 260], [300, 520], [980, 640], [80, 760], [620, 420]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="5" fill="#fff"/>`).join("");
+        o += `<rect x="0" y="${GROUND}" width="1080" height="${1920 - GROUND}" fill="#3a3a2a"/>`;
+        o += star(t, 760, 620, pop(t, at(i, 0.7)));
+        const pr = maya({ x: 360, y: GROUND, s: 1.4, hat: "cap", hatColor: "#f4ede0", tunic: { fill: "#f4ede0" }, look: 0.6, mouth: 0.6, armF: { a: 2.4, b: 0.1 } });
+        if (popIn(pr, t, at(i, 0.68))) o += R.chibi(t, pr);
+        o += title(t, "VENUS", at(i, 0.72), at(i, 1.0), 300, 110, "#ffd23f");
+        return o;
+      }
+
+      function sCollapse(t) {
+        const i = 3;
+        if (t < at(i, 0.62)) {
+          // a southern city dries up and empties
+          const dry = prog(t, at(i, 0.15), at(i, 0.5));
+          let o = `<rect width="1080" height="1920" fill="url(#sky)"/><rect x="0" y="${GROUND}" width="1080" height="${1920 - GROUND}" fill="${dry > 0.5 ? "#c9a46b" : "#b8a46a"}"/>`;
+          o += `<circle cx="860" cy="${300}" r="${90 + 40 * dry}" fill="#ffd23f" stroke="#1f1f1f" stroke-width="6"/>`;
+          o += mayaPyramid(540, GROUND, 1.1);
+          if (dry > 0.3) for (let j = 0; j < 7; j++) o += `<path d="M${100 + j * 140} ${GROUND + 40} l30 40 l-20 30 l40 50" fill="none" stroke="#6b4a2f" stroke-width="6" opacity="${dry}"/>`;
+          o += title(t, "AÑO 900", at(i, 0.0), at(i, 0.62), 420, 110);
+          if (t > at(i, 0.25)) o += title(t, "SEQUÍAS · GUERRAS", at(i, 0.25), at(i, 0.62), 540, 64, RED);
+          return o;
+        }
+        // they move north to Chichén Itzá
+        const cities = [["Chichén Itzá", 600, 760, pop(t, at(i, 0.8)), GOLD]];
+        let o = yucatanMap(t, { cities });
+        for (let j = 0; j < 6; j++) {
+          const pr = prog(t, at(i, 0.62) + j * 0.03, at(i, 0.95) + j * 0.03);
+          const x = 560 + (600 - 560) * pr + (j % 3) * 30, y = 1400 - (1400 - 820) * pr + j * 30;
+          o += R.mini(t, x, y, 0.8, { seed: 900 + j, band: GOLD, cloth: j % 2 ? GREEN : "#f2e6c9", skin: SKIN, look: 0.2 });
+        }
+        o += title(t, "NO SE ESFUMARON", at(i, 0.62), at(i, 1.0), 300, 84, GREEN);
+        return o;
+      }
+
+      function s2012(t) {
+        const i = 4;
+        let o = BG_SOFT;
+        if (t < at(i, 0.55)) {
+          o += calendarWheel(t, 540, 900, 1.6 * pop(t, at(i, 0.15)));
+          o += title(t, "¿FIN DEL MUNDO?", at(i, 0.0), at(i, 0.2), 300, 90, RED);
+          o += title(t, "DIC. 2012", at(i, 0.3), at(i, 0.55), 300, 110);
+          return o;
+        }
+        // the odometer just rolls over
+        const rolled = t > at(i, 0.88);
+        o += `<rect x="140" y="600" width="800" height="600" rx="60" fill="#e7e2d6" stroke="#1f1f1f" stroke-width="8"/>`;
+        o += odometer(540, 900, rolled ? "100.000" : "99.999");
+        if (rolled) o += title(t, "¡CAMBIA DE CIFRA!", at(i, 0.88), at(i, 1.0) + 0.3, 1120, 70, GREEN);
+        o += title(t, "NO ERA EL FIN", at(i, 0.58), at(i, 1.0), 300, 96, GREEN);
+        return o;
+      }
+
+      function sSpain(t) {
+        const i = 5;
+        if (t < at(i, 0.6)) {
+          // 2 years vs almost 175
+          let o = BG_SOFT;
+          o += bar(330, 1300, 60, BLUE, "2 años", pop(t, at(i, 0.28)));
+          o += bar(750, 1300, 620, GREEN, "175 años", prog(t, at(i, 0.38), at(i, 0.55), "out"));
+          o += `<text x="330" y="1360" text-anchor="middle" font-family="${FONT}" font-weight="800" font-size="50" fill="${BLUE}">Aztecas</text><text x="750" y="1360" text-anchor="middle" font-family="${FONT}" font-weight="800" font-size="50" fill="${GREEN}">Mayas</text>`;
+          o += title(t, "DIVIDIDOS = DIFÍCILES", at(i, 0.0), at(i, 0.3), 300, 72);
+          o += title(t, "1697", at(i, 0.55), at(i, 0.6) + 0.5, 300, 120);
+          return o;
+        }
+        // 1562: books burned, only four survive
+        let o = BG_SOFT + fire(t, 540, 1150, 1.4 * pop(t, at(i, 0.6)));
+        o += title(t, "1562", at(i, 0.6), at(i, 1.0), 300, 120, RED);
+        const sv = prog(t, at(i, 0.86), at(i, 0.98), "out");
+        [[200, "#c62828"], [400, "#1f6fb2"], [680, "#2e9e5b"], [880, "#e8b330"]].forEach(([x, col], j) => {
+          o += book(540 + (x - 540) * sv, 1100 - 380 * sv, 1.2 * (sv > 0.02 ? 1 : 0), col);
+        });
+        if (sv > 0.9) o += title(t, "SOLO 4", at(i, 0.94), at(i, 1.0) + 0.3, 470, 110, GREEN);
+        return o;
+      }
+
+      function sToday(t) {
+        const i = 6;
+        let o = BG_SKY + R.ground(t, GROUND, 0, 1080, 1);
+        for (let r = 0; r < 2; r++) for (let j = 0; j < 7; j++) {
+          const k = pop(t, at(i, 0.05) + (r * 7 + j) * 0.05);
+          if (k > 0.01) o += R.mini(t, 90 + j * 150 + (r % 2) * 60, GROUND - r * 50, (1.1 - r * 0.15) * k, { seed: 950 + r * 7 + j, band: j % 3 ? null : "#e07b39", cloth: ["#d7263d", "#1f6fb2", "#e8b330", "#2e9e5b", "#f2e6c9", "#8e44ad", "#e07b39"][j], skin: SKIN, look: 0.1 });
+        }
+        o += title(t, "MILLONES", at(i, 0.1), at(i, 1.0), 300, 110, GREEN);
+        o += title(t, "~30 LENGUAS", at(i, 0.5), at(i, 1.0), 430, 84);
+        if (t > at(i, 0.5)) [[250, 760, "¡Hola!"], [560, 700, "..."], [840, 780, "¡Bix a beel!"]].forEach(([x, y, txt], j) => {
+          const k = pop(t, at(i, 0.52) + j * 0.1);
+          if (k > 0.01) o += `<g transform="translate(${x} ${y}) scale(${k})"><ellipse rx="130" ry="56" fill="#fff" stroke="#1f1f1f" stroke-width="5"/><text y="14" text-anchor="middle" font-family="${FONT}" font-weight="800" font-size="38" fill="#1f1f1f">${txt}</text></g>`;
+        });
+        o += title(t, "HASTA HOY", at(i, 0.8), at(i, 1.0), 1120, 96, RED);
+        return o;
+      }
+
+      function sNext(t) {
+        const i = 7;
+        const extra = check(t, PART, prog(t, at(i, 0.1), at(i, 0.35)), 831);
+        let o = `<rect width="1080" height="1920" fill="#e7f0e1"/><g transform="translate(151 20) scale(0.72)">${sCover(t, 0, extra)}</g>`;
+        const th = kf(t, [[at(i, 0.25), 0], [at(i, 0.45), 1, "back"]]) * (1 + 0.06 * Math.max(0, Math.sin((t - at(i, 0.45)) * 6)));
+        if (th > 0.01) o += `<g transform="translate(540 1650) scale(${(th * 0.9).toFixed(3)}) rotate(-8)">` +
+          `<rect x="-118" y="-8" width="44" height="130" rx="12" fill="#1f6fb2" stroke="#1f1f1f" stroke-width="7"/>` +
+          `<path d="M-70 -6 L-40 -6 L-10 -92 Q2 -122 30 -108 Q46 -96 38 -64 L30 -10 L84 -10 Q112 -10 108 18 L96 104 Q92 124 70 124 L-70 124Z" fill="#ffd23f" stroke="#1f1f1f" stroke-width="7" stroke-linejoin="round"/>` +
+          `<path d="M42 30 L100 30 M38 64 L98 64 M40 96 L92 96" stroke="#1f1f1f" stroke-width="5" stroke-linecap="round"/></g>`;
+        o += title(t, "¡DALE LIKE!", at(i, 0.2), DUR + 1, 1560, 96, C.red);
+        return o;
+      }
+
+      const SCENES = [sHook, sCities, sGenius, sCollapse, s2012, sSpain, sToday, sNext];
+      function renderAt(t) {
+        let o;
+        if (t < BLOCKS[0][0]) o = sCover(t, prog(t, 1.2, 2.0, "in")) + title(t, "PARTE 3: LOS MAYAS", 1.3, 2.05, 1600, 80, RED);
+        else {
+          let i = BLOCKS.findIndex(([a, b]) => t < b);
+          if (i < 0) i = BLOCKS.length - 1;
+          o = SCENES[i](t);
+        }
+        layer.innerHTML = o + captions(t);
+      }
+
+      window.addEventListener("hf-seek", (e) => renderAt(e.detail.time));
+      const tl = gsap.timeline({ paused: true });
+      const clock = { t: 0 };
+      tl.to(clock, { t: DUR, duration: DUR, ease: "none", onUpdate: () => renderAt(clock.t) }, 0);
+      window.__timelines = window.__timelines || {};
+      window.__timelines["main"] = tl;
+      renderAt(0);
+    </script>
+  </body>
+</html>
