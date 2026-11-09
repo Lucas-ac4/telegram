@@ -1,19 +1,13 @@
 # Reel 1: TODAS LAS CIVILIZACIONES DE AMÉRICA, parte 1: LOS INCAS
 
-Serie: **Todas las civilizaciones de América explicadas con stickman**
+Canal: **Siglos de Palitos**. Serie: **Todas las civilizaciones de América** (6 partes, ver `../SERIE.md`)
 Formato: vertical 9:16 nativo, ~1:20, voz en off + subtítulos palabra por palabra (palabras clave en amarillo).
 
 ---
 
 ## Portada (frame 0 a 0:02)
 
-Grilla de 3×3 stickman chibi, cada uno disfrazado de su civilización, con el nombre debajo. Es el "panorama completo" que usan los Reels que más funcionan.
-
-| | | |
-|---|---|---|
-| Olmecas | Mayas | Teotihuacanos |
-| Mexicas (aztecas) | **INCAS** | Muiscas |
-| Taínos | Mapuches | Guaraníes |
+Grilla de 2×3 con los 6 stickman de la serie, cada uno con su ropa y su número: 1. Incas · 2. Mexicas · 3. Mayas · 4. Taínos · 5. Mapuches · 6. Guaraníes. Abajo, chiquito: "Siglos de Palitos".
 
 Texto arriba: **TODAS LAS CIVILIZACIONES DE AMÉRICA**
 A los 1,5 s, zoom al stickman inca. Texto: **PARTE 1: LOS INCAS**
