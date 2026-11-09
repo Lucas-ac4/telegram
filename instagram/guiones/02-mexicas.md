@@ -13,6 +13,10 @@ La misma grilla de 2×3 del Short 1. Los Incas tienen ✓. Zoom al stickman mexi
 
 ## Hooks (hookscore.py, traducción al inglés)
 
+**Elegido por Lucas: la opción B** (71, estilo "¿sabías que…?"):
+> **"Crees que 500 españoles borraron del mapa la capital azteca en 1521. ¿Pero sabías que nunca murió, y que todavía hoy puedes caminar sobre ella?"**
+
+
 ### 🥇 Hook A — 73 STRONG (The Question)
 
 > **"Crees que 500 españoles destruyeron la capital azteca en 1521. Pero nunca murió: millones de personas caminan sobre ella todos los días. ¿Por qué no la ven?"**
@@ -42,13 +46,13 @@ Probé 11 hooks en 3 vueltas. Este tema tiene menos "drama numérico" que el de 
 | Tiempo | Voz en off | En pantalla (vertical) |
 |---|---|---|
 | 0:00 | *(portada)* | Grilla de 6 → zoom al mexica. **PARTE 2: LOS MEXICAS** |
-| 0:02 | Crees que 500 españoles destruyeron la capital azteca en 1521. Pero nunca murió: millones de personas caminan sobre ella todos los días. ¿Por qué no la ven? | Una ciudad en un lago, con templos. Llega un grupito de españoles grises, **500**, y aparece una nube de polvo. Corte: una multitud de stickman modernos (con celular y mochila) caminando por una calle. Un "?" enorme. |
+| 0:02 | Crees que 500 españoles borraron del mapa la capital azteca en 1521. ¿Pero sabías que nunca murió, y que todavía hoy puedes caminar sobre ella? | Una ciudad en un lago, con templos. Llega un grupito de españoles grises, **500**, y aparece una nube de polvo. Corte: una multitud de stickman modernos (con celular y mochila) caminando por una calle. Un "?" enorme. |
 | 0:12 | Primero: ellos no se llamaban aztecas. Se llamaban mexicas. Según su leyenda, debían fundar su ciudad donde vieran un águila sobre un nopal. La vieron en una isla, en medio de un lago. Ahí, hacia 1325, nació Tenochtitlan. | Un cartel "AZTECAS" se tacha y se escribe **MEXICAS**. Un águila sobre un nopal (la misma de la bandera de México). Mapa: un lago con una islita. **1325** |
 | 0:30 | Empezaron como un pueblo chico que peleaba para otros. Pero en 1428 se aliaron con dos ciudades vecinas y empezaron a cobrarle tributo a medio México. | Tres stickman mexicas chocan las manos. **1428**. Flechas de tributo (maíz, plumas, cacao) llegan a la isla desde todas partes. Los pueblos que pagan ponen cara de pocos amigos. |
 | 0:42 | Su capital no se parecía a nada: calzadas sobre el agua, un acueducto y campos de cultivo construidos en el lago, las chinampas. Algunos españoles, al verla, se preguntaron si estaban soñando. | La isla crece: calzadas, el acueducto, chinampas verdes. Un soldado español se frota los ojos con nubecitas de sueño ("💭"). |
 | 0:56 | Hernán Cortés llegó en 1519 con unos 500 hombres. Pero no estaba solo: miles de guerreros tlaxcaltecas, que odiaban pagarle a los mexicas, se unieron a él. Y la viruela hizo el resto: mató hasta al nuevo emperador. | Cortés (casco y barba). Detrás, una multitud de stickman tlaxcaltecas con sus colores. Mancha gris en el mapa y una corona que cae. |
 | 1:10 | En 1521, después de un largo sitio, Tenochtitlan cayó. Los españoles construyeron su ciudad encima, con las mismas piedras. Esa ciudad es la Ciudad de México. | La isla se cubre de edificios coloniales, capa por capa. Abajo, en corte transversal, quedan los templos enterrados. **CIUDAD DE MÉXICO** |
-| 1:18 | Por eso no la ven: está debajo. En 1978, unos obreros de la compañía de luz cavaron en pleno centro y se toparon con el Templo Mayor. | Obreros stickman con casco y pala cavan. ¡CLANK! Aparece una piedra tallada gigante. Ojos enormes de los obreros. **1978** |
+| 1:18 | Por eso todavía puedes caminar sobre ella: está justo debajo. En 1978, unos obreros de la compañía de luz cavaron en pleno centro y se toparon con el Templo Mayor. | Obreros stickman con casco y pala cavan. ¡CLANK! Aparece una piedra tallada gigante. Ojos enormes de los obreros. **1978** |
 | 1:24 | Si te gustó, dale like. | Vuelve la grilla: Incas ✓, Mexicas ✓. **¡DALE LIKE!** y el pulgar arriba. |
 
 ---
