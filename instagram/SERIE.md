@@ -9,7 +9,7 @@ Usuarios libres en YouTube al 9/11/2026: `@siglosenpalitos` (el principal) y `@s
 |---|---|---|
 | 1 | Incas | Guion + Reel animado (`reels/01-incas/out/reel-01-incas.mp4`); falta la voz |
 | 2 | Mexicas | Guion final (`guiones/02-mexicas-final.md`, 9.1/10) + animado (`reels/02-mexicas/out/reel-02-mexicas.mp4`); falta la voz (con OK de Lucas) |
-| 3 | Mayas | — |
+| 3 | Mayas | Guion listo (`guiones/03-mayas.md`, 9.05/10); falta elegir hook y animar |
 | 4 | Taínos | — |
 | 5 | Mapuches | — |
 | 6 | Guaraníes | — |
