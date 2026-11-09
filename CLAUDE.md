@@ -6,3 +6,4 @@
 - Guiones: mínimo 8.8/10. Antes de entregar uno, calificarlo (hook con `hookscore.py`, datos verificados, ritmo, voz de `voice.md`) y mejorarlo hasta llegar.
 - Videos largos de YouTube están en pausa. Cuando Lucas mencione "videos largos de YT", leer primero `youtube/stickman-historia/ESTADO.md` y retomar desde ahí.
 - Foco actual: YouTube Shorts del canal "Siglos de Palitos" (meta 250 mil vistas promedio). El plan y el estado de la serie están en `instagram/SERIE.md`.
+- Audio de los videos: usar siempre efectos de sonido y música libres de derechos (o propios), sin pedir permiso ni avisarlo; Lucas ya lo sabe. El audio va a ser casi todo efectos de sonido, con poca música.
