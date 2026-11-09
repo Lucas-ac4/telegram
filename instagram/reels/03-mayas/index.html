@@ -217,153 +217,209 @@
           `<text x="540" y="1860" text-anchor="middle" font-family="${FONT}" font-weight="800" font-size="40" fill="#1f1f1f" opacity="${(1 - zoom).toFixed(2)}">Siglos en Palitos</text>`;
       }
 
-      // ---------- scenes (timed by fractions of their narration block) ----------
+      // ---------- word cues: each visual starts on the word that names it ----------
+      const norm = (w) => w.toLowerCase().replace(/[¿?¡!,;:"]/g, "").replace(/\.$/, "");
+      function cue(i, word, n = 1) {
+        const [a, b] = BLOCKS[i];
+        let c = 0;
+        for (const w of WORDS) if (w.t >= a - 0.01 && w.t < b && norm(w.w).startsWith(norm(word))) { c++; if (c === n) return w.t; }
+        return a;
+      }
+      const END = (i) => BLOCKS[i][1];
+
+      // ---------- Mexico and Central America (lon, lat), simplified ----------
+      const MEX = [[-114.8,32.5],[-111,31.3],[-108.2,31.3],[-106.5,31.8],[-104.5,29.6],[-103,29],[-101.4,29.8],[-99.5,27.5],[-97.4,25.9],[-97.7,24],[-97.2,21.5],[-96.1,19.3],[-94.5,18.2],[-92,18.6],[-91,19.2],[-90.4,20.9],[-88.9,21.5],[-87,21.5],[-87.4,19.5],[-88.3,18.5],[-89.15,17.9],[-91.4,17.25],[-91.4,16.1],[-90.45,16.07],[-92.2,14.5],[-93.9,15.9],[-96.5,15.6],[-98.5,16.3],[-101,17.3],[-103.5,18.3],[-105.5,20.4],[-105.3,21.8],[-106.9,23.8],[-109.4,26.6],[-111,28.9],[-112.8,31.3],[-114.8,31.8]];
+      const BAJA = [[-117.1,32.5],[-114.8,32.5],[-114.8,31.8],[-114.3,30],[-112.8,28],[-111.5,25.5],[-109.9,23.8],[-109.4,23.1],[-110.3,23.6],[-112.1,24.8],[-114.1,27.5],[-115.6,29.5],[-116.7,31.6]];
+      const GUA = [[-92.2,14.5],[-91.4,16.1],[-90.45,16.07],[-91.4,17.25],[-89.15,17.8],[-89.15,15.9],[-88.2,15.7],[-89.2,14.4],[-90.1,13.75],[-91.4,13.95]];
+      const BLZ = [[-89.15,17.8],[-88.3,18.5],[-88.2,17.5],[-88.3,16.5],[-88.9,15.9],[-89.15,15.9]];
+      const HND = [[-89.2,14.4],[-88.2,15.7],[-86,16],[-84.3,15.8],[-83.2,15],[-84.7,14.7],[-85.7,13.8],[-87.3,13],[-87.8,13.9],[-88.6,14.2]];
+      const OTHERS = [
+        [[-90.1,13.75],[-89.2,14.4],[-88.6,14.2],[-87.8,13.9],[-87.8,13.2],[-89.4,13.5]],
+        [[-87.3,13],[-85.7,13.8],[-84.7,14.7],[-83.2,15],[-83.5,12],[-83.7,11],[-85.7,11.1],[-87.5,12.9]],
+        [[-85.7,11.1],[-83.7,11],[-82.6,9.6],[-83.6,8.5],[-85.7,9.9]],
+        [[-82.6,9.6],[-79.5,9.6],[-77.4,8.6],[-78.4,7.4],[-80.5,7.3],[-82.9,8.1]],
+      ];
+      const MK = 24, MMX = 70, MMY = 560;
+      const mp = ([lon, lat]) => [MMX + (lon + 118) * MK, MMY + (33 - lat) * MK];
+      const poly = (pts, fill, k = 1) => `<path d="M${pts.map((p) => mp(p).map((v) => v.toFixed(1)).join(" ")).join(" L")}Z" fill="${fill}" stroke="#1f1f1f" stroke-width="${4 + 2 * k}" stroke-linejoin="round"/>`;
+      function countriesMap(t, on) {
+        let g = `<rect width="1080" height="1920" fill="#cfe7f4"/>`;
+        OTHERS.forEach((p) => (g += poly(p, "#ddd6c3")));
+        g += poly(MEX, on.mex > 0.5 ? "#e8b330" : "#ddd6c3", on.mex) + poly(BAJA, on.mex > 0.5 ? "#e8b330" : "#ddd6c3", on.mex);
+        g += poly(GUA, on.gua > 0.5 ? "#2e9e5b" : "#ddd6c3", on.gua) + poly(BLZ, on.blz > 0.5 ? "#c62828" : "#ddd6c3", on.blz) + poly(HND, on.hnd > 0.5 ? "#1f6fb2" : "#ddd6c3", on.hnd);
+        const lab = (txt, ll, k, dx = 0, dy = 0) => k > 0.01 ? `<text x="${mp(ll)[0] + dx}" y="${mp(ll)[1] + dy}" text-anchor="middle" font-family="${FONT}" font-weight="800" font-size="${46 * k}" fill="#1f1f1f" stroke="#fff" stroke-width="10" paint-order="stroke">${txt}</text>` : "";
+        g += lab("México", [-102, 24], on.mex) + lab("Guatemala", [-90.4, 15.2], on.gua, -150, 90) + lab("Belice", [-88.6, 17.2], on.blz, 120, -40) + lab("Honduras", [-86.3, 14.7], on.hnd, 120, 110);
+        return g;
+      }
+      // a car dashboard: needle pinned at the maximum, odometer inside
+      function speedometer(t, x, y, val) {
+        let g = `<circle r="300" fill="#1f1f1f"/><circle r="282" fill="#2b2b2b" stroke="#555" stroke-width="6"/>`;
+        for (let i = 0; i <= 12; i++) {
+          const a = Math.PI * (0.75 + (1.5 * i) / 12), r0 = i % 2 ? 236 : 220, col = i >= 10 ? "#e5383b" : "#fff";
+          g += `<path d="M${(Math.cos(a) * r0).toFixed(1)} ${(Math.sin(a) * r0).toFixed(1)} L${(Math.cos(a) * 262).toFixed(1)} ${(Math.sin(a) * 262).toFixed(1)}" stroke="${col}" stroke-width="${i % 2 ? 6 : 10}" stroke-linecap="round"/>`;
+          if (i % 2 === 0) g += `<text x="${(Math.cos(a) * 180).toFixed(1)}" y="${(Math.sin(a) * 180 + 14).toFixed(1)}" text-anchor="middle" font-family="${FONT}" font-weight="800" font-size="38" fill="${col}">${i * 20}</text>`;
+        }
+        const shake = Math.sin(t * 30) * 0.02;
+        const na = Math.PI * (0.75 + 1.5) + shake;
+        // odometer first and smaller, so the needle (pinned at max) never covers the digits
+        g += `<g transform="translate(-20 190) scale(0.5)">${odometer(0, 0, val)}</g>`;
+        g += `<path d="M0 0 L${(Math.cos(na) * 240).toFixed(1)} ${(Math.sin(na) * 240).toFixed(1)}" stroke="#e5383b" stroke-width="14" stroke-linecap="round"/><circle r="30" fill="#e5383b" stroke="#1f1f1f" stroke-width="6"/>`;
+        return `<g transform="translate(${x} ${y})">${g}</g>`;
+      }
+
+      // ---------- scenes ----------
       function sHook(t) {
         const i = 0;
         let o = BG_JUNGLE + mayaPyramid(700, GROUND, 1.0);
         const m = maya({ x: 300, y: GROUND, s: 1.4, mouth: 0.5 });
-        if (popIn(m, t, at(i, 0.02))) o += R.chibi(t, m);
-        o += title(t, "LOS MAYAS", at(i, 0.02), at(i, 0.32), 300, 120, GREEN);
-        o += title(t, "¿DESAPARECIERON?", at(i, 0.32), at(i, 0.58), 300, 84, "#1f1f1f");
-        if (t > at(i, 0.46) && t < at(i, 0.58)) o += R.scribble(t, [[150, 280], [930, 270]], prog(t, at(i, 0.46), at(i, 0.54)), C.red, 18, 911);
-        o += title(t, "¿FIN DEL MUNDO 2012?", at(i, 0.58), at(i, 0.95), 300, 72, "#1f1f1f");
-        if (t > at(i, 0.86) && t < at(i, 0.95)) o += R.scribble(t, [[120, 280], [960, 270]], prog(t, at(i, 0.86), at(i, 0.93)), C.red, 18, 913);
+        if (popIn(m, t, BLOCKS[i][0] + 0.05)) o += R.chibi(t, m);
+        const cNunca = cue(i, "nunca"), cPred = cue(i, "predijeron"), c2012 = cue(i, "2012");
+        o += title(t, "LOS MAYAS", BLOCKS[i][0], cNunca, 300, 120, GREEN);
+        o += title(t, "¿DESAPARECIERON?", cNunca, cPred, 300, 84, "#1f1f1f");
+        if (t > cNunca + 0.5 && t < cPred) o += R.scribble(t, [[150, 280], [930, 270]], prog(t, cNunca + 0.5, cNunca + 0.9), C.red, 18, 911);
+        o += title(t, "¿FIN DEL MUNDO 2012?", cPred, END(i) - 0.1, 300, 72, "#1f1f1f");
+        if (t > c2012 + 0.2) o += R.scribble(t, [[120, 280], [960, 270]], prog(t, c2012 + 0.2, c2012 + 0.6), C.red, 18, 913);
         // the question stays on screen even though it is not spoken
-        o += title(t, "¿POR QUÉ?", at(i, 0.93), at(i, 1.0) + 0.6, 300, 120, RED);
+        o += title(t, "¿POR QUÉ?", END(i) - 0.15, END(i) + 1.2, 300, 120, RED);
         return o;
       }
 
       function sCities(t) {
         const i = 1;
-        if (t < at(i, 0.62)) {
-          // many independent cities, never one empire
-          const pts = [["", 470, 860], ["", 640, 800], ["", 330, 1140], ["", 700, 1250], ["", 540, 1500], ["", 760, 1460], ["", 420, 1350], ["Tikal", 560, 1180, GREEN], ["Calakmul", 500, 1000, BLUE]];
-          const cities = pts.map(([n, x, y, c], j) => [n, x, y, pop(t, at(i, 0.12) + j * 0.25), c || RED]);
+        const cViv = cue(i, "vivían");
+        if (t < cViv) {
+          const cDec = cue(i, "decenas"), cTik = cue(i, "tikal"), cCal = cue(i, "calakmul");
+          const pts = [["", 470, 860], ["", 640, 800], ["", 330, 1140], ["", 700, 1250], ["", 540, 1500], ["", 760, 1460], ["", 420, 1350]];
+          const cities = pts.map(([n, x, y], j) => [n, x, y, pop(t, cDec + j * 0.1), RED]);
+          cities.push(["Tikal", 560, 1180, pop(t, cTik), GREEN], ["Calakmul", 500, 1000, pop(t, cCal), BLUE]);
           let o = yucatanMap(t, { cities });
-          o += title(t, "NO ERAN UN IMPERIO", at(i, 0.2), at(i, 0.62), 300, 80, RED);
-          if (t < BLOCKS[i][0] + 0.6) o += title(t, "¿POR QUÉ?", BLOCKS[i][0] - 1, BLOCKS[i][0] + 0.6, 300, 120, RED);
+          o += title(t, "NO ERAN UN IMPERIO", cue(i, "imperio") - 0.2, cViv, 300, 80, RED);
+          if (t < BLOCKS[i][0] + 1.0) o += title(t, "¿POR QUÉ?", BLOCKS[i][0] - 1, BLOCKS[i][0] + 1.0, 300, 120, RED);
           return o;
         }
-        // Tikal vs Calakmul: two kings glaring
         let o = BG_JUNGLE;
-        const k1 = maya({ x: 300, y: GROUND, s: 1.35, seed: 41, plumes: ["#2e9e5b", "#ffd23f", "#2e9e5b", "#ffd23f", "#2e9e5b"], tunic: { fill: GREEN }, look: 0.8, mouth: -0.6, browsUp: 0, worry: 0 });
+        const k1 = maya({ x: 300, y: GROUND, s: 1.35, seed: 41, plumes: ["#2e9e5b", "#ffd23f", "#2e9e5b", "#ffd23f", "#2e9e5b"], tunic: { fill: GREEN }, look: 0.8, mouth: -0.6 });
         const k2 = maya({ x: 780, y: GROUND, s: 1.35, f: -1, seed: 42, plumes: ["#1f6fb2", "#d7263d", "#1f6fb2", "#d7263d", "#1f6fb2"], tunic: { fill: BLUE }, look: 0.8, mouth: -0.6 });
         const shake = Math.sin(t * 20) * 3;
         k1.x += shake; k2.x -= shake;
-        if (popIn(k1, t, at(i, 0.62))) o += R.chibi(t, k1);
-        if (popIn(k2, t, at(i, 0.66))) o += R.chibi(t, k2);
-        o += title(t, "TIKAL", at(i, 0.64), at(i, 1.0), 560, 70, GREEN) + title(t, "vs.", at(i, 0.7), at(i, 1.0), 640, 54) + title(t, "CALAKMUL", at(i, 0.72), at(i, 1.0), 720, 70, BLUE);
-        o += `<path d="M470 ${GROUND - 330} L520 ${GROUND - 300} L560 ${GROUND - 340} L600 ${GROUND - 300}" fill="none" stroke="${RED}" stroke-width="10" stroke-linecap="round" opacity="${prog(t, at(i, 0.75), at(i, 0.8))}"/>`;
+        if (popIn(k1, t, cViv)) o += R.chibi(t, k1);
+        if (popIn(k2, t, cViv + 0.15)) o += R.chibi(t, k2);
+        o += title(t, "TIKAL vs. CALAKMUL", cViv, END(i) + 0.2, 300, 76);
+        o += `<path d="M470 ${GROUND - 330} L520 ${GROUND - 300} L560 ${GROUND - 340} L600 ${GROUND - 300}" fill="none" stroke="${RED}" stroke-width="10" stroke-linecap="round" opacity="${prog(t, cViv + 0.4, cViv + 0.7)}"/>`;
         return o;
       }
 
       function sGenius(t) {
         const i = 2;
+        const cEsc = cue(i, "escritura"), cUs = cue(i, "usaban"), cSeg = cue(i, "seguían");
         let o = BG_SOFT;
-        o += title(t, "¡UNOS GENIOS!", at(i, 0.0), at(i, 0.2), 300, 110, GOLD_DARK);
-        // writing: glyphs pop in
-        if (t < at(i, 0.45)) {
-          for (let j = 0; j < 6; j++) o += glyph(260 + (j % 3) * 280, 760 + Math.floor(j / 3) * 260, pop(t, at(i, 0.18) + j * 0.12), j);
-          o += title(t, "ESCRITURA", at(i, 0.2), at(i, 0.45), 300, 96);
+        if (t < cUs) {
+          o += title(t, "¡UNOS GENIOS!", BLOCKS[i][0], cEsc, 300, 110, GOLD_DARK);
+          if (t >= cEsc - 0.2) {
+            for (let j = 0; j < 6; j++) o += glyph(260 + (j % 3) * 280, 760 + Math.floor(j / 3) * 260, pop(t, cEsc - 0.2 + j * 0.15), j);
+            o += title(t, "ESCRITURA", cEsc - 0.2, cUs, 300, 96);
+          }
           return o;
         }
-        if (t < at(i, 0.68)) {
-          o += shellZero(540, 900, 2.4 * pop(t, at(i, 0.45)));
-          o += title(t, "= 0", at(i, 0.5), at(i, 0.68), 1180, 130, RED);
-          o += title(t, "EL CERO", at(i, 0.45), at(i, 0.68), 300, 110);
+        if (t < cSeg) {
+          // a real zero, big
+          const k = pop(t, cUs);
+          o += `<g transform="translate(540 1000) scale(${k})"><text x="0" y="170" text-anchor="middle" font-family="${FONT}" font-weight="800" font-size="560" fill="${RED}" stroke="#1f1f1f" stroke-width="14" paint-order="stroke">0</text></g>`;
+          o += title(t, "EL CERO", cUs, cSeg, 300, 110);
+          o += title(t, "antes que Europa", cue(i, "europa") - 0.1, cSeg, 1300, 60, GOLD_DARK);
           return o;
         }
-        // Venus: a priest points at the bright star
         o = `<rect width="1080" height="1920" fill="#1f2a4a"/>` + [[120, 300], [880, 260], [300, 520], [980, 640], [80, 760], [620, 420]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="5" fill="#fff"/>`).join("");
         o += `<rect x="0" y="${GROUND}" width="1080" height="${1920 - GROUND}" fill="#3a3a2a"/>`;
-        o += star(t, 760, 620, pop(t, at(i, 0.7)));
+        o += star(t, 760, 620, pop(t, cue(i, "venus") - 0.1));
         const pr = maya({ x: 360, y: GROUND, s: 1.4, hat: "cap", hatColor: "#f4ede0", tunic: { fill: "#f4ede0" }, look: 0.6, mouth: 0.6, armF: { a: 2.4, b: 0.1 } });
-        if (popIn(pr, t, at(i, 0.68))) o += R.chibi(t, pr);
-        o += title(t, "VENUS", at(i, 0.72), at(i, 1.0), 300, 110, "#ffd23f");
+        if (popIn(pr, t, cSeg)) o += R.chibi(t, pr);
+        o += title(t, "VENUS", cue(i, "venus") - 0.1, END(i) + 0.2, 300, 110, "#ffd23f");
         return o;
       }
 
       function sCollapse(t) {
         const i = 3;
-        if (t < at(i, 0.62)) {
-          // a southern city dries up and empties
-          const dry = prog(t, at(i, 0.15), at(i, 0.5));
+        const cNo = cue(i, "no");
+        if (t < cNo) {
+          const dry = prog(t, cue(i, "abandonadas") - 0.4, cue(i, "sequías") + 0.4);
           let o = `<rect width="1080" height="1920" fill="url(#sky)"/><rect x="0" y="${GROUND}" width="1080" height="${1920 - GROUND}" fill="${dry > 0.5 ? "#c9a46b" : "#b8a46a"}"/>`;
           o += `<circle cx="860" cy="${300}" r="${90 + 40 * dry}" fill="#ffd23f" stroke="#1f1f1f" stroke-width="6"/>`;
           o += mayaPyramid(540, GROUND, 1.1);
           if (dry > 0.3) for (let j = 0; j < 7; j++) o += `<path d="M${100 + j * 140} ${GROUND + 40} l30 40 l-20 30 l40 50" fill="none" stroke="#6b4a2f" stroke-width="6" opacity="${dry}"/>`;
-          o += title(t, "AÑO 900", at(i, 0.0), at(i, 0.62), 420, 110);
-          if (t > at(i, 0.25)) o += title(t, "SEQUÍAS · GUERRAS", at(i, 0.25), at(i, 0.62), 540, 64, RED);
+          o += title(t, "AÑO 900", BLOCKS[i][0], cNo, 420, 110);
+          o += title(t, "SEQUÍAS", cue(i, "sequías") - 0.1, cNo, 540, 64, RED) + title(t, "GUERRAS", cue(i, "guerras") - 0.1, cNo, 620, 64, RED);
           return o;
         }
-        // they move north to Chichén Itzá
-        const cities = [["Chichén Itzá", 600, 760, pop(t, at(i, 0.8)), GOLD]];
+        const cChi = cue(i, "chichén");
+        const cities = [["Chichén Itzá", 600, 760, pop(t, cChi - 0.1), GOLD]];
         let o = yucatanMap(t, { cities });
         for (let j = 0; j < 6; j++) {
-          const pr = prog(t, at(i, 0.62) + j * 0.03, at(i, 0.95) + j * 0.03);
+          const pr = prog(t, cNo + j * 0.1, cChi + 0.6 + j * 0.1);
           const x = 560 + (600 - 560) * pr + (j % 3) * 30, y = 1400 - (1400 - 820) * pr + j * 30;
           o += R.mini(t, x, y, 0.8, { seed: 900 + j, band: GOLD, cloth: j % 2 ? GREEN : "#f2e6c9", skin: SKIN, look: 0.2 });
         }
-        o += title(t, "NO SE ESFUMARON", at(i, 0.62), at(i, 1.0), 300, 84, GREEN);
+        o += title(t, "NO SE ESFUMARON", cNo, END(i) + 0.2, 300, 84, GREEN);
         return o;
       }
 
       function s2012(t) {
         const i = 4;
+        const cTen = cue(i, "tenían"), cDic = cue(i, "diciembre"), cNo = cue(i, "no"), c100 = cue(i, "100.000");
         let o = BG_SOFT;
-        if (t < at(i, 0.55)) {
-          o += calendarWheel(t, 540, 900, 1.6 * pop(t, at(i, 0.15)));
-          o += title(t, "¿FIN DEL MUNDO?", at(i, 0.0), at(i, 0.2), 300, 90, RED);
-          o += title(t, "DIC. 2012", at(i, 0.3), at(i, 0.55), 300, 110);
+        if (t < cNo) {
+          o += title(t, "¿FIN DEL MUNDO?", BLOCKS[i][0], cTen, 300, 90, RED);
+          o += calendarWheel(t, 540, 900, 1.6 * pop(t, cTen - 0.1));
+          o += title(t, "CALENDARIOS", cTen - 0.1, cDic, 300, 96) + title(t, "DIC. 2012", cDic, cNo, 300, 110);
           return o;
         }
-        // the odometer just rolls over
-        const rolled = t > at(i, 0.88);
-        o += `<rect x="140" y="600" width="800" height="600" rx="60" fill="#e7e2d6" stroke="#1f1f1f" stroke-width="8"/>`;
-        o += odometer(540, 900, rolled ? "100.000" : "99.999");
-        if (rolled) o += title(t, "¡CAMBIA DE CIFRA!", at(i, 0.88), at(i, 1.0) + 0.3, 1120, 70, GREEN);
-        o += title(t, "NO ERA EL FIN", at(i, 0.58), at(i, 1.0), 300, 96, GREEN);
+        o += speedometer(t, 540, 900, t >= c100 ? "100.000" : "99.999");
+        o += title(t, "NO ERA EL FIN", cNo, END(i) + 0.2, 300, 96, GREEN);
         return o;
       }
 
       function sSpain(t) {
         const i = 5;
-        if (t < at(i, 0.6)) {
-          // 2 years vs almost 175
+        const cAzt = cue(i, "aztecas"), cMay = cue(i, "mayas"), c175 = cue(i, "175"), c1697 = cue(i, "1697"), c1562 = cue(i, "1562"), cSob = cue(i, "sobreviven"), c4 = cue(i, "cuatro");
+        if (t < c1562) {
           let o = BG_SOFT;
-          o += bar(330, 1300, 60, BLUE, "2 años", pop(t, at(i, 0.28)));
-          o += bar(750, 1300, 620, GREEN, "175 años", prog(t, at(i, 0.38), at(i, 0.55), "out"));
-          o += `<text x="330" y="1360" text-anchor="middle" font-family="${FONT}" font-weight="800" font-size="50" fill="${BLUE}">Aztecas</text><text x="750" y="1360" text-anchor="middle" font-family="${FONT}" font-weight="800" font-size="50" fill="${GREEN}">Mayas</text>`;
-          o += title(t, "DIVIDIDOS = DIFÍCILES", at(i, 0.0), at(i, 0.3), 300, 72);
-          o += title(t, "1697", at(i, 0.55), at(i, 0.6) + 0.5, 300, 120);
+          o += title(t, "DIVIDIDOS EN CIUDADES", BLOCKS[i][0], cAzt, 300, 70);
+          o += bar(330, 1300, 60, BLUE, "2 años", pop(t, cAzt));
+          o += bar(750, 1300, 620, GREEN, "175 años", prog(t, cMay, c175 + 0.3, "out"));
+          if (t > cAzt - 0.1) o += `<text x="330" y="1360" text-anchor="middle" font-family="${FONT}" font-weight="800" font-size="50" fill="${BLUE}">Aztecas</text>`;
+          if (t > cMay - 0.1) o += `<text x="750" y="1360" text-anchor="middle" font-family="${FONT}" font-weight="800" font-size="50" fill="${GREEN}">Mayas</text>`;
+          o += title(t, "1697: CAE EL ÚLTIMO REINO", c1697 - 0.1, c1562, 300, 64, RED);
           return o;
         }
-        // 1562: books burned, only four survive
-        let o = BG_SOFT + fire(t, 540, 1150, 1.4 * pop(t, at(i, 0.6)));
-        o += title(t, "1562", at(i, 0.6), at(i, 1.0), 300, 120, RED);
-        const sv = prog(t, at(i, 0.86), at(i, 0.98), "out");
-        [[200, "#c62828"], [400, "#1f6fb2"], [680, "#2e9e5b"], [880, "#e8b330"]].forEach(([x, col], j) => {
-          o += book(540 + (x - 540) * sv, 1100 - 380 * sv, 1.2 * (sv > 0.02 ? 1 : 0), col);
+        let o = BG_SOFT + fire(t, 540, 1150, 1.4 * pop(t, c1562));
+        o += title(t, "1562", c1562, END(i) + 0.2, 300, 120, RED);
+        const sv = prog(t, cSob, cSob + 0.8, "out");
+        [[200, "#c62828"], [400, "#1f6fb2"], [680, "#2e9e5b"], [880, "#e8b330"]].forEach(([x, col]) => {
+          if (sv > 0.02) o += book(540 + (x - 540) * sv, 1100 - 380 * sv, 1.2, col);
         });
-        if (sv > 0.9) o += title(t, "SOLO 4", at(i, 0.94), at(i, 1.0) + 0.3, 470, 110, GREEN);
+        o += title(t, "SOLO 4", c4 - 0.1, END(i) + 0.2, 470, 110, GREEN);
         return o;
       }
 
       function sToday(t) {
         const i = 6;
-        let o = BG_SKY + R.ground(t, GROUND, 0, 1080, 1);
-        for (let r = 0; r < 2; r++) for (let j = 0; j < 7; j++) {
-          const k = pop(t, at(i, 0.05) + (r * 7 + j) * 0.05);
-          if (k > 0.01) o += R.mini(t, 90 + j * 150 + (r % 2) * 60, GROUND - r * 50, (1.1 - r * 0.15) * k, { seed: 950 + r * 7 + j, band: j % 3 ? null : "#e07b39", cloth: ["#d7263d", "#1f6fb2", "#e8b330", "#2e9e5b", "#f2e6c9", "#8e44ad", "#e07b39"][j], skin: SKIN, look: 0.1 });
+        const cMex = cue(i, "méxico"), cAsi = cue(i, "así");
+        const crowd = (k0) => {
+          let s = BG_SKY + R.ground(t, GROUND, 0, 1080, 1);
+          for (let r = 0; r < 2; r++) for (let j = 0; j < 7; j++) {
+            const k = pop(t, k0 + (r * 7 + j) * 0.04);
+            if (k > 0.01) s += R.mini(t, 90 + j * 150 + (r % 2) * 60, GROUND - r * 50, (1.1 - r * 0.15) * k, { seed: 950 + r * 7 + j, band: j % 3 ? null : "#e07b39", cloth: ["#d7263d", "#1f6fb2", "#e8b330", "#2e9e5b", "#f2e6c9", "#8e44ad", "#e07b39"][j], skin: SKIN, look: 0.1 });
+          }
+          return s;
+        };
+        if (t < cMex) return crowd(BLOCKS[i][0]) + title(t, "NUNCA DESAPARECIERON", BLOCKS[i][0], cMex, 300, 70, GREEN) + title(t, "MILLONES", cue(i, "millones") - 0.1, cMex, 420, 110, GREEN);
+        if (t < cAsi) {
+          const on = { mex: pop(t, cMex - 0.1), gua: pop(t, cue(i, "guatemala") - 0.1), blz: pop(t, cue(i, "belice") - 0.1), hnd: pop(t, cue(i, "honduras") - 0.1) };
+          let o = countriesMap(t, on);
+          o += title(t, "~30 LENGUAS", cue(i, "30") - 0.1, cAsi, 300, 96);
+          return o;
         }
-        o += title(t, "MILLONES", at(i, 0.1), at(i, 1.0), 300, 110, GREEN);
-        o += title(t, "~30 LENGUAS", at(i, 0.5), at(i, 1.0), 430, 84);
-        if (t > at(i, 0.5)) [[250, 760, "¡Hola!"], [560, 700, "..."], [840, 780, "¡Bix a beel!"]].forEach(([x, y, txt], j) => {
-          const k = pop(t, at(i, 0.52) + j * 0.1);
-          if (k > 0.01) o += `<g transform="translate(${x} ${y}) scale(${k})"><ellipse rx="130" ry="56" fill="#fff" stroke="#1f1f1f" stroke-width="5"/><text y="14" text-anchor="middle" font-family="${FONT}" font-weight="800" font-size="38" fill="#1f1f1f">${txt}</text></g>`;
-        });
-        o += title(t, "HASTA HOY", at(i, 0.8), at(i, 1.0), 1120, 96, RED);
-        return o;
+        return crowd(cAsi - 0.6) + title(t, "HASTA HOY", cAsi, END(i) + 0.2, 300, 120, RED);
       }
 
       function sNext(t) {
