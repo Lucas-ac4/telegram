@@ -8,3 +8,4 @@
 - Foco actual: YouTube Shorts del canal "Siglos en Palitos" (meta 250 mil vistas promedio). El plan y el estado de la serie están en `instagram/SERIE.md`.
 - Audio de los videos: usar siempre efectos de sonido y música libres de derechos (o propios), sin pedir permiso ni avisarlo; Lucas ya lo sabe. El audio va a ser casi todo efectos de sonido, con poca música.
 - Narración completa como texto corrido (sin tablas ni marcas): mandársela a Lucas solo dos veces por Short, cuando se escribe el guion por primera vez y después de la primera animación. En las revisiones siguientes no reenviarla.
+- Voz (ElevenLabs): es siempre el último paso de cada Short y gasta créditos. Nunca generar voz sin el OK explícito de Lucas: avisarle "todo listo para hacer la voz" y esperar su autorización. Orden de cada Short: hook → guion → animación → voz.
