@@ -48,7 +48,7 @@ VERDICT       85  STRONG
 | 0:45 | Hasta que llegó una enfermedad desde el norte, probablemente viruela. Mató al emperador y a su heredero. Y dos de sus hijos, Huáscar y Atahualpa, se pelearon el trono en una guerra civil. | Mancha gris que avanza por el mapa. Corona que rueda. Huáscar (rojo) y Atahualpa (azul) tiran de la corona. |
 | 0:58 | Atahualpa ganó. Y justo ahí apareció Pizarro. En Cajamarca lo capturó en una emboscada. Atahualpa pagó un rescate de una habitación llena de oro, y aun así lo ejecutaron. | Barco. Plaza. Humo. Atahualpa atado. Habitación llenándose de oro hasta una raya roja. Fundido. |
 | 1:08 | Así que no fueron 168 hombres: fueron una epidemia, una guerra civil y miles de aliados indígenas que odiaban a los incas. | Balanza: 168 españoles chiquitos + viruela + corona partida + multitud de aliados → la balanza cae. **NO FUERON SOLO 168** |
-| 1:15 | En la parte 2: el imperio que construyó su capital en medio de un lago. | Vuelve la grilla. Se ilumina el stickman mexica. **PARTE 2 →** |
+| 1:18 | Y si te gustó, dale like. | Vuelve la grilla de 6, los Incas quedan tildados ✓. Texto: **¡DALE LIKE!** y un pulgar arriba gigante. |
 
 ---
 
@@ -61,7 +61,7 @@ VERDICT       85  STRONG
 | Ritmo | 9.0 | Una idea por bloque, ~12 s cada uno, ninguno pasa de 15 s. Dura ~1:20, dentro del rango que mejor anda (1:00-2:00) |
 | Voz (`voice.md`) | 8.5 | Trato de "tú" y frases cortas. Sin chistes de remate: el tono calmo es el que funciona en Reels |
 | Pago del hook | 9.5 | La respuesta llega explícita al final ("no fueron 168 hombres") |
-| Enganche con la serie | 9.0 | El cierre adelanta la parte 2 con una imagen intrigante, sin pedir "seguime" |
+| Cierre | 9.0 | Una sola acción (like), corta, sobre la grilla que muestra que hay más partes |
 | **Total** | **9.1** | ✅ Pasa el 8.8 |
 
 ## Datos a verificar

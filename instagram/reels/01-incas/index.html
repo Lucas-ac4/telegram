@@ -52,9 +52,9 @@
         [44.5, 57.5, "Hasta que llegó una enfermedad desde el norte, probablemente viruela. Mató al emperador y a su heredero. Y dos de sus hijos, Huáscar y Atahualpa, se pelearon el trono en una guerra civil."],
         [57.5, 69.5, "Atahualpa ganó. Y justo ahí apareció Pizarro. En Cajamarca lo capturó en una emboscada. Atahualpa pagó un rescate de una habitación llena de oro, y aun así lo ejecutaron."],
         [69.5, 77.5, "Así que no fueron 168 hombres: fueron una epidemia, una guerra civil y miles de aliados indígenas que odiaban a los incas."],
-        [77.5, 80.8, "En la parte 2: el imperio que construyó su capital en medio de un lago."],
+        [77.5, 80.6, "Y si te gustó, dale like."],
       ];
-      const KEY = new Set(["168", "1532", "pizarro", "cusco", "1438", "pachacútec", "américa", "dinero", "trabajo", "escritura", "quipus", "ruedas", "caminos", "viruela", "huáscar", "atahualpa", "civil", "cajamarca", "oro", "ejecutaron", "epidemia", "aliados", "lago", "muriendo"]);
+      const KEY = new Set(["168", "1532", "pizarro", "cusco", "1438", "pachacútec", "américa", "dinero", "trabajo", "escritura", "quipus", "ruedas", "caminos", "viruela", "huáscar", "atahualpa", "civil", "cajamarca", "oro", "ejecutaron", "epidemia", "aliados", "like", "muriendo"]);
       const WORDS = [];
       BLOCKS.forEach(([a, b, txt]) => {
         const ws = txt.split(/\s+/);
@@ -359,10 +359,15 @@
         // back to the grid: Incas done, Mexicas next
         const k = kf(t, [[77.8, 0], [78.2, 1, "back"]]);
         const [mx, my] = cellXY(1), [ix, iy] = cellXY(0);
-        const extra = `<rect x="${mx - 215}" y="${my - 290}" width="430" height="390" rx="30" fill="none" stroke="${C.red}" stroke-width="${(12 * k).toFixed(1)}"/>` +
-          R.scribble(t, [[ix - 70, iy - 90], [ix - 10, iy - 30], [ix + 110, iy - 190]], prog(t, 78.0, 78.4), "#2e9e5b", 18, 801);
+        const extra = R.scribble(t, [[ix - 70, iy - 90], [ix - 10, iy - 30], [ix + 110, iy - 190]], prog(t, 78.0, 78.4), "#2e9e5b", 18, 801);
         let o = `<rect width="1080" height="1920" fill="#e7f0e1"/><g transform="translate(151 20) scale(0.72)">${sCover(t, 0, { extra })}</g>`;
-        o += title(t, "PARTE 2: MEXICAS →", 78.6, 81.5, 1700, 84, C.red);
+        // like call-to-action: a big thumbs up
+        const th = kf(t, [[78.2, 0], [78.6, 1, "back"]]) * (1 + 0.06 * Math.max(0, Math.sin((t - 78.6) * 6)));
+        if (th > 0.01) o += `<g transform="translate(540 1650) scale(${(th * 0.9).toFixed(3)}) rotate(-8)">` +
+          `<rect x="-118" y="-8" width="44" height="130" rx="12" fill="#1f6fb2" stroke="#1f1f1f" stroke-width="7"/>` +
+          `<path d="M-70 -6 L-40 -6 L-10 -92 Q2 -122 30 -108 Q46 -96 38 -64 L30 -10 L84 -10 Q112 -10 108 18 L96 104 Q92 124 70 124 L-70 124Z" fill="#ffd23f" stroke="#1f1f1f" stroke-width="7" stroke-linejoin="round"/>` +
+          `<path d="M42 30 L100 30 M38 64 L98 64 M40 96 L92 96" stroke="#1f1f1f" stroke-width="5" stroke-linecap="round"/></g>`;
+        o += title(t, "¡DALE LIKE!", 78.4, 81.5, 1560, 96, C.red);
         return o;
       }
 
