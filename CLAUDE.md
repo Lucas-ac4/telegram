@@ -7,4 +7,4 @@
 - Videos largos de YouTube están en pausa. Cuando Lucas mencione "videos largos de YT", leer primero `youtube/stickman-historia/ESTADO.md` y retomar desde ahí.
 - Foco actual: YouTube Shorts del canal "Siglos en Palitos" (meta 250 mil vistas promedio). El plan y el estado de la serie están en `instagram/SERIE.md`.
 - Audio de los videos: usar siempre efectos de sonido y música libres de derechos (o propios), sin pedir permiso ni avisarlo; Lucas ya lo sabe. El audio va a ser casi todo efectos de sonido, con poca música.
-- Después de animar cada Short, mandarle a Lucas en el mensaje el guion completo como texto corrido (solo la narración, sin tablas ni marcas), para que lo tenga y lo pueda revisar.
+- Narración completa como texto corrido (sin tablas ni marcas): mandársela a Lucas solo dos veces por Short, cuando se escribe el guion por primera vez y después de la primera animación. En las revisiones siguientes no reenviarla.
