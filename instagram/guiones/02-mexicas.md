@@ -1,6 +1,6 @@
 # Short 2: TODAS LAS CIVILIZACIONES DE AMÉRICA, parte 2: LOS MEXICAS
 
-Canal: **Siglos de Palitos**. Serie: **Todas las civilizaciones de América** (6 partes, ver `../SERIE.md`).
+Canal: **Siglos en Palitos**. Serie: **Todas las civilizaciones de América** (6 partes, ver `../SERIE.md`).
 Formato: vertical 9:16 nativo, ~1:25, voz en off + subtítulos palabra por palabra (palabras clave en amarillo).
 
 ---

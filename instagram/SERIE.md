@@ -1,7 +1,7 @@
-# Siglos de Palitos
+# Siglos en Palitos
 
 Canal de historia con personajes stickman (estilo chibi), en vertical: Instagram Reels, YouTube Shorts y TikTok.
-Usuario libre en YouTube al 9/11/2026: `@siglosdepalitos` (falta revisar Instagram y TikTok).
+Usuarios libres en YouTube al 9/11/2026: `@siglosenpalitos` (el principal) y `@siglosdepalitos` (reservarlo para que nadie lo copie). Falta revisar Instagram y TikTok.
 
 ## Serie 1: Todas las civilizaciones de América (6 partes)
 
