@@ -22,8 +22,8 @@
     <!-- Siglos de Palitos — Reel 1: TODAS LAS CIVILIZACIONES DE AMÉRICA, parte 1: LOS INCAS.
          Guion: instagram/guiones/01-incas.md. Subtítulos con tiempos estimados
          (~2,6 palabras/s); al grabar la voz, ajustar BLOCKS a la narración real. -->
-    <div id="root" data-composition-id="main" data-start="0" data-duration="81" data-width="1080" data-height="1920">
-      <svg id="stage" class="clip" data-start="0" data-duration="81" data-track-index="0" data-layout-allow-overflow
+    <div id="root" data-composition-id="main" data-start="0" data-duration="82.5" data-width="1080" data-height="1920">
+      <svg id="stage" class="clip" data-start="0" data-duration="82.5" data-track-index="0" data-layout-allow-overflow
         viewBox="0 0 1080 1920" xmlns="http://www.w3.org/2000/svg">
         <defs>
           <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
@@ -38,23 +38,34 @@
       const R = window.Rig;
       R.setStill(true);
       const { kf, prog, C } = R;
-      const DUR = 81, W = 1080, GROUND = 1250;
+      const DUR = 82.5, W = 1080, GROUND = 1250;
       const GOLD = "#e8b330", GOLD_DARK = "#b8860b", STEEL = "#8a96a3", INCA_RED = "#c62828", ANDEAN = "#e9b98f";
       const layer = document.getElementById("layer");
       const spreadC = document.getElementById("spread-c");
       const FONT = R.FONT;
 
       // ---------- narration blocks (seconds) ----------
+      // narration at ~2.75 words/s (a brisk Shorts pace). Scenes were drawn on the
+      // older timing (OLD_BLOCKS); warp() maps each new block onto its old one.
       const BLOCKS = [
-        [2.0, 12.0, "Crees que 168 españoles con armas de fuego derrotaron a los incas en 1532. Pero los incas ya se estaban muriendo antes de que llegara Pizarro. ¿Por qué?"],
-        [12.0, 30.0, "Todo empezó en Cusco, un reino chiquito en los Andes. Hacia 1438, un príncipe llamado Pachacútec salvó la ciudad de una invasión. Y en menos de cien años, él y sus descendientes armaron el imperio más grande de América: más de cuatro mil kilómetros, de Ecuador a Chile."],
-        [30.0, 44.5, "Y para manejar algo tan grande, construyeron caminos: hasta 40 mil kilómetros, cruzando montañas, selvas y desiertos. Sin ruedas y sin caballos: todo a pie, con corredores que se pasaban los mensajes en postas."],
-        [44.5, 57.5, "Hasta que llegó una enfermedad desde el norte, probablemente viruela. Mató al emperador y a su heredero. Y dos de sus hijos, Huáscar y Atahualpa, se pelearon el trono en una guerra civil."],
-        [57.5, 69.5, "Atahualpa ganó. Y justo ahí apareció Pizarro. En Cajamarca lo capturó en una emboscada. Atahualpa pagó un rescate de una habitación llena de oro, y aun así lo ejecutaron."],
-        [69.5, 77.5, "Así que no fueron 168 hombres: fueron una epidemia, una guerra civil y miles de aliados indígenas que odiaban a los incas."],
-        [77.5, 80.6, "Y si te gustó, dale like."],
+        [2.0, 12.53, "Crees que 168 españoles con armas de fuego derrotaron a los incas en 1532. Pero los incas ya se estaban muriendo antes de que llegara Pizarro. ¿Por qué?"],
+        [12.53, 30.34, "Todo empezó en Cusco, un reino chiquito en los Andes. Hacia 1438, un príncipe llamado Pachacútec salvó la ciudad de una invasión. Y en menos de cien años, él y sus descendientes armaron el imperio más grande de América: más de cuatro mil kilómetros, de Ecuador a Chile."],
+        [30.34, 47.78, "Y funcionaba sin dinero: los impuestos se pagaban con trabajo. Sin escritura: con un sistema llamado quipus, la información se guardaba en cuerdas con nudos. Y sin ruedas, pero con un sistema de postas: corredores que se pasaban los mensajes por hasta 40 mil kilómetros de caminos."],
+        [47.78, 60.13, "Hasta que llegó una enfermedad desde el norte, probablemente viruela. Mató al emperador y a su heredero. Y dos de sus hijos, Huáscar y Atahualpa, se pelearon el trono en una guerra civil."],
+        [60.13, 71.02, "Atahualpa ganó. Y justo ahí apareció Pizarro. En Cajamarca lo capturó en una emboscada. Atahualpa pagó un rescate de una habitación llena de oro, y aun así lo ejecutaron."],
+        [71.02, 79.37, "Así que no fueron 168 hombres: fueron una epidemia, una guerra civil y miles de aliados indígenas que odiaban a los incas."],
+        [79.37, 82.3, "Y si te gustó, dale like."],
       ];
-      const KEY = new Set(["168", "1532", "pizarro", "cusco", "1438", "pachacútec", "américa", "40", "caminos", "ruedas", "caballos", "postas", "viruela", "huáscar", "atahualpa", "civil", "cajamarca", "oro", "ejecutaron", "epidemia", "aliados", "like", "muriendo"]);
+      const OLD_BLOCKS = [[2, 12], [12, 30], [30, 44.5], [44.5, 57.5], [57.5, 69.5], [69.5, 77.5], [77.5, 81]];
+      function warp(t) {
+        if (t < 2) return t;
+        for (let i = 0; i < BLOCKS.length; i++) {
+          const a = BLOCKS[i][0], b = i === BLOCKS.length - 1 ? DUR : BLOCKS[i + 1][0];
+          if (t < b) { const [oa, ob] = OLD_BLOCKS[i]; return oa + ((t - a) / (b - a)) * (ob - oa); }
+        }
+        return OLD_BLOCKS[OLD_BLOCKS.length - 1][1];
+      }
+      const KEY = new Set(["168", "1532", "pizarro", "cusco", "1438", "pachacútec", "américa", "40", "caminos", "ruedas", "caballos", "postas", "viruela", "huáscar", "atahualpa", "civil", "cajamarca", "oro", "ejecutaron", "epidemia", "aliados", "like", "muriendo", "postas", "nudos"]);
       const WORDS = [];
       BLOCKS.forEach(([a, b, txt]) => {
         const ws = txt.split(/\s+/);
@@ -270,6 +281,25 @@
         return o;
       }
 
+      function sMiddle(t) {
+        // "sin dinero" 30.0-33.0 | "sin escritura: quipus" 33.0-37.6 | "sin ruedas: postas" 37.6-44.5
+        if (t >= 37.6) return sRoads(30.2 + (t - 37.6) * (44.5 - 30.2) / (44.5 - 37.6));
+        let o = BG_SOFT;
+        const c1 = pop(t, 30.1);
+        o += coin(t, 280, 520, c1);
+        if (t > 30.5) o += cross(t, 280, 520, prog(t, 30.5, 31.0, "lin"), 711);
+        o += R.write(t, "sin dinero", 560, 510, 30.3, 30.9, { size: 66, weight: 800 });
+        o += R.write(t, "impuestos = trabajo", 560, 580, 31.4, 32.4, { size: 42, weight: 700, fill: GOLD_DARK });
+        if (t > 33.0) {
+          // the quipu: knotted cords, the knots appear one by one
+          o += quipu(t, 540, 820, 1.55 * pop(t, 33.0), prog(t, 33.8, 37.0) * 3);
+          o += title(t, "QUIPU", 33.2, 37.6, 760, 80, "#8a5a3c");
+          o += R.write(t, "sin escritura:", 540, 1230, 33.1, 33.6, { size: 54, weight: 800, anchor: "middle" });
+          o += R.write(t, "la información, en nudos", 540, 1300, 34.6, 35.6, { size: 54, weight: 800, anchor: "middle", fill: INCA_RED });
+        }
+        return o;
+      }
+
       function sCivilWar(t) {
         if (t < 50.0) {
           // the sickness arrives from the north
@@ -377,18 +407,19 @@
         return o;
       }
 
-      function renderAt(t) {
+      function renderAt(t0) {
+        const t = warp(t0);
         let o;
         if (t < 2.0) o = sCover(t, prog(t, 1.2, 2.0, "in"));
         else if (t < 12.0) o = sHook(t);
         else if (t < 30.0) o = sEmpire(t);
-        else if (t < 44.5) o = sRoads(t);
+        else if (t < 44.5) o = sMiddle(t);
         else if (t < 57.5) o = sCivilWar(t);
         else if (t < 69.5) o = sCajamarca(t);
         else if (t < 77.5) o = sScale(t);
         else o = sNext(t);
         if (t < 2.0) o += title(t, "PARTE 1: LOS INCAS", 1.3, 2.05, 1600, 84, INCA_RED);
-        layer.innerHTML = o + captions(t);
+        layer.innerHTML = o + captions(t0);
       }
 
       window.addEventListener("hf-seek", (e) => renderAt(e.detail.time));
