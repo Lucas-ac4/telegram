@@ -188,13 +188,13 @@
       ];
       const cellXY = (i) => [300 + (i % 2) * 480, 760 + Math.floor(i / 2) * 420];
       function sCover(t, zoom, marks = {}) {
-        let g = BG_SOFT + `<text x="540" y="200" text-anchor="middle" font-family="${FONT}" font-weight="800" font-size="74" fill="#1f1f1f">TODAS LAS</text><text x="540" y="290" text-anchor="middle" font-family="${FONT}" font-weight="800" font-size="74" fill="#1f1f1f">CIVILIZACIONES</text><text x="540" y="380" text-anchor="middle" font-family="${FONT}" font-weight="800" font-size="74" fill="${INCA_RED}">DE AMÉRICA</text>`;
+        let g = BG_SOFT + `<text x="540" y="250" text-anchor="middle" font-family="${FONT}" font-weight="800" font-size="74" fill="#1f1f1f">LAS CIVILIZACIONES</text><text x="540" y="345" text-anchor="middle" font-family="${FONT}" font-weight="800" font-size="74" fill="${INCA_RED}">DE AMÉRICA</text>`;
         CIVS.forEach(([name, o], i) => {
           const [cx, cy] = cellXY(i);
           const hl = i === 0 ? 1 : 0;
           g += `<rect x="${cx - 215}" y="${cy - 290}" width="430" height="390" rx="30" fill="${hl ? "#fff3cf" : "#ffffff"}" stroke="#1f1f1f" stroke-width="${hl ? 7 : 4}"/>`;
           g += R.chibi(t, { x: cx, y: cy + 30, s: 0.95, seed: 300 + i, look: 0.1, mouth: 0.35, ...R.walk(0, 0), ...o });
-          g += `<text x="${cx}" y="${cy + 80}" text-anchor="middle" font-family="${FONT}" font-weight="800" font-size="44" fill="#1f1f1f">${i + 1}. ${name}</text>`;
+          g += `<text x="${cx}" y="${cy + 80}" text-anchor="middle" font-family="${FONT}" font-weight="800" font-size="44" fill="#1f1f1f">${name}</text>`;
         });
         g += marks.extra || "";
         const [zx, zy] = cellXY(0), z = 1 + zoom * 1.6;

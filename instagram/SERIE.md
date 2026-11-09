@@ -3,7 +3,7 @@
 Canal de historia con personajes stickman (estilo chibi), en vertical: Instagram Reels, YouTube Shorts y TikTok.
 Usuarios libres en YouTube al 9/11/2026: `@siglosenpalitos` (el principal) y `@siglosdepalitos` (reservarlo para que nadie lo copie). Falta revisar Instagram y TikTok.
 
-## Serie 1: Todas las civilizaciones de América (6 partes)
+## Serie 1: Las civilizaciones de América (6 partes)
 
 | Parte | Civilización | Estado |
 |---|---|---|

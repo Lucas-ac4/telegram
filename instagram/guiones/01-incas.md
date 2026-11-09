@@ -7,9 +7,9 @@ Formato: vertical 9:16 nativo, ~1:20, voz en off + subtítulos palabra por palab
 
 ## Portada (frame 0 a 0:02)
 
-Grilla de 2×3 con los 6 stickman de la serie, cada uno con su ropa y su número: 1. Incas · 2. Mexicas · 3. Mayas · 4. Taínos · 5. Mapuches · 6. Guaraníes. Abajo, chiquito: "Siglos en Palitos".
+Grilla de 2×3 con los 6 stickman de la serie, cada uno con su ropa y su nombre (sin números): Incas · Mexicas · Mayas · Taínos · Mapuches · Guaraníes. Abajo, chiquito: "Siglos en Palitos".
 
-Texto arriba: **TODAS LAS CIVILIZACIONES DE AMÉRICA**
+Texto arriba: **LAS CIVILIZACIONES DE AMÉRICA**
 A los 1,5 s, zoom al stickman inca. Texto: **PARTE 1: LOS INCAS**
 
 ---

@@ -13,7 +13,7 @@ Archivo: `out/reel-01-incas.mp4` (1080×1920, 1:23, sin voz).
 ```
 Crees que 168 españoles derrotaron a los incas… pero el imperio ya se estaba muriendo antes de que llegara Pizarro. Una epidemia, una guerra civil y miles de aliados indígenas: así cayó el imperio más grande de América.
 
-Parte 1 de 6: Todas las civilizaciones de América.
+Parte 1 de 6: Las civilizaciones de América.
 
 #historia #incas #shorts #pizarro #historiadeamerica
 ```
@@ -24,6 +24,6 @@ Parte 1 de 6: Todas las civilizaciones de América.
 
 ```
 ¿168 españoles contra millones de incas? 🤔 La historia que no te contaron.
-Parte 1 de 6: Todas las civilizaciones de América.
+Parte 1 de 6: Las civilizaciones de América.
 #historia #incas #historiadeamerica #curiosidades #aprendeentiktok
 ```
