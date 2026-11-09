@@ -7,9 +7,9 @@ Usuarios libres en YouTube al 9/11/2026: `@siglosenpalitos` (el principal) y `@s
 
 | Parte | Civilización | Estado |
 |---|---|---|
-| 1 | Incas | Guion + Reel animado (`reels/01-incas/out/reel-01-incas.mp4`); falta la voz |
-| 2 | Mexicas | Guion final (`guiones/02-mexicas-final.md`, 9.1/10) + animado (`reels/02-mexicas/out/reel-02-mexicas.mp4`); falta la voz (con OK de Lucas) |
-| 3 | Mayas | Guion final (`guiones/03-mayas-final.md`) + animado (`reels/03-mayas/out/reel-03-mayas.mp4`); falta la voz (con OK de Lucas) |
+| 1 | Incas | ✅ Listo con voz (`reels/01-incas/out/reel-01-incas.mp4`) |
+| 2 | Mexicas | ✅ Listo con voz (`reels/02-mexicas/out/reel-02-mexicas.mp4`) |
+| 3 | Mayas | ✅ Listo con voz (`reels/03-mayas/out/reel-03-mayas.mp4`) |
 | 4 | Taínos | — |
 | 5 | Mapuches | — |
 | 6 | Guaraníes | — |

@@ -22,8 +22,9 @@
     <!-- Siglos en Palitos — Short 3: LAS CIVILIZACIONES DE AMÉRICA, parte 3: LOS MAYAS.
          Guion: instagram/guiones/03-mayas.md. Every scene is timed as a fraction of its
          narration block, so voice/tools/sincronizar.py can retime the whole Short from the voice. -->
-    <div id="root" data-composition-id="main" data-start="0" data-duration="86" data-width="1080" data-height="1920">
-      <svg id="stage" class="clip" data-start="0" data-duration="86" data-track-index="0" data-layout-allow-overflow
+    <div id="root" data-composition-id="main" data-start="0" data-duration="85.0" data-width="1080" data-height="1920">
+      <audio id="narracion" src="assets/narracion.mp3" data-start="2.0" data-track-index="2" data-volume="1"></audio>
+      <svg id="stage" class="clip" data-start="0" data-duration="85.0" data-track-index="0" data-layout-allow-overflow
         viewBox="0 0 1080 1920" xmlns="http://www.w3.org/2000/svg">
         <defs>
           <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
@@ -37,31 +38,33 @@
       const R = window.Rig;
       R.setStill(true);
       const { kf, prog, C } = R;
-      const DUR = 86, W = 1080, GROUND = 1250, GY = 920; // GY: street level in the cross-section scenes
+      const DUR = 85.0, W = 1080, GROUND = 1250, GY = 920; // GY: street level in the cross-section scenes
       const GOLD = "#e8b330", GOLD_DARK = "#b8860b", STEEL = "#8a96a3", RED = "#c62828", BLUE = "#1f6fb2", GREEN = "#2e9e5b", SKIN = "#d9a37a";
       const layer = document.getElementById("layer");
       const FONT = R.FONT;
 
       // ---------- narration blocks (seconds) ----------
       const BLOCKS = [
-        [2.0, 10.35, "Los mayas: seguro oíste hablar de ellos. Pero ¿sabías que nunca desaparecieron, y que nunca predijeron el fin del mundo en 2012?"],
-        [10.35, 19.06, "Hoy vemos su historia. Los mayas nunca fueron un imperio: eran decenas de ciudades, como Tikal o Calakmul, que vivían peleándose entre ellas."],
-        [19.06, 29.6, "Eso sí, eran unos genios: tenían escritura con cientos de símbolos, usaban el cero mucho antes que Europa y seguían el movimiento de Venus con una precisión asombrosa."],
-        [29.6, 40.85, "Hacia el año 900, sus grandes ciudades del sur quedaron abandonadas, probablemente por sequías, guerras y demasiada gente. No se esfumaron: se mudaron al norte, a ciudades como Chichén Itzá."],
-        [40.85, 55.02, "¿Y lo del fin del mundo? Tenían calendarios muy largos, y uno cerraba un ciclo en diciembre de 2012. No era el fin del mundo: era como el cuentakilómetros de un auto que pasa de 99.999 a 100.000."],
-        [55.02, 72.83, "A los españoles les costó vencerlos, porque estaban divididos en muchas ciudades: a los aztecas los vencieron en dos años, a los mayas les llevó casi 175. El último reino maya cayó en 1697. Pero en 1562, un fraile quemó decenas de sus libros: hoy sobreviven solo cuatro."],
-        [72.83, 83.0, "Los mayas nunca desaparecieron: millones viven hoy en México, Guatemala, Belice y Honduras, y hablan unas 30 lenguas. Así que nos acompañan hasta el día de hoy."],
-        [83.0, 85.16, "Si te gustó, dale like."],
+        [1.95, 10.19, "Los mayas: seguro oíste hablar de ellos. Pero ¿sabías que nunca desaparecieron, y que nunca predijeron el fin del mundo en 2012?"],
+        [10.19, 19.31, "Hoy vemos su historia. Los mayas nunca fueron un imperio: eran decenas de ciudades, como Tikal o Calakmul, que vivían peleándose entre ellas."],
+        [19.31, 28.92, "Eso sí, eran unos genios: tenían escritura con cientos de símbolos, usaban el cero mucho antes que Europa y seguían el movimiento de Venus con una precisión asombrosa."],
+        [28.92, 41.06, "Hacia el año 900, sus grandes ciudades del sur quedaron abandonadas, probablemente por sequías, guerras y demasiada gente. No se esfumaron: se mudaron al norte, a ciudades como Chichén Itzá."],
+        [41.06, 53.89, "¿Y lo del fin del mundo? Tenían calendarios muy largos, y uno cerraba un ciclo en diciembre de 2012. No era el fin del mundo: era como el cuentakilómetros de un auto que pasa de 99.999 a 100.000."],
+        [53.89, 72.33, "A los españoles les costó vencerlos, porque estaban divididos en muchas ciudades: a los aztecas los vencieron en dos años, a los mayas les llevó casi 175. El último reino maya cayó en 1697. Pero en 1562, un fraile quemó decenas de sus libros: hoy sobreviven solo cuatro."],
+        [72.33, 81.84, "Los mayas nunca desaparecieron: millones viven hoy en México, Guatemala, Belice y Honduras, y hablan unas 30 lenguas. Así que nos acompañan hasta el día de hoy."],
+        [81.84, 84.0, "Si te gustó, dale like."],
       ];
       // time at fraction f (0..1) of narration block i
       const at = (i, f) => BLOCKS[i][0] + f * (BLOCKS[i][1] - BLOCKS[i][0]);
 
       const KEY = new Set(["mayas", "desaparecieron", "2012", "imperio", "tikal", "calakmul", "genios", "escritura", "cero", "venus", "900", "sequías", "guerras", "esfumaron", "chichén", "itzá", "calendarios", "100.000", "175", "1697", "1562", "cuatro", "millones", "30", "lenguas", "hoy", "like"]);
+      // start time of every caption word, from the ElevenLabs narration (seconds)
+      const WT = [2.0, 2.223, 2.849, 3.466, 3.769, 4.072, 4.234, 4.944, 5.398, 5.973, 6.091, 6.456, 7.404, 7.478, 7.652, 8.006, 8.506, 8.611, 8.797, 8.902, 9.199, 9.336, 10.237, 10.596, 10.918, 11.025, 11.732, 12.033, 12.472, 12.763, 13.042, 13.154, 14.023, 14.258, 14.617, 14.691, 15.454, 15.706, 16.264, 16.431, 17.285, 17.378, 17.762, 18.282, 18.592, 19.359, 19.566, 19.814, 20.156, 20.39, 21.115, 21.417, 21.95, 22.192, 22.588, 22.687, 23.504, 23.852, 23.938, 24.247, 24.544, 24.811, 24.931, 25.461, 25.654, 26.081, 26.177, 26.675, 26.786, 27.151, 27.356, 27.531, 28.111, 28.97, 29.359, 29.464, 29.681, 30.635, 30.783, 31.092, 31.582, 31.712, 31.965, 32.343, 33.239, 33.829, 34.0, 34.807, 35.315, 35.48, 36.009, 36.608, 36.935, 37.059, 37.876, 37.981, 38.346, 38.483, 39.003, 39.089, 39.545, 39.882, 40.501, 41.106, 41.303, 41.408, 41.612, 41.761, 41.934, 42.504, 42.953, 43.486, 43.713, 44.285, 44.378, 44.575, 44.891, 45.04, 45.313, 45.407, 45.857, 45.994, 46.96, 47.263, 47.455, 47.56, 47.746, 47.864, 48.508, 48.649, 48.817, 48.953, 49.684, 49.783, 49.942, 50.198, 50.313, 50.6, 50.749, 52.966, 53.189, 53.943, 54.136, 54.297, 54.898, 55.109, 55.455, 56.137, 56.346, 56.662, 57.12, 57.262, 57.542, 58.371, 58.445, 58.606, 58.966, 59.114, 59.548, 59.634, 59.82, 60.452, 60.507, 60.619, 60.972, 61.113, 61.365, 61.715, 63.179, 63.38, 63.684, 63.987, 64.266, 64.575, 64.712, 66.383, 66.73, 66.866, 68.167, 68.52, 68.88, 69.207, 69.603, 69.708, 69.929, 70.749, 70.953, 71.48, 71.723, 72.38, 72.671, 73.036, 73.34, 74.44, 74.807, 75.105, 75.241, 75.354, 75.885, 76.776, 77.259, 77.354, 78.039, 78.132, 78.396, 78.69, 79.08, 79.748, 80.138, 80.213, 80.315, 80.814, 80.986, 81.123, 81.284, 81.439, 81.892, 82.168, 82.276, 82.96, 83.272];
       const WORDS = [];
       BLOCKS.forEach(([a, b, txt]) => {
         const ws = txt.split(/\s+/);
         const span = (b - 0.35 - a) / ws.length;
-        ws.forEach((w, i) => WORDS.push({ w, t: a + i * span, key: KEY.has(w.toLowerCase().replace(/[^\wáéíóúñü]/g, "")) }));
+        ws.forEach((w, i) => WORDS.push({ w, t: WT[WORDS.length] ?? a + i * span, key: KEY.has(w.toLowerCase().replace(/[^\wáéíóúñü]/g, "")) }));
       });
       // captions: chunks of 3 words, word by word; keywords in yellow
       function captions(t) {
