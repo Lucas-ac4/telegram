@@ -1,0 +1,22 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+@font-face{font-family:"Shantell Sans";src:url("ShantellSans-latin.woff2") format("woff2");font-weight:300 800}
+html,body{margin:0;width:1080px;height:1920px;background:#e7f0e1}</style><script src="rig.js"></script></head>
+<body><svg id="s" width="1080" height="1920" viewBox="0 0 1080 1920"></svg><script>
+const R=window.Rig;R.setStill(true);const C=R.C,F=R.FONT;
+const GOLD="#e8b330",RED="#c62828",BLUE="#1f6fb2",GREEN="#2e9e5b",SKIN="#c98f68";
+const base={bare:true,hair:"#1f1f1f",legs:SKIN,shoe:"#a87b4f",skin:SKIN,look:0.1,mouth:0.35};
+const CIVS=[
+ ["Incas",{hair:"#1f1f1f",hat:"mascaipacha",earSpools:true,tunic:{fill:RED,band:[GOLD,C.ink]},skin:"#d9a37a",legs:"#d9a37a",shoe:"#a87b4f",look:0.1,mouth:0.35}],
+ ["Mexicas",{...base,hat:"plumes",plumes:["#2e9e5b","#d7263d","#1f6fb2","#ffd23f","#d7263d","#1f6fb2","#2e9e5b"],hatColor:GOLD,cape:BLUE,loin:"#f2e6c9",shield:RED,necklace:GOLD}],
+ ["Mayas",{...base,hat:"plumes",plumes:["#2e9e5b","#1f6fb2","#2e9e5b","#1f6fb2","#2e9e5b"],hatColor:GREEN,necklace:"#3fbf7f",loin:GREEN,facePaint:BLUE,paint:BLUE}],
+ ["Taínos",{...base,hat:"band",hatColor:"#e07b39",plumes:[RED],paint:RED,facePaint:"#1f1f1f",chestDisc:true,loin:"#c9a46b"}],
+ ["Mapuches",{hair:"#1f1f1f",hat:"band",hatColor:"#c0c6cc",tunic:{fill:"#1f3d7a",band:["#f2f2f2",RED]},skin:SKIN,legs:SKIN,shoe:"#a87b4f",look:0.1,mouth:0.35}],
+ ["Guaraníes",{...base,hat:"plumes",plumes:["#ffd23f","#d7263d","#ffd23f","#d7263d","#ffd23f"],hatColor:"#e07b39",paint:"#1f1f1f",facePaint:RED,bow:true,loin:"#c9a46b"}],
+];
+let g=`<text x="540" y="180" text-anchor="middle" font-family="${F}" font-weight="800" font-size="70" fill="#1f1f1f">Personajes nuevos</text>`;
+CIVS.forEach(([n,o],i)=>{const cx=300+(i%2)*480,cy=760+Math.floor(i/2)*420;
+ g+=`<rect x="${cx-215}" y="${cy-330}" width="430" height="400" rx="30" fill="#fff" stroke="#1f1f1f" stroke-width="4"/>`;
+ g+=R.chibi(0,{x:cx,y:cy+0,s:1.05,seed:300+i,...R.walk(0,0),...o});
+ g+=`<text x="${cx}" y="${cy+52}" text-anchor="middle" font-family="${F}" font-weight="800" font-size="44" fill="#1f1f1f">${i+1}. ${n}</text>`;});
+document.getElementById('s').innerHTML=g;
+</script></body></html>

@@ -346,16 +346,20 @@
     const limb = (pts, col) => path(wob(pts, rng, 0.8), { w: LW + OW, stroke: C.ink }) + path(wob(pts, rng, 0), { w: LW, stroke: col });
     const foot = (ft, k) => `<ellipse cx="${(ft[0] + 7).toFixed(1)}" cy="${(ft[1] - 2).toFixed(1)}" rx="15" ry="8" fill="${shoe}" stroke="${C.ink}" stroke-width="4.5" transform="rotate(${(((ft[0] - k[0]) * 0.6) | 0) * 0} ${ft[0]} ${ft[1]})"/>`;
     const hand = (hd) => `<circle cx="${hd[2][0].toFixed(1)}" cy="${hd[2][1].toFixed(1)}" r="9" fill="${skin}" stroke="${C.ink}" stroke-width="4.5"/>`;
-    const legCol = p.legs || "#3b3b3b";
-    const sleeve = (p.tunic && p.tunic.sleeve) || (p.tunic && p.tunic.fill) || "#ffffff";
+    // indigenous look: bare skin, long hair, loincloth, body paint, cape, necklace, shield, bow
+    const legCol = p.legs || (p.bare ? skin : "#3b3b3b");
+    const sleeve = p.bare ? skin : (p.tunic && p.tunic.sleeve) || (p.tunic && p.tunic.fill) || "#ffffff";
 
     let out = "";
+    if (p.cape) out += path(`M${neck[0] - 30} ${neck[1] + 6} Q${neck[0] - 70} ${hip[1] + 40} ${hip[0] - 54} ${hip[1] + 62} L${hip[0] + 30} ${hip[1] + 62} Q${neck[0] + 10} ${hip[1] + 10} ${neck[0] + 26} ${neck[1] + 6}Z`, { fill: p.cape, w: OW });
+    if (p.hair) out += path(blob(hc[0] - ox * 0.2, hc[1] + r * 0.32, r * 1.1, r * 1.18, rng, 0.5, 16), { fill: p.hair, w: OW });
     const lB = leg(legB), lF = leg(legF);
     out += limb(lB, legCol) + foot(lB[2], lB[1]);
     out += limb(armB, sleeve) + hand(armB);
+    if (p.bow) out += path(`M${armB[2][0] - 6} ${armB[2][1] - 70} Q${armB[2][0] - 50} ${armB[2][1]} ${armB[2][0] - 6} ${armB[2][1] + 70}`, { w: 8, stroke: "#8a5a3c" }) + `<path d="M${armB[2][0] - 6} ${armB[2][1] - 70} L${armB[2][0] - 6} ${armB[2][1] + 70}" stroke="#f4ede0" stroke-width="2.5"/>`;
     out += limb(lF, legCol) + foot(lF[2], lF[1]);
     // body: a rounded tunic from the shoulders to below the hip
-    const tf = p.tunic || { fill: "#ffffff" };
+    const tf = p.bare ? { fill: skin } : p.tunic || { fill: "#ffffff" };
     const top = [neck[0], neck[1] - 6], bot = [hip[0], hip[1] + 18];
     const tw = 26, bw = 38;
     out += path(`M${top[0] - tw} ${top[1] + 8} Q${top[0] - tw} ${top[1]} ${top[0] - tw + 10} ${top[1]} L${top[0] + tw - 10} ${top[1]} Q${top[0] + tw} ${top[1]} ${top[0] + tw} ${top[1] + 8} L${bot[0] + bw} ${bot[1] - 6} Q${bot[0] + bw} ${bot[1]} ${bot[0] + bw - 8} ${bot[1]} L${bot[0] - bw + 8} ${bot[1]} Q${bot[0] - bw} ${bot[1]} ${bot[0] - bw} ${bot[1] - 6}Z`, { fill: tf.fill, w: OW });
@@ -365,10 +369,20 @@
       for (let i = 0; i < n; i++) out += `<rect x="${(bx0 + i * cw).toFixed(1)}" y="${(by - cw / 2).toFixed(1)}" width="${cw.toFixed(1)}" height="${cw.toFixed(1)}" fill="${i % 2 ? tf.band[0] : tf.band[1]}" stroke="${C.ink}" stroke-width="2"/>`;
     }
     if (tf.sash) out += path(`M${top[0] - tw + 4} ${top[1] + 4} L${bot[0] + bw - 10} ${bot[1] - 4}`, { w: 12, stroke: tf.sash });
+    if (p.bare) {
+      // loincloth with a belt
+      const lc = p.loin || "#c9a46b";
+      out += path(`M${bot[0] - bw + 2} ${bot[1] - 16} L${bot[0] + bw - 2} ${bot[1] - 16} L${bot[0] + bw - 4} ${bot[1] - 2} L${bot[0] + 16} ${bot[1] + 2} L${bot[0] + 10} ${bot[1] + 34} L${bot[0] - 10} ${bot[1] + 34} L${bot[0] - 16} ${bot[1] + 2} L${bot[0] - bw + 4} ${bot[1] - 2}Z`, { fill: lc, w: 4.5 });
+      if (p.paint) [0.32, 0.48].forEach((f) => { const yy = top[1] + (bot[1] - top[1]) * f; out += path(`M${top[0] - 18} ${yy} L${top[0] + 18} ${yy}`, { w: 6, stroke: p.paint }); });
+    }
+    if (p.necklace) for (let k = 0; k < 7; k++) { const a = Math.PI * (0.15 + 0.7 * (k / 6)); out += `<circle cx="${(neck[0] + Math.cos(a) * 22).toFixed(1)}" cy="${(neck[1] + 2 + Math.sin(a) * 14).toFixed(1)}" r="5.5" fill="${p.necklace}" stroke="${C.ink}" stroke-width="2.5"/>`; }
+    if (p.chestDisc) out += `<circle cx="${neck[0]}" cy="${neck[1] + 34}" r="15" fill="${C.sun}" stroke="${C.ink}" stroke-width="4"/><circle cx="${neck[0]}" cy="${neck[1] + 34}" r="6" fill="none" stroke="#b8860b" stroke-width="3"/>`;
     const frontArmOverHead = chin > 0.5;
     if (!frontArmOverHead) out += limb(armF, sleeve) + hand(armF);
+    if (p.shield) out += `<g transform="translate(${armF[2][0].toFixed(1)} ${armF[2][1].toFixed(1)})"><circle r="34" fill="${p.shield}" stroke="${C.ink}" stroke-width="5"/><circle r="18" fill="none" stroke="#fff" stroke-width="4"/><path d="M-28 22 L-34 44 M0 34 L0 56 M28 22 L34 44" stroke="${C.ink}" stroke-width="4"/></g>`;
     // head
     out += path(blob(hc[0], hc[1], r, r * 0.96, rng, 0.6, 16), { fill: skin, w: OW });
+    if (p.hair) out += path(`M${hc[0] - r * 0.98} ${hc[1] - r * 0.02} Q${hc[0] - r * 0.98} ${hc[1] - r * 1.04} ${hc[0]} ${hc[1] - r * 1.02} Q${hc[0] + r * 0.98} ${hc[1] - r * 1.04} ${hc[0] + r * 0.98} ${hc[1] - r * 0.02} Q${hc[0] + r * 0.62} ${hc[1] - r * 0.4} ${hc[0]} ${hc[1] - r * 0.4} Q${hc[0] - r * 0.62} ${hc[1] - r * 0.4} ${hc[0] - r * 0.98} ${hc[1] - r * 0.02}Z`, { fill: p.hair, w: 4.5 });
     if (p.beard) {
       // chin beard below the mouth, so the smile stays visible
       const bx = hc[0] + ox * 0.5, by = hc[1];
@@ -376,6 +390,7 @@
       out += path(`M${bx - r * 0.24} ${by + r * 0.3} Q${bx} ${by + r * 0.2} ${bx + r * 0.24} ${by + r * 0.3}`, { w: 7, stroke: p.beard });
     }
     out += chibiFace(p, hc, r, ox);
+    if (p.facePaint) [-1, 1].forEach((sd) => { const cx = hc[0] + sd * r * 0.55 + ox * 0.8, cy = hc[1] + r * 0.28; out += path(`M${cx - 10} ${cy - 5} L${cx + 10} ${cy - 5} M${cx - 10} ${cy + 5} L${cx + 10} ${cy + 5}`, { w: 4, stroke: p.facePaint }); });
     if (p.earSpools) [-1, 1].forEach((sd) => (out += `<circle cx="${(hc[0] + sd * r * 0.97 + ox * 0.25).toFixed(1)}" cy="${(hc[1] + r * 0.14).toFixed(1)}" r="10" fill="${C.sun}" stroke="${C.ink}" stroke-width="4"/>`));
     out += hat({ ...p, _r: r }, hc, lean + tilt, rng);
     if (frontArmOverHead) out += limb(armF, sleeve) + hand(armF);
