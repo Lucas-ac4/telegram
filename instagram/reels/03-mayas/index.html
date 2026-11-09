@@ -252,19 +252,19 @@
         return g;
       }
       // a car dashboard: needle pinned at the maximum, odometer inside
-      function speedometer(t, x, y, val) {
+      function speedometer(t, x, y, val, level, sc = 1) {
         let g = `<circle r="300" fill="#1f1f1f"/><circle r="282" fill="#2b2b2b" stroke="#555" stroke-width="6"/>`;
         for (let i = 0; i <= 12; i++) {
           const a = Math.PI * (0.75 + (1.5 * i) / 12), r0 = i % 2 ? 236 : 220, col = i >= 10 ? "#e5383b" : "#fff";
           g += `<path d="M${(Math.cos(a) * r0).toFixed(1)} ${(Math.sin(a) * r0).toFixed(1)} L${(Math.cos(a) * 262).toFixed(1)} ${(Math.sin(a) * 262).toFixed(1)}" stroke="${col}" stroke-width="${i % 2 ? 6 : 10}" stroke-linecap="round"/>`;
           if (i % 2 === 0) g += `<text x="${(Math.cos(a) * 180).toFixed(1)}" y="${(Math.sin(a) * 180 + 14).toFixed(1)}" text-anchor="middle" font-family="${FONT}" font-weight="800" font-size="38" fill="${col}">${i * 20}</text>`;
         }
-        const shake = Math.sin(t * 30) * 0.02;
-        const na = Math.PI * (0.75 + 1.5) + shake;
-        // odometer first and smaller, so the needle (pinned at max) never covers the digits
+        // odometer first, so the needle never covers the digits
         g += `<g transform="translate(-20 190) scale(0.5)">${odometer(0, 0, val)}</g>`;
+        const shake = level > 0.95 ? Math.sin(t * 40) * 0.03 : 0;
+        const na = Math.PI * (0.75 + 1.5 * level) + shake;
         g += `<path d="M0 0 L${(Math.cos(na) * 240).toFixed(1)} ${(Math.sin(na) * 240).toFixed(1)}" stroke="#e5383b" stroke-width="14" stroke-linecap="round"/><circle r="30" fill="#e5383b" stroke="#1f1f1f" stroke-width="6"/>`;
-        return `<g transform="translate(${x} ${y})">${g}</g>`;
+        return `<g transform="translate(${x} ${y}) scale(${sc})">${g}</g>`;
       }
 
       // ---------- scenes ----------
@@ -373,7 +373,14 @@
           o += title(t, "CALENDARIOS", cTen - 0.1, cDic, 300, 96) + title(t, "DIC. 2012", cDic, cNo, 300, 110);
           return o;
         }
-        o += speedometer(t, 540, 900, t >= c100 ? "100.000" : "99.999");
+        // the dial climbs while the sentence builds; on "100.000" the counter rolls over
+        const climb = prog(t, cNo, c100, "inOut");
+        const over = kf(t, [[c100, 0], [c100 + 0.25, 1, "out"], [c100 + 0.7, 0.6]]);
+        const level = Math.min(1, 0.08 + 0.92 * climb) + 0.06 * over;
+        const val = t >= c100 ? "100.000" : "99.99" + Math.min(9, Math.floor(climb * 10));
+        o += `<rect x="40" y="520" width="1000" height="780" rx="80" fill="#3a3a3a" stroke="#1f1f1f" stroke-width="10"/>`;
+        o += speedometer(t, 540, 910, val, level, 1.18);
+        if (t >= c100) o += `<circle cx="540" cy="910" r="${(380 * prog(t, c100, c100 + 0.5, "out")).toFixed(1)}" fill="none" stroke="#ffd23f" stroke-width="16" opacity="${(1 - prog(t, c100, c100 + 0.5)).toFixed(2)}"/>`;
         o += title(t, "NO ERA EL FIN", cNo, END(i) + 0.2, 300, 96, GREEN);
         return o;
       }
@@ -382,8 +389,12 @@
         const i = 5;
         const cAzt = cue(i, "aztecas"), cMay = cue(i, "mayas"), c175 = cue(i, "175"), c1697 = cue(i, "1697"), c1562 = cue(i, "1562"), cSob = cue(i, "sobreviven"), c4 = cue(i, "cuatro");
         if (t < c1562) {
+          if (t < cAzt) {
+            const pts = [[470, 860], [640, 800], [330, 1140], [700, 1250], [540, 1500], [760, 1460], [420, 1350], [560, 1180], [500, 1000], [600, 760], [380, 980], [660, 1060]];
+            const cities = pts.map(([x, y], j) => ["", x, y, pop(t, BLOCKS[i][0] + 0.2 + j * 0.18), RED]);
+            return yucatanMap(t, { cities }) + title(t, "DIVIDIDOS EN CIUDADES", BLOCKS[i][0], cAzt, 300, 70);
+          }
           let o = BG_SOFT;
-          o += title(t, "DIVIDIDOS EN CIUDADES", BLOCKS[i][0], cAzt, 300, 70);
           o += bar(330, 1300, 60, BLUE, "2 años", pop(t, cAzt));
           o += bar(750, 1300, 620, GREEN, "175 años", prog(t, cMay, c175 + 0.3, "out"));
           if (t > cAzt - 0.1) o += `<text x="330" y="1360" text-anchor="middle" font-family="${FONT}" font-weight="800" font-size="50" fill="${BLUE}">Aztecas</text>`;
