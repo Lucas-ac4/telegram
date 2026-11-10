@@ -26,6 +26,8 @@ def main(html, tj, offset="2.0", tail="1.0"):
     s = re.sub(r"const DUR = [\d.]+,", f"const DUR = {dur},", s)
     s = re.sub(r'(data-composition-id="main" data-start="0" data-duration=")[\d.]+"', rf'\g<1>{dur}"', s)
     s = re.sub(r'(<svg id="stage" class="clip" data-start="0" data-duration=")[\d.]+"', rf'\g<1>{dur}"', s)
+    # move an existing narration track to the new offset
+    s = re.sub(r'(<audio id="narracion"[^>]*data-start=")[\d.]+"', rf'\g<1>{offset}"', s)
     if 'id="narracion"' not in s:
         s = s.replace("      <svg id=\"stage\"", f'      <audio id="narracion" src="assets/narracion.mp3" data-start="{offset}" data-track-index="2" data-volume="1"></audio>\n      <svg id="stage"', 1)
     open(html, "w", encoding="utf-8").write(s)

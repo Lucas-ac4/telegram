@@ -22,9 +22,10 @@
     <!-- Siglos en Palitos — Short 3: LAS CIVILIZACIONES DE AMÉRICA, parte 3: LOS MAYAS.
          Guion: instagram/guiones/03-mayas.md. Every scene is timed as a fraction of its
          narration block, so voice/tools/sincronizar.py can retime the whole Short from the voice. -->
-    <div id="root" data-composition-id="main" data-start="0" data-duration="85.0" data-width="1080" data-height="1920">
-      <audio id="narracion" src="assets/narracion.mp3" data-start="2.0" data-track-index="2" data-volume="1"></audio>
-      <svg id="stage" class="clip" data-start="0" data-duration="85.0" data-track-index="0" data-layout-allow-overflow
+    <div id="root" data-composition-id="main" data-start="0" data-duration="85.55" data-width="1080" data-height="1920">
+      <audio id="narracion" src="assets/narracion.mp3" data-start="2.55" data-track-index="2" data-volume="1"></audio>
+      <audio id="titulo" src="assets/titulo.mp3" data-start="0.25" data-track-index="3" data-volume="1"></audio>
+      <svg id="stage" class="clip" data-start="0" data-duration="85.55" data-track-index="0" data-layout-allow-overflow
         viewBox="0 0 1080 1920" xmlns="http://www.w3.org/2000/svg">
         <defs>
           <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
@@ -38,28 +39,28 @@
       const R = window.Rig;
       R.setStill(true);
       const { kf, prog, C } = R;
-      const DUR = 85.0, W = 1080, GROUND = 1250, GY = 920; // GY: street level in the cross-section scenes
+      const DUR = 85.55, W = 1080, GROUND = 1250, GY = 920; // GY: street level in the cross-section scenes
       const GOLD = "#e8b330", GOLD_DARK = "#b8860b", STEEL = "#8a96a3", RED = "#c62828", BLUE = "#1f6fb2", GREEN = "#2e9e5b", SKIN = "#d9a37a";
       const layer = document.getElementById("layer");
       const FONT = R.FONT;
 
       // ---------- narration blocks (seconds) ----------
       const BLOCKS = [
-        [1.95, 10.19, "Los mayas: seguro oíste hablar de ellos. Pero ¿sabías que nunca desaparecieron, y que nunca predijeron el fin del mundo en 2012?"],
-        [10.19, 19.31, "Hoy vemos su historia. Los mayas nunca fueron un imperio: eran decenas de ciudades, como Tikal o Calakmul, que vivían peleándose entre ellas."],
-        [19.31, 28.92, "Eso sí, eran unos genios: tenían escritura con cientos de símbolos, usaban el cero mucho antes que Europa y seguían el movimiento de Venus con una precisión asombrosa."],
-        [28.92, 41.06, "Hacia el año 900, sus grandes ciudades del sur quedaron abandonadas, probablemente por sequías, guerras y demasiada gente. No se esfumaron: se mudaron al norte, a ciudades como Chichén Itzá."],
-        [41.06, 53.89, "¿Y lo del fin del mundo? Tenían calendarios muy largos, y uno cerraba un ciclo en diciembre de 2012. No era el fin del mundo: era como el cuentakilómetros de un auto que pasa de 99.999 a 100.000."],
-        [53.89, 72.33, "A los españoles les costó vencerlos, porque estaban divididos en muchas ciudades: a los aztecas los vencieron en dos años, a los mayas les llevó casi 175. El último reino maya cayó en 1697. Pero en 1562, un fraile quemó decenas de sus libros: hoy sobreviven solo cuatro."],
-        [72.33, 81.84, "Los mayas nunca desaparecieron: millones viven hoy en México, Guatemala, Belice y Honduras, y hablan unas 30 lenguas. Así que nos acompañan hasta el día de hoy."],
-        [81.84, 84.0, "Si te gustó, dale like."],
+        [2.5, 10.74, "Los mayas: seguro oíste hablar de ellos. Pero ¿sabías que nunca desaparecieron, y que nunca predijeron el fin del mundo en 2012?"],
+        [10.74, 19.86, "Hoy vemos su historia. Los mayas nunca fueron un imperio: eran decenas de ciudades, como Tikal o Calakmul, que vivían peleándose entre ellas."],
+        [19.86, 29.47, "Eso sí, eran unos genios: tenían escritura con cientos de símbolos, usaban el cero mucho antes que Europa y seguían el movimiento de Venus con una precisión asombrosa."],
+        [29.47, 41.61, "Hacia el año 900, sus grandes ciudades del sur quedaron abandonadas, probablemente por sequías, guerras y demasiada gente. No se esfumaron: se mudaron al norte, a ciudades como Chichén Itzá."],
+        [41.61, 54.44, "¿Y lo del fin del mundo? Tenían calendarios muy largos, y uno cerraba un ciclo en diciembre de 2012. No era el fin del mundo: era como el cuentakilómetros de un auto que pasa de 99.999 a 100.000."],
+        [54.44, 72.88, "A los españoles les costó vencerlos, porque estaban divididos en muchas ciudades: a los aztecas los vencieron en dos años, a los mayas les llevó casi 175. El último reino maya cayó en 1697. Pero en 1562, un fraile quemó decenas de sus libros: hoy sobreviven solo cuatro."],
+        [72.88, 82.39, "Los mayas nunca desaparecieron: millones viven hoy en México, Guatemala, Belice y Honduras, y hablan unas 30 lenguas. Así que nos acompañan hasta el día de hoy."],
+        [82.39, 84.55, "Si te gustó, dale like."],
       ];
       // time at fraction f (0..1) of narration block i
       const at = (i, f) => BLOCKS[i][0] + f * (BLOCKS[i][1] - BLOCKS[i][0]);
 
       const KEY = new Set(["mayas", "desaparecieron", "2012", "imperio", "tikal", "calakmul", "genios", "escritura", "cero", "venus", "900", "sequías", "guerras", "esfumaron", "chichén", "itzá", "calendarios", "100.000", "175", "1697", "1562", "cuatro", "millones", "30", "lenguas", "hoy", "like"]);
       // start time of every caption word, from the ElevenLabs narration (seconds)
-      const WT = [2.0, 2.223, 2.849, 3.466, 3.769, 4.072, 4.234, 4.944, 5.398, 5.973, 6.091, 6.456, 7.404, 7.478, 7.652, 8.006, 8.506, 8.611, 8.797, 8.902, 9.199, 9.336, 10.237, 10.596, 10.918, 11.025, 11.732, 12.033, 12.472, 12.763, 13.042, 13.154, 14.023, 14.258, 14.617, 14.691, 15.454, 15.706, 16.264, 16.431, 17.285, 17.378, 17.762, 18.282, 18.592, 19.359, 19.566, 19.814, 20.156, 20.39, 21.115, 21.417, 21.95, 22.192, 22.588, 22.687, 23.504, 23.852, 23.938, 24.247, 24.544, 24.811, 24.931, 25.461, 25.654, 26.081, 26.177, 26.675, 26.786, 27.151, 27.356, 27.531, 28.111, 28.97, 29.359, 29.464, 29.681, 30.635, 30.783, 31.092, 31.582, 31.712, 31.965, 32.343, 33.239, 33.829, 34.0, 34.807, 35.315, 35.48, 36.009, 36.608, 36.935, 37.059, 37.876, 37.981, 38.346, 38.483, 39.003, 39.089, 39.545, 39.882, 40.501, 41.106, 41.303, 41.408, 41.612, 41.761, 41.934, 42.504, 42.953, 43.486, 43.713, 44.285, 44.378, 44.575, 44.891, 45.04, 45.313, 45.407, 45.857, 45.994, 46.96, 47.263, 47.455, 47.56, 47.746, 47.864, 48.508, 48.649, 48.817, 48.953, 49.684, 49.783, 49.942, 50.198, 50.313, 50.6, 50.749, 52.966, 53.189, 53.943, 54.136, 54.297, 54.898, 55.109, 55.455, 56.137, 56.346, 56.662, 57.12, 57.262, 57.542, 58.371, 58.445, 58.606, 58.966, 59.114, 59.548, 59.634, 59.82, 60.452, 60.507, 60.619, 60.972, 61.113, 61.365, 61.715, 63.179, 63.38, 63.684, 63.987, 64.266, 64.575, 64.712, 66.383, 66.73, 66.866, 68.167, 68.52, 68.88, 69.207, 69.603, 69.708, 69.929, 70.749, 70.953, 71.48, 71.723, 72.38, 72.671, 73.036, 73.34, 74.44, 74.807, 75.105, 75.241, 75.354, 75.885, 76.776, 77.259, 77.354, 78.039, 78.132, 78.396, 78.69, 79.08, 79.748, 80.138, 80.213, 80.315, 80.814, 80.986, 81.123, 81.284, 81.439, 81.892, 82.168, 82.276, 82.96, 83.272];
+      const WT = [2.55, 2.773, 3.399, 4.016, 4.319, 4.622, 4.784, 5.494, 5.948, 6.523, 6.641, 7.006, 7.954, 8.028, 8.202, 8.556, 9.056, 9.161, 9.347, 9.452, 9.749, 9.886, 10.787, 11.146, 11.468, 11.575, 12.282, 12.583, 13.022, 13.313, 13.592, 13.704, 14.573, 14.808, 15.167, 15.241, 16.004, 16.256, 16.814, 16.981, 17.835, 17.928, 18.312, 18.832, 19.142, 19.909, 20.116, 20.364, 20.706, 20.94, 21.665, 21.967, 22.5, 22.742, 23.138, 23.237, 24.054, 24.402, 24.488, 24.797, 25.094, 25.361, 25.481, 26.011, 26.204, 26.631, 26.727, 27.225, 27.336, 27.701, 27.906, 28.081, 28.661, 29.52, 29.909, 30.014, 30.231, 31.185, 31.333, 31.642, 32.132, 32.262, 32.515, 32.893, 33.789, 34.379, 34.55, 35.357, 35.865, 36.03, 36.559, 37.158, 37.485, 37.609, 38.426, 38.531, 38.896, 39.033, 39.553, 39.639, 40.095, 40.432, 41.051, 41.656, 41.853, 41.958, 42.162, 42.311, 42.484, 43.054, 43.503, 44.036, 44.263, 44.835, 44.928, 45.125, 45.441, 45.59, 45.863, 45.957, 46.407, 46.544, 47.51, 47.813, 48.005, 48.11, 48.296, 48.414, 49.058, 49.199, 49.367, 49.503, 50.234, 50.333, 50.492, 50.748, 50.863, 51.15, 51.299, 53.516, 53.739, 54.493, 54.686, 54.847, 55.448, 55.659, 56.005, 56.687, 56.896, 57.212, 57.67, 57.812, 58.092, 58.921, 58.995, 59.156, 59.516, 59.664, 60.098, 60.184, 60.37, 61.002, 61.057, 61.169, 61.522, 61.663, 61.915, 62.265, 63.729, 63.93, 64.234, 64.537, 64.816, 65.125, 65.262, 66.933, 67.28, 67.416, 68.717, 69.07, 69.43, 69.757, 70.153, 70.258, 70.479, 71.299, 71.503, 72.03, 72.273, 72.93, 73.221, 73.586, 73.89, 74.99, 75.357, 75.655, 75.791, 75.904, 76.435, 77.326, 77.809, 77.904, 78.589, 78.682, 78.946, 79.24, 79.63, 80.298, 80.688, 80.763, 80.865, 81.364, 81.536, 81.673, 81.834, 81.989, 82.442, 82.718, 82.826, 83.51, 83.822];
       const WORDS = [];
       BLOCKS.forEach(([a, b, txt]) => {
         const ws = txt.split(/\s+/);
@@ -187,31 +188,41 @@
       }
 
       // ---------- characters ----------
-      const maya = (o) => ({ s: 1.3, f: 1, seed: 21, hat: "plumes", plumes: ["#2e9e5b", "#1f6fb2", "#2e9e5b"], hatColor: GOLD, skin: SKIN, shoe: "#c79a5b", tunic: { fill: GREEN }, look: 0.3, mouth: 0.4, ...R.walk(0, 0), ...o });
+      const maya = (o) => {
+        const p = { s: 1.3, f: 1, seed: 21, bare: true, hair: "#1f1f1f", legs: SKIN, hat: "plumes", plumes: ["#2e9e5b", "#1f6fb2", "#2e9e5b", "#1f6fb2", "#2e9e5b"], hatColor: GREEN, skin: SKIN, shoe: "#a87b4f", necklace: "#3fbf7f", loin: GREEN, facePaint: BLUE, look: 0.3, mouth: 0.4, ...R.walk(0, 0), ...o };
+        if (o.tunic) p.loin = o.tunic.fill; // scenes used tunic colors to tell people apart: now it is the loincloth
+        return p;
+      };
       const spaniard = (o) => ({ s: 1.15, f: -1, seed: 31, hat: "morion", beard: "#8a8a8a", shoe: "#3a2a20", legs: "#5a4632", tunic: { fill: STEEL, sash: "#a51d2d" }, look: 0.8, mouth: 0.2, ...R.walk(0, 0), ...o });
 
-      // ---------- the six parts of the series ----------
+      // the six parts of the series, in order (indigenous look, v2)
+      const SK = "#c98f68", HAIR = "#1f1f1f", SANDAL = "#a87b4f";
       const CIVS = [
-        ["Incas", { hat: "mascaipacha", earSpools: true, tunic: { fill: RED, band: [GOLD, C.ink] }, skin: "#e9b98f" }],
-        ["Mexicas", { hat: "plumes", plumes: ["#2e9e5b", "#d7263d", "#1f6fb2", "#d7263d", "#2e9e5b"], hatColor: GOLD, tunic: { fill: BLUE }, skin: SKIN }],
-        ["Mayas", { hat: "plumes", plumes: ["#2e9e5b", "#1f6fb2", "#2e9e5b"], hatColor: GOLD, tunic: { fill: GREEN }, skin: SKIN }],
-        ["Taínos", { hat: "band", hatColor: "#e07b39", plumes: [RED], tunic: { fill: "#f2e6c9" }, skin: "#c98f68" }],
-        ["Mapuches", { hat: "band", hatColor: "#c0c6cc", tunic: { fill: "#1f3d7a" }, skin: SKIN }],
-        ["Guaraníes", { hat: "plumes", plumes: ["#ffd23f", "#d7263d", "#ffd23f"], hatColor: "#e07b39", tunic: { fill: "#f2e6c9" }, skin: "#c98f68" }],
+        ["Incas", { hair: HAIR, hat: "mascaipacha", earSpools: true, tunic: { fill: "#c62828", band: ["#e8b330", "#1f1f1f"] }, skin: "#d9a37a", legs: "#d9a37a", shoe: SANDAL }],
+        ["Mexicas", { bare: true, hair: HAIR, legs: SK, shoe: SANDAL, skin: SK, hat: "plumes", plumes: ["#2e9e5b", "#d7263d", "#1f6fb2", "#ffd23f", "#d7263d", "#1f6fb2", "#2e9e5b"], hatColor: "#e8b330", cape: "#1f6fb2", loin: "#f2e6c9", shield: "#c62828", necklace: "#e8b330" }],
+        ["Mayas", { bare: true, hair: HAIR, legs: SK, shoe: SANDAL, skin: SK, hat: "plumes", plumes: ["#2e9e5b", "#1f6fb2", "#2e9e5b", "#1f6fb2", "#2e9e5b"], hatColor: "#2e9e5b", necklace: "#3fbf7f", loin: "#2e9e5b", facePaint: "#1f6fb2", paint: "#1f6fb2" }],
+        ["Taínos", { bare: true, hair: HAIR, legs: SK, shoe: SANDAL, skin: SK, hat: "band", hatColor: "#e07b39", plumes: ["#c62828"], paint: "#c62828", facePaint: "#1f1f1f", chestDisc: true, loin: "#c9a46b" }],
+        ["Mapuches", { hair: HAIR, hat: "band", hatColor: "#c0c6cc", tunic: { fill: "#1f3d7a", band: ["#f2f2f2", "#c62828"] }, skin: SK, legs: SK, shoe: SANDAL }],
+        ["Guaraníes", { bare: true, hair: HAIR, legs: SK, shoe: SANDAL, skin: SK, hat: "plumes", plumes: ["#ffd23f", "#d7263d", "#ffd23f", "#d7263d", "#ffd23f"], hatColor: "#e07b39", paint: "#1f1f1f", facePaint: "#c62828", bow: true, loin: "#c9a46b" }],
       ];
-      const PART = 2; // index of this Short in CIVS (Mayas)
+      const PART = 2; // index of this Short in CIVS
       const cellXY = (i) => [300 + (i % 2) * 480, 760 + Math.floor(i / 2) * 420];
       function check(t, i, pr, seed) {
         const [x, y] = cellXY(i);
         return R.scribble(t, [[x - 70, y - 90], [x - 10, y - 30], [x + 110, y - 190]], pr, "#2e9e5b", 18, seed);
       }
-      function sCover(t, zoom, extra = "") {
-        let g = BG_SOFT + `<text x="540" y="250" text-anchor="middle" font-family="${FONT}" font-weight="800" font-size="74" fill="#1f1f1f">LAS CIVILIZACIONES</text><text x="540" y="345" text-anchor="middle" font-family="${FONT}" font-weight="800" font-size="74" fill="${RED}">DE AMÉRICA</text>`;
+      // labels show only the number; parts already seen show "N. Name";
+      // this Short's own name appears at the end (reveal 0..1)
+      function sCover(t, zoom, extra = "", reveal = 0) {
+        if (typeof extra === "object") extra = extra.extra || "";
+        let g = BG_SOFT + `<text x="540" y="250" text-anchor="middle" font-family="${FONT}" font-weight="800" font-size="74" fill="#1f1f1f">LAS CIVILIZACIONES</text><text x="540" y="345" text-anchor="middle" font-family="${FONT}" font-weight="800" font-size="74" fill="#c62828">DE AMÉRICA</text>`;
         CIVS.forEach(([name, o], i) => {
           const [cx, cy] = cellXY(i), hl = i === PART;
           g += `<rect x="${cx - 215}" y="${cy - 290}" width="430" height="390" rx="30" fill="${hl ? "#fff3cf" : "#ffffff"}" stroke="#1f1f1f" stroke-width="${hl ? 7 : 4}"/>`;
-          g += R.chibi(t, { x: cx, y: cy + 30, s: 0.95, seed: 300 + i, look: 0.1, mouth: 0.35, ...R.walk(0, 0), ...o });
-          g += `<text x="${cx}" y="${cy + 80}" text-anchor="middle" font-family="${FONT}" font-weight="800" font-size="44" fill="#1f1f1f">${name}</text>`;
+          g += R.chibi(t, { x: cx, y: cy + 22, s: 0.9, seed: 300 + i, look: 0.1, mouth: 0.35, ...R.walk(0, 0), ...o });
+          const named = i < PART || (i === PART && reveal > 0.5);
+          const pk = i === PART && reveal > 0.5 ? 1 + 0.3 * (1 - prog(reveal, 0.5, 1, "out")) : 1;
+          g += `<text x="${cx}" y="${cy + 80}" text-anchor="middle" font-family="${FONT}" font-weight="800" font-size="${((named ? 44 : 58) * pk).toFixed(1)}" fill="#1f1f1f">${named ? `${i + 1}. ${name}` : `${i + 1}`}</text>`;
         });
         for (let i = 0; i < PART; i++) g += check(t, i, 1, 810 + i * 3);
         g += extra;
@@ -360,7 +371,7 @@
         for (let j = 0; j < 6; j++) {
           const pr = prog(t, cNo + j * 0.1, cChi + 0.6 + j * 0.1);
           const x = 560 + (600 - 560) * pr + (j % 3) * 30, y = 1400 - (1400 - 820) * pr + j * 30;
-          o += R.mini(t, x, y, 0.8, { seed: 900 + j, band: GOLD, cloth: j % 2 ? GREEN : "#f2e6c9", skin: SKIN, look: 0.2 });
+          o += R.mini(t, x, y, 0.8, { seed: 900 + j, band: GOLD, cloth: j % 2 ? GREEN : "#f2e6c9", skin: SKIN, look: 0.2, hair: "#1f1f1f" });
         }
         o += title(t, "NO SE ESFUMARON", cNo, END(i) + 0.2, 300, 84, GREEN);
         return o;
@@ -439,7 +450,7 @@
       function sNext(t) {
         const i = 7;
         const extra = check(t, PART, prog(t, at(i, 0.1), at(i, 0.35)), 831);
-        let o = `<rect width="1080" height="1920" fill="#e7f0e1"/><g transform="translate(151 20) scale(0.72)">${sCover(t, 0, extra)}</g>`;
+        let o = `<rect width="1080" height="1920" fill="#e7f0e1"/><g transform="translate(151 20) scale(0.72)">${sCover(t, 0, extra, prog(t, at(i, 0.1), at(i, 0.35)))}</g>`;
         const th = kf(t, [[at(i, 0.25), 0], [at(i, 0.45), 1, "back"]]) * (1 + 0.06 * Math.max(0, Math.sin((t - at(i, 0.45)) * 6)));
         if (th > 0.01) o += `<g transform="translate(540 1650) scale(${(th * 0.9).toFixed(3)}) rotate(-8)">` +
           `<rect x="-118" y="-8" width="44" height="130" rx="12" fill="#1f6fb2" stroke="#1f1f1f" stroke-width="7"/>` +
@@ -452,7 +463,7 @@
       const SCENES = [sHook, sCities, sGenius, sCollapse, s2012, sSpain, sToday, sNext];
       function renderAt(t) {
         let o;
-        if (t < BLOCKS[0][0]) o = sCover(t, prog(t, 1.2, 2.0, "in")) + title(t, "PARTE 3: LOS MAYAS", 1.3, 2.05, 1600, 80, RED);
+        if (t < BLOCKS[0][0]) o = sCover(t, prog(t, BLOCKS[0][0] - 0.45, BLOCKS[0][0], "in")) + title(t, "3", BLOCKS[0][0] - 0.5, BLOCKS[0][0] + 0.05, 1600, 200, RED);
         else {
           let i = BLOCKS.findIndex(([a, b]) => t < b);
           if (i < 0) i = BLOCKS.length - 1;

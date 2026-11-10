@@ -22,9 +22,10 @@
     <!-- Siglos en Palitos — Reel 1: TODAS LAS CIVILIZACIONES DE AMÉRICA, parte 1: LOS INCAS.
          Guion: instagram/guiones/01-incas.md. Subtítulos con tiempos estimados
          (~2,6 palabras/s); al grabar la voz, ajustar BLOCKS a la narración real. -->
-    <div id="root" data-composition-id="main" data-start="0" data-duration="83.5" data-width="1080" data-height="1920">
-      <audio id="narracion" src="assets/narracion.mp3" data-start="2.0" data-track-index="2" data-volume="1"></audio>
-      <svg id="stage" class="clip" data-start="0" data-duration="83.5" data-track-index="0" data-layout-allow-overflow
+    <div id="root" data-composition-id="main" data-start="0" data-duration="84.05" data-width="1080" data-height="1920">
+      <audio id="narracion" src="assets/narracion.mp3" data-start="2.55" data-track-index="2" data-volume="1"></audio>
+      <audio id="titulo" src="assets/titulo.mp3" data-start="0.25" data-track-index="3" data-volume="1"></audio>
+      <svg id="stage" class="clip" data-start="0" data-duration="84.05" data-track-index="0" data-layout-allow-overflow
         viewBox="0 0 1080 1920" xmlns="http://www.w3.org/2000/svg">
         <defs>
           <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
@@ -39,7 +40,7 @@
       const R = window.Rig;
       R.setStill(true);
       const { kf, prog, C } = R;
-      const DUR = 83.5, W = 1080, GROUND = 1250;
+      const DUR = 84.05, W = 1080, GROUND = 1250;
       const GOLD = "#e8b330", GOLD_DARK = "#b8860b", STEEL = "#8a96a3", INCA_RED = "#c62828", ANDEAN = "#e9b98f";
       const layer = document.getElementById("layer");
       const spreadC = document.getElementById("spread-c");
@@ -49,13 +50,13 @@
       // narration at ~2.75 words/s (a brisk Shorts pace). Scenes were drawn on the
       // older timing (OLD_BLOCKS); warp() maps each new block onto its old one.
       const BLOCKS = [
-        [1.95, 13.23, "Crees que 168 españoles con armas de fuego derrotaron a los incas en 1532. ¿Pero sabías que los incas ya se estaban muriendo antes de que llegara Pizarro?"],
-        [13.23, 32.2, "Todo empezó en Cusco, un reino chiquito en los Andes. Hacia 1438, un príncipe llamado Pachacútec salvó a la ciudad de una invasión. Y en menos de cien años, él y sus descendientes armaron el imperio más grande de América: más de cuatro mil kilómetros, de Ecuador a Chile."],
-        [32.2, 50.4, "Y funcionaba sin dinero: los impuestos se pagaban con trabajo. Y sin escritura: inventaron un sistema llamado quipus, donde la información se guardaba en cuerdas con nudos. Y no tenían ruedas, pero sí un sistema de postas: corredores que se pasaban los mensajes por hasta 40 mil kilómetros de caminos."],
-        [50.4, 61.29, "Hasta que llegó una enfermedad desde el norte, probablemente viruela, que mató al emperador y a su heredero. Sus otros hijos, Huáscar y Atahualpa, se pelearon el trono en una guerra civil."],
-        [61.29, 72.44, "Atahualpa ganó. Y justo ahí apareció Pizarro. En Cajamarca lo capturó en una emboscada. Atahualpa pagó un rescate de una habitación llena de oro, y aun así lo ejecutaron."],
-        [72.44, 80.71, "Así que no fueron 168 hombres. Fue una epidemia, una guerra civil y miles de aliados indígenas que odiaban a los incas."],
-        [80.71, 82.5, "Si te gustó, dale like."],
+        [2.5, 13.78, "Crees que 168 españoles con armas de fuego derrotaron a los incas en 1532. ¿Pero sabías que los incas ya se estaban muriendo antes de que llegara Pizarro?"],
+        [13.78, 32.75, "Todo empezó en Cusco, un reino chiquito en los Andes. Hacia 1438, un príncipe llamado Pachacútec salvó a la ciudad de una invasión. Y en menos de cien años, él y sus descendientes armaron el imperio más grande de América: más de cuatro mil kilómetros, de Ecuador a Chile."],
+        [32.75, 50.95, "Y funcionaba sin dinero: los impuestos se pagaban con trabajo. Y sin escritura: inventaron un sistema llamado quipus, donde la información se guardaba en cuerdas con nudos. Y no tenían ruedas, pero sí un sistema de postas: corredores que se pasaban los mensajes por hasta 40 mil kilómetros de caminos."],
+        [50.95, 61.84, "Hasta que llegó una enfermedad desde el norte, probablemente viruela, que mató al emperador y a su heredero. Sus otros hijos, Huáscar y Atahualpa, se pelearon el trono en una guerra civil."],
+        [61.84, 72.99, "Atahualpa ganó. Y justo ahí apareció Pizarro. En Cajamarca lo capturó en una emboscada. Atahualpa pagó un rescate de una habitación llena de oro, y aun así lo ejecutaron."],
+        [72.99, 81.26, "Así que no fueron 168 hombres. Fue una epidemia, una guerra civil y miles de aliados indígenas que odiaban a los incas."],
+        [81.26, 83.05, "Si te gustó, dale like."],
       ];
       const OLD_BLOCKS = [[2, 12], [12, 30], [30, 44.5], [44.5, 57.5], [57.5, 69.5], [69.5, 77.5], [77.5, 81]];
       function warp(t) {
@@ -68,7 +69,7 @@
       }
       const KEY = new Set(["168", "1532", "pizarro", "cusco", "1438", "pachacútec", "américa", "40", "caminos", "ruedas", "caballos", "postas", "viruela", "huáscar", "atahualpa", "civil", "cajamarca", "oro", "ejecutaron", "epidemia", "aliados", "like", "muriendo", "postas", "nudos"]);
       // start time of every caption word, from the ElevenLabs narration (seconds)
-      const WT = [2.0, 2.252, 2.388, 3.461, 4.055, 4.229, 4.507, 4.636, 5.121, 5.838, 5.916, 6.09, 6.471, 6.633, 8.52, 9.06, 9.66, 9.757, 9.951, 10.39, 10.545, 10.688, 11.075, 11.553, 11.838, 11.928, 12.091, 12.51, 13.283, 13.643, 14.005, 14.095, 14.806, 14.961, 15.323, 15.788, 15.878, 16.053, 16.743, 17.103, 19.003, 19.184, 19.654, 20.088, 21.019, 21.445, 21.51, 21.617, 21.975, 22.065, 22.22, 23.082, 23.296, 23.399, 23.683, 23.812, 24.123, 24.743, 24.956, 25.043, 25.179, 26.061, 26.475, 26.578, 27.069, 27.357, 27.715, 27.825, 28.758, 28.926, 29.074, 29.398, 29.65, 30.607, 30.736, 31.395, 31.589, 32.25, 32.487, 33.04, 33.27, 33.951, 34.106, 34.559, 34.668, 35.114, 35.298, 36.041, 36.271, 36.501, 37.243, 38.048, 38.2, 38.586, 39.031, 39.896, 40.116, 40.219, 40.814, 40.917, 41.357, 41.459, 41.834, 42.028, 42.765, 42.958, 43.12, 43.488, 44.178, 44.354, 44.484, 44.593, 45.052, 45.202, 45.999, 46.503, 46.612, 46.755, 47.142, 47.319, 47.84, 47.995, 48.24, 48.722, 48.887, 49.533, 49.643, 50.45, 50.799, 50.904, 51.206, 51.374, 51.904, 52.124, 52.253, 52.925, 53.629, 54.366, 54.482, 54.76, 54.863, 55.393, 55.471, 55.561, 55.684, 56.419, 56.768, 57.092, 57.621, 58.073, 58.164, 59.094, 59.224, 59.612, 59.714, 60.024, 60.167, 60.328, 60.671, 61.337, 62.125, 62.726, 62.992, 63.366, 63.599, 64.052, 64.874, 65.116, 65.646, 65.744, 66.136, 66.26, 66.356, 67.234, 67.929, 68.207, 68.305, 68.775, 68.918, 69.085, 69.732, 70.068, 70.197, 70.778, 70.875, 71.127, 71.411, 71.562, 72.492, 72.864, 72.948, 73.055, 73.426, 74.541, 75.301, 75.611, 75.789, 76.639, 76.858, 77.213, 77.782, 77.95, 78.235, 78.325, 78.732, 79.255, 79.41, 79.798, 79.876, 80.05, 80.762, 81.027, 81.228, 81.841, 82.112];
+      const WT = [2.55, 2.802, 2.938, 4.011, 4.605, 4.779, 5.057, 5.186, 5.671, 6.388, 6.466, 6.64, 7.021, 7.183, 9.07, 9.61, 10.21, 10.307, 10.501, 10.94, 11.095, 11.238, 11.625, 12.103, 12.388, 12.478, 12.641, 13.06, 13.833, 14.193, 14.555, 14.645, 15.356, 15.511, 15.873, 16.338, 16.428, 16.603, 17.293, 17.653, 19.553, 19.734, 20.204, 20.638, 21.569, 21.995, 22.06, 22.167, 22.525, 22.615, 22.77, 23.632, 23.846, 23.949, 24.233, 24.362, 24.673, 25.293, 25.506, 25.593, 25.729, 26.611, 27.025, 27.128, 27.619, 27.907, 28.265, 28.375, 29.308, 29.476, 29.624, 29.948, 30.2, 31.157, 31.286, 31.945, 32.139, 32.8, 33.037, 33.59, 33.82, 34.501, 34.656, 35.109, 35.218, 35.664, 35.848, 36.591, 36.821, 37.051, 37.793, 38.598, 38.75, 39.136, 39.581, 40.446, 40.666, 40.769, 41.364, 41.467, 41.907, 42.009, 42.384, 42.578, 43.315, 43.508, 43.67, 44.038, 44.728, 44.904, 45.034, 45.143, 45.602, 45.752, 46.549, 47.053, 47.162, 47.305, 47.692, 47.869, 48.39, 48.545, 48.79, 49.272, 49.437, 50.083, 50.193, 51.0, 51.349, 51.454, 51.756, 51.924, 52.454, 52.674, 52.803, 53.475, 54.179, 54.916, 55.032, 55.31, 55.413, 55.943, 56.021, 56.111, 56.234, 56.969, 57.318, 57.642, 58.171, 58.623, 58.714, 59.644, 59.774, 60.162, 60.264, 60.574, 60.717, 60.878, 61.221, 61.887, 62.675, 63.276, 63.542, 63.916, 64.149, 64.602, 65.424, 65.666, 66.196, 66.294, 66.686, 66.81, 66.906, 67.784, 68.479, 68.757, 68.855, 69.325, 69.468, 69.635, 70.282, 70.618, 70.747, 71.328, 71.425, 71.677, 71.961, 72.112, 73.042, 73.414, 73.498, 73.605, 73.976, 75.091, 75.851, 76.161, 76.339, 77.189, 77.408, 77.763, 78.332, 78.5, 78.785, 78.875, 79.282, 79.805, 79.96, 80.348, 80.426, 80.6, 81.312, 81.577, 81.778, 82.391, 82.662];
       const WORDS = [];
       BLOCKS.forEach(([a, b, txt]) => {
         const ws = txt.split(/\s+/);
@@ -146,7 +147,7 @@
       }
 
       // ---------- characters ----------
-      const sapa = (o) => ({ s: 1.5, f: 1, seed: 21, hat: "mascaipacha", earSpools: true, skin: ANDEAN, shoe: "#c79a5b", tunic: { fill: INCA_RED, band: [GOLD, C.ink] }, look: 0.3, mouth: 0.3, ...R.walk(0, 0), ...o });
+      const sapa = (o) => ({ s: 1.5, f: 1, seed: 21, hair: "#1f1f1f", legs: ANDEAN, hat: "mascaipacha", earSpools: true, skin: ANDEAN, shoe: "#c79a5b", tunic: { fill: INCA_RED, band: [GOLD, C.ink] }, look: 0.3, mouth: 0.3, ...R.walk(0, 0), ...o });
       const piz = (o) => ({ s: 1.15, f: -1, seed: 31, hat: "morion", beard: "#8a8a8a", shoe: "#3a2a20", legs: "#5a4632", tunic: { fill: STEEL, sash: "#a51d2d" }, look: 0.8, mouth: 0.2, ...R.walk(0, 0), ...o });
       function pop(t, at) { return kf(t, [[at, 0], [at + 0.3, 1, "back"]]); }
       function popIn(p, t, at) { const k = pop(t, at); p.squash = (p.squash || 0) + (1 - k) * 0.5; p.y += (1 - k) * 40; return k > 0.01; }
@@ -180,27 +181,38 @@
       }
 
       // ---------- scenes ----------
-      // the six parts of the series, in order
+      // the six parts of the series, in order (indigenous look, v2)
+      const SK = "#c98f68", HAIR = "#1f1f1f", SANDAL = "#a87b4f";
       const CIVS = [
-        ["Incas", { hat: "mascaipacha", earSpools: true, tunic: { fill: INCA_RED, band: [GOLD, C.ink] }, skin: ANDEAN }],
-        ["Mexicas", { hat: "plumes", plumes: ["#2e9e5b", "#d7263d", "#1f6fb2", "#d7263d", "#2e9e5b"], hatColor: GOLD, tunic: { fill: "#1f6fb2" }, skin: "#d9a37a" }],
-        ["Mayas", { hat: "plumes", plumes: ["#2e9e5b", "#1f6fb2", "#2e9e5b"], hatColor: GOLD, tunic: { fill: "#2e9e5b" }, skin: "#d9a37a" }],
-        ["Taínos", { hat: "band", hatColor: "#e07b39", plumes: [INCA_RED], tunic: { fill: "#f2e6c9" }, skin: "#c98f68" }],
-        ["Mapuches", { hat: "band", hatColor: "#c0c6cc", tunic: { fill: "#1f3d7a" }, skin: "#d9a37a" }],
-        ["Guaraníes", { hat: "plumes", plumes: ["#ffd23f", "#d7263d", "#ffd23f"], hatColor: "#e07b39", tunic: { fill: "#f2e6c9" }, skin: "#c98f68" }],
+        ["Incas", { hair: HAIR, hat: "mascaipacha", earSpools: true, tunic: { fill: "#c62828", band: ["#e8b330", "#1f1f1f"] }, skin: "#d9a37a", legs: "#d9a37a", shoe: SANDAL }],
+        ["Mexicas", { bare: true, hair: HAIR, legs: SK, shoe: SANDAL, skin: SK, hat: "plumes", plumes: ["#2e9e5b", "#d7263d", "#1f6fb2", "#ffd23f", "#d7263d", "#1f6fb2", "#2e9e5b"], hatColor: "#e8b330", cape: "#1f6fb2", loin: "#f2e6c9", shield: "#c62828", necklace: "#e8b330" }],
+        ["Mayas", { bare: true, hair: HAIR, legs: SK, shoe: SANDAL, skin: SK, hat: "plumes", plumes: ["#2e9e5b", "#1f6fb2", "#2e9e5b", "#1f6fb2", "#2e9e5b"], hatColor: "#2e9e5b", necklace: "#3fbf7f", loin: "#2e9e5b", facePaint: "#1f6fb2", paint: "#1f6fb2" }],
+        ["Taínos", { bare: true, hair: HAIR, legs: SK, shoe: SANDAL, skin: SK, hat: "band", hatColor: "#e07b39", plumes: ["#c62828"], paint: "#c62828", facePaint: "#1f1f1f", chestDisc: true, loin: "#c9a46b" }],
+        ["Mapuches", { hair: HAIR, hat: "band", hatColor: "#c0c6cc", tunic: { fill: "#1f3d7a", band: ["#f2f2f2", "#c62828"] }, skin: SK, legs: SK, shoe: SANDAL }],
+        ["Guaraníes", { bare: true, hair: HAIR, legs: SK, shoe: SANDAL, skin: SK, hat: "plumes", plumes: ["#ffd23f", "#d7263d", "#ffd23f", "#d7263d", "#ffd23f"], hatColor: "#e07b39", paint: "#1f1f1f", facePaint: "#c62828", bow: true, loin: "#c9a46b" }],
       ];
+      const PART = 0; // index of this Short in CIVS
       const cellXY = (i) => [300 + (i % 2) * 480, 760 + Math.floor(i / 2) * 420];
-      function sCover(t, zoom, marks = {}) {
-        let g = BG_SOFT + `<text x="540" y="250" text-anchor="middle" font-family="${FONT}" font-weight="800" font-size="74" fill="#1f1f1f">LAS CIVILIZACIONES</text><text x="540" y="345" text-anchor="middle" font-family="${FONT}" font-weight="800" font-size="74" fill="${INCA_RED}">DE AMÉRICA</text>`;
+      function check(t, i, pr, seed) {
+        const [x, y] = cellXY(i);
+        return R.scribble(t, [[x - 70, y - 90], [x - 10, y - 30], [x + 110, y - 190]], pr, "#2e9e5b", 18, seed);
+      }
+      // labels show only the number; parts already seen show "N. Name";
+      // this Short's own name appears at the end (reveal 0..1)
+      function sCover(t, zoom, extra = "", reveal = 0) {
+        if (typeof extra === "object") extra = extra.extra || "";
+        let g = BG_SOFT + `<text x="540" y="250" text-anchor="middle" font-family="${FONT}" font-weight="800" font-size="74" fill="#1f1f1f">LAS CIVILIZACIONES</text><text x="540" y="345" text-anchor="middle" font-family="${FONT}" font-weight="800" font-size="74" fill="#c62828">DE AMÉRICA</text>`;
         CIVS.forEach(([name, o], i) => {
-          const [cx, cy] = cellXY(i);
-          const hl = i === 0 ? 1 : 0;
+          const [cx, cy] = cellXY(i), hl = i === PART;
           g += `<rect x="${cx - 215}" y="${cy - 290}" width="430" height="390" rx="30" fill="${hl ? "#fff3cf" : "#ffffff"}" stroke="#1f1f1f" stroke-width="${hl ? 7 : 4}"/>`;
-          g += R.chibi(t, { x: cx, y: cy + 30, s: 0.95, seed: 300 + i, look: 0.1, mouth: 0.35, ...R.walk(0, 0), ...o });
-          g += `<text x="${cx}" y="${cy + 80}" text-anchor="middle" font-family="${FONT}" font-weight="800" font-size="44" fill="#1f1f1f">${name}</text>`;
+          g += R.chibi(t, { x: cx, y: cy + 22, s: 0.9, seed: 300 + i, look: 0.1, mouth: 0.35, ...R.walk(0, 0), ...o });
+          const named = i < PART || (i === PART && reveal > 0.5);
+          const pk = i === PART && reveal > 0.5 ? 1 + 0.3 * (1 - prog(reveal, 0.5, 1, "out")) : 1;
+          g += `<text x="${cx}" y="${cy + 80}" text-anchor="middle" font-family="${FONT}" font-weight="800" font-size="${((named ? 44 : 58) * pk).toFixed(1)}" fill="#1f1f1f">${named ? `${i + 1}. ${name}` : `${i + 1}`}</text>`;
         });
-        g += marks.extra || "";
-        const [zx, zy] = cellXY(0), z = 1 + zoom * 1.6;
+        for (let i = 0; i < PART; i++) g += check(t, i, 1, 810 + i * 3);
+        g += extra;
+        const [zx, zy] = cellXY(PART), z = 1 + zoom * 1.6;
         return `<g transform="translate(${(zx - zx * z).toFixed(1)} ${(zy - 150 - (zy - 150) * z).toFixed(1)}) scale(${z.toFixed(3)})">${g}</g>` +
           `<text x="540" y="1860" text-anchor="middle" font-family="${FONT}" font-weight="800" font-size="40" fill="#1f1f1f" opacity="${(1 - zoom).toFixed(2)}">Siglos en Palitos</text>`;
       }
@@ -212,7 +224,7 @@
           const k = pop(t, at);
           if (k <= 0.01) return;
           const slump = a.sick ? kf(t, [[7.0 + (i % 7) * 0.2, 0], [8.0 + (i % 7) * 0.2, 1]]) * 0.9 : 0;
-          o += R.mini(t, a.x, a.y + (1 - k) * 18, a.s * k, { seed: a.seed, band: GOLD, cloth: a.red ? INCA_RED : "#f2e6c9", spear: a.spear, tip: GOLD, slump, skin: ANDEAN, look: 0.6 });
+          o += R.mini(t, a.x, a.y + (1 - k) * 18, a.s * k, { seed: a.seed, band: GOLD, cloth: a.red ? INCA_RED : "#f2e6c9", spear: a.spear, tip: GOLD, slump, skin: ANDEAN, look: 0.6, hair: "#1f1f1f" });
         });
         const hz = kf(t, [[6.4, 0], [7.2, 1], [11.6, 1], [12, 0]]);
         if (hz > 0.01) for (let i = 0; i < 30; i++) {
@@ -262,7 +274,7 @@
         o += R.ground(t, GROUND + 60, 0, 1080, 1);
         o += title(t, "HASTA 40.000 KM", 31.0, 44.5, 250, 100, GOLD_DARK) + title(t, "DE CAMINOS", 31.4, 44.5, 360, 80);
         // chasqui 1 runs in and hands the message to chasqui 2, who runs off
-        const ch = { hat: "band", hatColor: "#ffffff", skin: ANDEAN, shoe: "#c79a5b", tunic: { fill: "#f2e6c9" }, look: 0.8, mouth: 0.5 };
+        const ch = { hair: "#1f1f1f", legs: ANDEAN, hat: "band", hatColor: "#ffffff", skin: ANDEAN, shoe: "#c79a5b", tunic: { fill: "#f2e6c9" }, look: 0.8, mouth: 0.5 };
         const x1 = kf(t, [[33.6, -120], [38.0, 470, "out"]]);
         const run1 = kf(t, [[33.6, 1], [37.6, 1], [38.0, 0]]);
         if (t > 33.6) {
@@ -383,11 +395,11 @@
           const dy = (1 - prog(t, at, at + 0.4, "in")) * -300;
           if (kind === "virus") left += `<circle cx="${L[0] - 60}" cy="${L[1] + 150 + dy}" r="${55 * k}" fill="#7d7d7d" stroke="#1f1f1f" stroke-width="5"/><text x="${L[0] - 60}" y="${L[1] + 165 + dy}" text-anchor="middle" font-family="${FONT}" font-weight="800" font-size="34" fill="#fff">virus</text>`;
           if (kind === "crown") left += borla(L[0] + 70, L[1] + 140 + dy, 0.9 * k, -18);
-          if (kind === "allies") for (let i = 0; i < 6; i++) left += R.mini(t, L[0] - 120 + i * 48, L[1] + 232 + dy * 0.3, 0.6 * k, { seed: 650 + i, band: "#2e9e5b", cloth: i % 2 ? "#e07b39" : "#2e9e5b", spear: true, tip: GOLD, skin: ANDEAN });
+          if (kind === "allies") for (let i = 0; i < 6; i++) left += R.mini(t, L[0] - 120 + i * 48, L[1] + 232 + dy * 0.3, 0.6 * k, { seed: 650 + i, band: "#2e9e5b", cloth: i % 2 ? "#e07b39" : "#2e9e5b", spear: true, tip: GOLD, skin: ANDEAN, hair: "#1f1f1f" });
         });
         o += plate(L, left);
         let right = "";
-        for (let i = 0; i < 7; i++) right += R.mini(t, Rr[0] - 135 + i * 45, Rr[1] + 232, 0.62, { seed: 700 + i, band: GOLD, cloth: i % 2 ? INCA_RED : "#f2e6c9", spear: true, tip: GOLD, skin: ANDEAN });
+        for (let i = 0; i < 7; i++) right += R.mini(t, Rr[0] - 135 + i * 45, Rr[1] + 232, 0.62, { seed: 700 + i, band: GOLD, cloth: i % 2 ? INCA_RED : "#f2e6c9", spear: true, tip: GOLD, skin: ANDEAN, hair: "#1f1f1f" });
         o += plate(Rr, right);
         o += R.write(t, "virus", L[0] - 60, L[1] + 330, 70.8, 71.2, { size: 1 }); // spacer (invisible size)
         o += title(t, "NO FUERON", 74.4, 77.5, 230, 96) + title(t, "SOLO 168", 74.7, 77.5, 340, 110, C.red);
@@ -399,7 +411,7 @@
         const k = kf(t, [[77.8, 0], [78.2, 1, "back"]]);
         const [mx, my] = cellXY(1), [ix, iy] = cellXY(0);
         const extra = R.scribble(t, [[ix - 70, iy - 90], [ix - 10, iy - 30], [ix + 110, iy - 190]], prog(t, 78.0, 78.4), "#2e9e5b", 18, 801);
-        let o = `<rect width="1080" height="1920" fill="#e7f0e1"/><g transform="translate(151 20) scale(0.72)">${sCover(t, 0, { extra })}</g>`;
+        let o = `<rect width="1080" height="1920" fill="#e7f0e1"/><g transform="translate(151 20) scale(0.72)">${sCover(t, 0, extra, prog(t, 78.0, 78.4))}</g>`;
         // like call-to-action: a big thumbs up
         const th = kf(t, [[78.2, 0], [78.6, 1, "back"]]) * (1 + 0.06 * Math.max(0, Math.sin((t - 78.6) * 6)));
         if (th > 0.01) o += `<g transform="translate(540 1650) scale(${(th * 0.9).toFixed(3)}) rotate(-8)">` +
@@ -411,6 +423,8 @@
       }
 
       function renderAt(t0) {
+        const B0 = BLOCKS[0][0];
+        if (t0 < B0) { layer.innerHTML = sCover(t0, prog(t0, B0 - 0.45, B0, "in")) + title(t0, "1", B0 - 0.5, B0 + 0.05, 1600, 200, INCA_RED) + captions(t0); return; }
         const t = warp(t0);
         let o;
         if (t < 2.0) o = sCover(t, prog(t, 1.2, 2.0, "in"));

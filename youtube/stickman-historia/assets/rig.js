@@ -568,7 +568,9 @@
     }
     g += `<path d="M${neck[0] - 13} ${neck[1] - 2} L${neck[0] + 13} ${neck[1] - 2} L17 -18 L-17 -18Z" fill="${cloth}" stroke="${C.ink}" stroke-width="3.5" stroke-linejoin="round"/>`;
     g += lm([[neck[0] + 9, neck[1] + 4], [15, -34 + sl * 6]], cloth, 5);
+    if (o.hair) g += `<ellipse cx="${hc[0]}" cy="${hc[1] + 6}" rx="17" ry="19" fill="${o.hair}" stroke="${C.ink}" stroke-width="3.5"/>`;
     g += `<circle cx="${hc[0]}" cy="${hc[1]}" r="15" fill="${skin}" stroke="${C.ink}" stroke-width="3.5"/>`;
+    if (o.hair) g += `<path d="M${hc[0] - 15} ${hc[1] - 1} Q${hc[0] - 15} ${hc[1] - 16} ${hc[0]} ${hc[1] - 16} Q${hc[0] + 15} ${hc[1] - 16} ${hc[0] + 15} ${hc[1] - 1} Q${hc[0]} ${hc[1] - 8} ${hc[0] - 15} ${hc[1] - 1}Z" fill="${o.hair}" stroke="${C.ink}" stroke-width="2.5"/>`;
     const lx = (o.look || 0.3) * 5;
     g += `<ellipse cx="${hc[0] - 5 + lx}" cy="${hc[1] + 1}" rx="2.2" ry="3" fill="${C.ink}"/><ellipse cx="${hc[0] + 5 + lx}" cy="${hc[1] + 1}" rx="2.2" ry="3" fill="${C.ink}"/>`;
     if (o.helmet === "morion") g += `<path d="M${hc[0] - 22} ${hc[1] - 8} Q${hc[0]} ${hc[1] + 2} ${hc[0] + 22} ${hc[1] - 8} Q${hc[0]} ${hc[1] - 32} ${hc[0] - 22} ${hc[1] - 8}Z" fill="#9aa6b2" stroke="${C.ink}" stroke-width="3"/>`;

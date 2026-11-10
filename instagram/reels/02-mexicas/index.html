@@ -22,9 +22,10 @@
     <!-- Siglos en Palitos — Short 2: LAS CIVILIZACIONES DE AMÉRICA, parte 2: LOS MEXICAS.
          Guion: instagram/guiones/02-mexicas.md. Every scene is timed as a fraction of its
          narration block, so voice/tools/sincronizar.py can retime the whole Short from the voice. -->
-    <div id="root" data-composition-id="main" data-start="0" data-duration="82.5" data-width="1080" data-height="1920">
-      <audio id="narracion" src="assets/narracion.mp3" data-start="2.0" data-track-index="2" data-volume="1"></audio>
-      <svg id="stage" class="clip" data-start="0" data-duration="82.5" data-track-index="0" data-layout-allow-overflow
+    <div id="root" data-composition-id="main" data-start="0" data-duration="83.05" data-width="1080" data-height="1920">
+      <audio id="narracion" src="assets/narracion.mp3" data-start="2.55" data-track-index="2" data-volume="1"></audio>
+      <audio id="titulo" src="assets/titulo.mp3" data-start="0.25" data-track-index="3" data-volume="1"></audio>
+      <svg id="stage" class="clip" data-start="0" data-duration="83.05" data-track-index="0" data-layout-allow-overflow
         viewBox="0 0 1080 1920" xmlns="http://www.w3.org/2000/svg">
         <defs>
           <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
@@ -38,28 +39,28 @@
       const R = window.Rig;
       R.setStill(true);
       const { kf, prog, C } = R;
-      const DUR = 82.5, W = 1080, GROUND = 1250, GY = 920; // GY: street level in the cross-section scenes
+      const DUR = 83.05, W = 1080, GROUND = 1250, GY = 920; // GY: street level in the cross-section scenes
       const GOLD = "#e8b330", GOLD_DARK = "#b8860b", STEEL = "#8a96a3", RED = "#c62828", BLUE = "#1f6fb2", GREEN = "#2e9e5b", SKIN = "#d9a37a";
       const layer = document.getElementById("layer");
       const FONT = R.FONT;
 
       // ---------- narration blocks (seconds) ----------
       const BLOCKS = [
-        [1.95, 9.5, "¿Conoces a los aztecas? ¿Sabías que ese nunca fue su nombre, y que su capital nunca murió en 1521?"],
-        [9.5, 29.24, "Se llamaban mexicas, y hoy te cuento su historia. Te dicen que 500 españoles borraron su capital del mapa, pero veamos qué pasó. Según su leyenda, debían fundar la ciudad en donde vieran un águila sobre un nopal. La vieron en una isla, en medio de un lago. Ahí, hacia 1325, nació Tenochtitlan."],
-        [29.24, 37.85, "Empezaron como un pueblo chico. Pero en 1428 se aliaron con dos ciudades vecinas y empezaron a cobrarle tributo a medio México."],
-        [37.85, 45.85, "Su capital no se parecía a nada: calzadas sobre el agua, un acueducto y cultivos en el lago. Los españoles creían que soñaban."],
-        [45.85, 58.92, "Hernán Cortés llegó en 1519 con unos 500 hombres. Pero no estaba solo: miles de tlaxcaltecas, que odiaban a los mexicas, se unieron a él. Y la viruela hizo el resto: mató hasta al nuevo emperador."],
-        [58.92, 68.45, "En 1521, después de meses de guerra, Tenochtitlan cayó. Los españoles construyeron encima, con las mismas piedras: la Ciudad de México."],
-        [68.45, 79.5, "Por eso hoy millones caminan sobre la vieja Tenochtitlan sin saberlo. En 1978, unos obreros de la compañía de luz cavaron en pleno centro y se toparon con el Templo Mayor."],
-        [79.5, 81.5, "Si te gustó, dale like."],
+        [2.5, 10.05, "¿Conoces a los aztecas? ¿Sabías que ese nunca fue su nombre, y que su capital nunca murió en 1521?"],
+        [10.05, 29.79, "Se llamaban mexicas, y hoy te cuento su historia. Te dicen que 500 españoles borraron su capital del mapa, pero veamos qué pasó. Según su leyenda, debían fundar la ciudad en donde vieran un águila sobre un nopal. La vieron en una isla, en medio de un lago. Ahí, hacia 1325, nació Tenochtitlan."],
+        [29.79, 38.4, "Empezaron como un pueblo chico. Pero en 1428 se aliaron con dos ciudades vecinas y empezaron a cobrarle tributo a medio México."],
+        [38.4, 46.4, "Su capital no se parecía a nada: calzadas sobre el agua, un acueducto y cultivos en el lago. Los españoles creían que soñaban."],
+        [46.4, 59.47, "Hernán Cortés llegó en 1519 con unos 500 hombres. Pero no estaba solo: miles de tlaxcaltecas, que odiaban a los mexicas, se unieron a él. Y la viruela hizo el resto: mató hasta al nuevo emperador."],
+        [59.47, 69.0, "En 1521, después de meses de guerra, Tenochtitlan cayó. Los españoles construyeron encima, con las mismas piedras: la Ciudad de México."],
+        [69.0, 80.05, "Por eso hoy millones caminan sobre la vieja Tenochtitlan sin saberlo. En 1978, unos obreros de la compañía de luz cavaron en pleno centro y se toparon con el Templo Mayor."],
+        [80.05, 82.05, "Si te gustó, dale like."],
       ];
       // time at fraction f (0..1) of narration block i
       const at = (i, f) => BLOCKS[i][0] + f * (BLOCKS[i][1] - BLOCKS[i][0]);
 
       const KEY = new Set(["500", "1521", "azteca", "aztecas", "mexicas", "águila", "nopal", "lago", "1325", "tenochtitlan", "1428", "tributo", "calzadas", "acueducto", "chinampas", "soñando", "cortés", "1519", "tlaxcaltecas", "viruela", "emperador", "méxico", "encima", "saberlo", "guerra", "soñaban", "1978", "templo", "mayor", "like", "nunca"]);
       // start time of every caption word, from the ElevenLabs narration (seconds)
-      const WT = [2.0, 2.484, 2.559, 2.72, 3.531, 4.077, 4.226, 4.568, 4.934, 5.151, 5.304, 6.034, 6.108, 6.245, 6.388, 7.102, 7.487, 7.834, 7.971, 9.554, 9.683, 10.157, 10.995, 11.107, 11.293, 11.467, 11.715, 11.872, 12.635, 12.84, 13.12, 13.225, 13.76, 14.413, 14.84, 14.946, 15.393, 15.62, 16.266, 16.435, 16.777, 16.907, 17.512, 17.944, 18.1, 18.826, 19.191, 19.485, 19.587, 19.956, 20.093, 20.324, 20.727, 20.95, 21.36, 21.596, 21.733, 22.433, 22.714, 23.024, 23.161, 23.372, 23.918, 24.067, 24.365, 24.49, 24.614, 25.243, 25.925, 26.149, 27.788, 28.179, 29.293, 29.84, 30.044, 30.137, 30.441, 31.085, 31.382, 31.469, 32.897, 33.183, 33.555, 33.704, 33.866, 34.319, 35.046, 35.195, 35.568, 35.661, 36.112, 36.611, 36.723, 37.17, 37.903, 38.169, 38.61, 38.759, 38.903, 39.418, 39.529, 40.174, 40.677, 40.889, 41.013, 41.658, 41.807, 42.317, 42.414, 42.925, 43.05, 43.137, 43.705, 44.042, 44.551, 44.924, 45.085, 45.9, 46.302, 46.719, 46.962, 47.099, 48.236, 48.463, 48.726, 49.279, 49.955, 50.241, 50.384, 50.713, 51.387, 51.722, 51.821, 52.908, 53.001, 53.374, 53.448, 53.616, 54.355, 54.504, 54.864, 55.001, 55.454, 55.669, 55.775, 56.211, 56.415, 56.538, 57.348, 57.702, 57.821, 57.919, 58.193, 58.969, 59.234, 60.752, 61.103, 61.215, 61.55, 61.653, 62.233, 62.904, 63.558, 63.862, 64.377, 64.986, 65.638, 65.787, 65.959, 66.331, 67.191, 67.294, 67.638, 67.762, 68.501, 68.774, 68.941, 69.15, 69.538, 69.904, 70.178, 70.283, 70.581, 71.326, 71.556, 72.313, 72.539, 74.35, 74.626, 74.912, 75.011, 75.163, 75.607, 75.781, 76.098, 76.65, 76.775, 77.058, 77.681, 77.818, 77.917, 78.334, 78.439, 78.583, 78.911, 79.549, 79.835, 79.995, 80.717, 81.068];
+      const WT = [2.55, 3.034, 3.109, 3.27, 4.081, 4.627, 4.776, 5.118, 5.484, 5.701, 5.854, 6.584, 6.658, 6.795, 6.938, 7.652, 8.037, 8.384, 8.521, 10.104, 10.233, 10.707, 11.545, 11.657, 11.843, 12.017, 12.265, 12.422, 13.185, 13.39, 13.67, 13.775, 14.31, 14.963, 15.39, 15.496, 15.943, 16.17, 16.816, 16.985, 17.327, 17.457, 18.062, 18.494, 18.65, 19.376, 19.741, 20.035, 20.137, 20.506, 20.643, 20.874, 21.277, 21.5, 21.91, 22.146, 22.283, 22.983, 23.264, 23.574, 23.711, 23.922, 24.468, 24.617, 24.915, 25.04, 25.164, 25.793, 26.475, 26.699, 28.338, 28.729, 29.843, 30.39, 30.594, 30.687, 30.991, 31.635, 31.932, 32.019, 33.447, 33.733, 34.105, 34.254, 34.416, 34.869, 35.596, 35.745, 36.118, 36.211, 36.662, 37.161, 37.273, 37.72, 38.453, 38.719, 39.16, 39.309, 39.453, 39.968, 40.079, 40.724, 41.227, 41.439, 41.563, 42.208, 42.357, 42.867, 42.964, 43.475, 43.6, 43.687, 44.255, 44.592, 45.101, 45.474, 45.635, 46.45, 46.852, 47.269, 47.512, 47.649, 48.786, 49.013, 49.276, 49.829, 50.505, 50.791, 50.934, 51.263, 51.937, 52.272, 52.371, 53.458, 53.551, 53.924, 53.998, 54.166, 54.905, 55.054, 55.414, 55.551, 56.004, 56.219, 56.325, 56.761, 56.965, 57.088, 57.898, 58.252, 58.371, 58.469, 58.743, 59.519, 59.784, 61.302, 61.653, 61.765, 62.1, 62.203, 62.783, 63.454, 64.108, 64.412, 64.927, 65.536, 66.188, 66.337, 66.509, 66.881, 67.741, 67.844, 68.188, 68.312, 69.051, 69.324, 69.491, 69.7, 70.088, 70.454, 70.728, 70.833, 71.131, 71.876, 72.106, 72.863, 73.089, 74.9, 75.176, 75.462, 75.561, 75.713, 76.157, 76.331, 76.648, 77.2, 77.325, 77.608, 78.231, 78.368, 78.467, 78.884, 78.989, 79.133, 79.461, 80.099, 80.385, 80.545, 81.267, 81.618];
       const WORDS = [];
       BLOCKS.forEach(([a, b, txt]) => {
         const ws = txt.split(/\s+/);
@@ -196,31 +197,41 @@
       }
 
       // ---------- characters ----------
-      const mexica = (o) => ({ s: 1.3, f: 1, seed: 21, hat: "plumes", plumes: ["#2e9e5b", "#d7263d", "#1f6fb2", "#d7263d", "#2e9e5b"], hatColor: GOLD, skin: SKIN, shoe: "#c79a5b", tunic: { fill: BLUE }, look: 0.3, mouth: 0.4, ...R.walk(0, 0), ...o });
+      const mexica = (o) => {
+        const p = { s: 1.3, f: 1, seed: 21, bare: true, hair: "#1f1f1f", legs: SKIN, hat: "plumes", plumes: ["#2e9e5b", "#d7263d", "#1f6fb2", "#ffd23f", "#d7263d", "#1f6fb2", "#2e9e5b"], hatColor: GOLD, skin: SKIN, shoe: "#a87b4f", cape: BLUE, loin: "#f2e6c9", necklace: GOLD, look: 0.3, mouth: 0.4, ...R.walk(0, 0), ...o };
+        if (o.tunic) p.cape = o.tunic.fill; // scenes used tunic colors to tell people apart: now it is the cape
+        return p;
+      };
       const spaniard = (o) => ({ s: 1.15, f: -1, seed: 31, hat: "morion", beard: "#8a8a8a", shoe: "#3a2a20", legs: "#5a4632", tunic: { fill: STEEL, sash: "#a51d2d" }, look: 0.8, mouth: 0.2, ...R.walk(0, 0), ...o });
 
-      // ---------- the six parts of the series ----------
+      // the six parts of the series, in order (indigenous look, v2)
+      const SK = "#c98f68", HAIR = "#1f1f1f", SANDAL = "#a87b4f";
       const CIVS = [
-        ["Incas", { hat: "mascaipacha", earSpools: true, tunic: { fill: RED, band: [GOLD, C.ink] }, skin: "#e9b98f" }],
-        ["Mexicas", { hat: "plumes", plumes: ["#2e9e5b", "#d7263d", "#1f6fb2", "#d7263d", "#2e9e5b"], hatColor: GOLD, tunic: { fill: BLUE }, skin: SKIN }],
-        ["Mayas", { hat: "plumes", plumes: ["#2e9e5b", "#1f6fb2", "#2e9e5b"], hatColor: GOLD, tunic: { fill: GREEN }, skin: SKIN }],
-        ["Taínos", { hat: "band", hatColor: "#e07b39", plumes: [RED], tunic: { fill: "#f2e6c9" }, skin: "#c98f68" }],
-        ["Mapuches", { hat: "band", hatColor: "#c0c6cc", tunic: { fill: "#1f3d7a" }, skin: SKIN }],
-        ["Guaraníes", { hat: "plumes", plumes: ["#ffd23f", "#d7263d", "#ffd23f"], hatColor: "#e07b39", tunic: { fill: "#f2e6c9" }, skin: "#c98f68" }],
+        ["Incas", { hair: HAIR, hat: "mascaipacha", earSpools: true, tunic: { fill: "#c62828", band: ["#e8b330", "#1f1f1f"] }, skin: "#d9a37a", legs: "#d9a37a", shoe: SANDAL }],
+        ["Mexicas", { bare: true, hair: HAIR, legs: SK, shoe: SANDAL, skin: SK, hat: "plumes", plumes: ["#2e9e5b", "#d7263d", "#1f6fb2", "#ffd23f", "#d7263d", "#1f6fb2", "#2e9e5b"], hatColor: "#e8b330", cape: "#1f6fb2", loin: "#f2e6c9", shield: "#c62828", necklace: "#e8b330" }],
+        ["Mayas", { bare: true, hair: HAIR, legs: SK, shoe: SANDAL, skin: SK, hat: "plumes", plumes: ["#2e9e5b", "#1f6fb2", "#2e9e5b", "#1f6fb2", "#2e9e5b"], hatColor: "#2e9e5b", necklace: "#3fbf7f", loin: "#2e9e5b", facePaint: "#1f6fb2", paint: "#1f6fb2" }],
+        ["Taínos", { bare: true, hair: HAIR, legs: SK, shoe: SANDAL, skin: SK, hat: "band", hatColor: "#e07b39", plumes: ["#c62828"], paint: "#c62828", facePaint: "#1f1f1f", chestDisc: true, loin: "#c9a46b" }],
+        ["Mapuches", { hair: HAIR, hat: "band", hatColor: "#c0c6cc", tunic: { fill: "#1f3d7a", band: ["#f2f2f2", "#c62828"] }, skin: SK, legs: SK, shoe: SANDAL }],
+        ["Guaraníes", { bare: true, hair: HAIR, legs: SK, shoe: SANDAL, skin: SK, hat: "plumes", plumes: ["#ffd23f", "#d7263d", "#ffd23f", "#d7263d", "#ffd23f"], hatColor: "#e07b39", paint: "#1f1f1f", facePaint: "#c62828", bow: true, loin: "#c9a46b" }],
       ];
-      const PART = 1; // index of this Short in CIVS (Mexicas)
+      const PART = 1; // index of this Short in CIVS
       const cellXY = (i) => [300 + (i % 2) * 480, 760 + Math.floor(i / 2) * 420];
       function check(t, i, pr, seed) {
         const [x, y] = cellXY(i);
         return R.scribble(t, [[x - 70, y - 90], [x - 10, y - 30], [x + 110, y - 190]], pr, "#2e9e5b", 18, seed);
       }
-      function sCover(t, zoom, extra = "") {
-        let g = BG_SOFT + `<text x="540" y="250" text-anchor="middle" font-family="${FONT}" font-weight="800" font-size="74" fill="#1f1f1f">LAS CIVILIZACIONES</text><text x="540" y="345" text-anchor="middle" font-family="${FONT}" font-weight="800" font-size="74" fill="${RED}">DE AMÉRICA</text>`;
+      // labels show only the number; parts already seen show "N. Name";
+      // this Short's own name appears at the end (reveal 0..1)
+      function sCover(t, zoom, extra = "", reveal = 0) {
+        if (typeof extra === "object") extra = extra.extra || "";
+        let g = BG_SOFT + `<text x="540" y="250" text-anchor="middle" font-family="${FONT}" font-weight="800" font-size="74" fill="#1f1f1f">LAS CIVILIZACIONES</text><text x="540" y="345" text-anchor="middle" font-family="${FONT}" font-weight="800" font-size="74" fill="#c62828">DE AMÉRICA</text>`;
         CIVS.forEach(([name, o], i) => {
           const [cx, cy] = cellXY(i), hl = i === PART;
           g += `<rect x="${cx - 215}" y="${cy - 290}" width="430" height="390" rx="30" fill="${hl ? "#fff3cf" : "#ffffff"}" stroke="#1f1f1f" stroke-width="${hl ? 7 : 4}"/>`;
-          g += R.chibi(t, { x: cx, y: cy + 30, s: 0.95, seed: 300 + i, look: 0.1, mouth: 0.35, ...R.walk(0, 0), ...o });
-          g += `<text x="${cx}" y="${cy + 80}" text-anchor="middle" font-family="${FONT}" font-weight="800" font-size="44" fill="#1f1f1f">${name}</text>`;
+          g += R.chibi(t, { x: cx, y: cy + 22, s: 0.9, seed: 300 + i, look: 0.1, mouth: 0.35, ...R.walk(0, 0), ...o });
+          const named = i < PART || (i === PART && reveal > 0.5);
+          const pk = i === PART && reveal > 0.5 ? 1 + 0.3 * (1 - prog(reveal, 0.5, 1, "out")) : 1;
+          g += `<text x="${cx}" y="${cy + 80}" text-anchor="middle" font-family="${FONT}" font-weight="800" font-size="${((named ? 44 : 58) * pk).toFixed(1)}" fill="#1f1f1f">${named ? `${i + 1}. ${name}` : `${i + 1}`}</text>`;
         });
         for (let i = 0; i < PART; i++) g += check(t, i, 1, 810 + i * 3);
         g += extra;
@@ -343,7 +354,7 @@
           // thousands of Tlaxcaltec allies join
           for (let r = 0; r < 3; r++) for (let j = 0; j < 9; j++) {
             const k = pop(t, at(i, 0.32) + (r * 9 + j) * 0.04);
-            if (k > 0.01) o += R.mini(t, 40 + j * 64 + (r % 2) * 30, GROUND - r * 40, (0.9 - r * 0.08) * k, { seed: 720 + r * 9 + j, band: "#ffffff", cloth: j % 2 ? "#c62828" : "#f2f2f2", spear: true, tip: GOLD, skin: SKIN, look: 0.6 });
+            if (k > 0.01) o += R.mini(t, 40 + j * 64 + (r % 2) * 30, GROUND - r * 40, (0.9 - r * 0.08) * k, { seed: 720 + r * 9 + j, band: "#ffffff", cloth: j % 2 ? "#c62828" : "#f2f2f2", spear: true, tip: GOLD, skin: SKIN, look: 0.6, hair: "#1f1f1f" });
           }
           o += title(t, "+ TLAXCALTECAS", at(i, 0.36), at(i, 0.72), 430, 76, RED);
           return o;
@@ -397,7 +408,7 @@
       function sNext(t) {
         const i = 7;
         const extra = check(t, PART, prog(t, at(i, 0.1), at(i, 0.35)), 821);
-        let o = `<rect width="1080" height="1920" fill="#e7f0e1"/><g transform="translate(151 20) scale(0.72)">${sCover(t, 0, extra)}</g>`;
+        let o = `<rect width="1080" height="1920" fill="#e7f0e1"/><g transform="translate(151 20) scale(0.72)">${sCover(t, 0, extra, prog(t, at(i, 0.1), at(i, 0.35)))}</g>`;
         const th = kf(t, [[at(i, 0.25), 0], [at(i, 0.45), 1, "back"]]) * (1 + 0.06 * Math.max(0, Math.sin((t - at(i, 0.45)) * 6)));
         if (th > 0.01) o += `<g transform="translate(540 1650) scale(${(th * 0.9).toFixed(3)}) rotate(-8)">` +
           `<rect x="-118" y="-8" width="44" height="130" rx="12" fill="#1f6fb2" stroke="#1f1f1f" stroke-width="7"/>` +
@@ -410,7 +421,7 @@
       const SCENES = [sHook, sOrigin, sAlliance, sCapital, sCortes, sFall, sDig, sNext];
       function renderAt(t) {
         let o;
-        if (t < BLOCKS[0][0]) o = sCover(t, prog(t, 1.2, 2.0, "in")) + title(t, "PARTE 2: LOS MEXICAS", 1.3, 2.05, 1600, 80, RED);
+        if (t < BLOCKS[0][0]) o = sCover(t, prog(t, BLOCKS[0][0] - 0.45, BLOCKS[0][0], "in")) + title(t, "2", BLOCKS[0][0] - 0.5, BLOCKS[0][0] + 0.05, 1600, 200, RED);
         else {
           let i = BLOCKS.findIndex(([a, b]) => t < b);
           if (i < 0) i = BLOCKS.length - 1;
