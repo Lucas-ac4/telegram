@@ -54,7 +54,15 @@ Así lo que ves en Telegram y lo que queda guardado siempre coinciden.
 
 `accion` puede ser: `registrar`, `pedir_dato` (falta el monto → te lo pregunta), `resumen` o `charla`.
 
-## Puesta en marcha (10 minutos)
+## Forma fácil (Windows): doble clic
+
+1. Instalá Python desde [python.org](https://www.python.org/downloads/) (marcá **"Add python.exe to PATH"**).
+2. Doble clic en `iniciar.bat` → se abre el `.env` en el Bloc de notas → completá el token y la key → guardá.
+3. Doble clic otra vez en `iniciar.bat` → el bot queda andando mientras la ventana esté abierta.
+
+En Mac/Linux lo mismo con `./iniciar.sh` desde la terminal.
+
+## Puesta en marcha manual
 
 Necesitás Python 3.11 o más nuevo.
 
