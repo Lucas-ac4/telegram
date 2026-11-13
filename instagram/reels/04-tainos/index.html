@@ -1,0 +1,511 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1080, height=1920" />
+    <script src="assets/gsap.min.js"></script>
+    <script src="assets/rig.js"></script>
+    <style>
+      @font-face {
+        font-family: "Shantell Sans";
+        src: url("assets/fonts/ShantellSans-latin.woff2") format("woff2");
+        font-weight: 300 800;
+        font-display: block;
+      }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1080px; height: 1920px; overflow: hidden; background: #e7f0e1; }
+      #root { position: relative; width: 100%; height: 100%; background: #e7f0e1; }
+      #stage { position: absolute; left: 0; top: 0; width: 1080px; height: 1920px; }
+    </style>
+  </head>
+  <body>
+    <!-- Siglos en Palitos — Short 4: LAS CIVILIZACIONES DE AMÉRICA, parte 4: LOS TAÍNOS.
+         Guion: instagram/guiones/04-tainos.md. Every visual starts on the word that names it
+         (cue), so voice/tools/sincronizar.py can retime the whole Short from the voice. -->
+    <div id="root" data-composition-id="main" data-start="0" data-duration="76.6" data-width="1080" data-height="1920">
+      <audio id="titulo" src="assets/titulo.mp3" data-start="0.25" data-track-index="3" data-volume="1"></audio>
+      <svg id="stage" class="clip" data-start="0" data-duration="76.6" data-track-index="0" data-layout-allow-overflow
+        viewBox="0 0 1080 1920" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#9fd3f0" /><stop offset="1" stop-color="#e9f5fb" />
+          </linearGradient>
+          <linearGradient id="dusk" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#e8692c" /><stop offset="1" stop-color="#ffc06a" />
+          </linearGradient>
+          <filter id="sil"><feColorMatrix type="matrix" values="0 0 0 0 0.12  0 0 0 0 0.1  0 0 0 0 0.1  0 0 0 1 0" /></filter>
+        </defs>
+        <g id="layer"></g>
+      </svg>
+    </div>
+    <script>
+      const R = window.Rig;
+      R.setStill(true);
+      const { kf, prog, C } = R;
+      const DUR = 76.6, W = 1080, GROUND = 1250;
+      const GOLD = "#e8b330", GOLD_DARK = "#b8860b", STEEL = "#8a96a3", RED = "#c62828", BLUE = "#1f6fb2", GREEN = "#2e9e5b", SKIN = "#c98f68", SEA = "#3fa7d6";
+      const layer = document.getElementById("layer");
+      const FONT = R.FONT;
+
+      // ---------- narration blocks (seconds) ----------
+      const BLOCKS = [
+        [2.55, 12.45, "¿Sabías que los taínos nunca desaparecieron? 500 años después de Colón, el 61% de los puertorriqueños todavía lleva su ADN. ¿Por qué nunca te lo contaron?"],
+        [12.45, 23.09, "Hoy vemos su historia. Los taínos vivían en las islas del Caribe: Cuba, Puerto Rico, Jamaica y La Española, la isla que hoy comparten Haití y República Dominicana."],
+        [23.09, 31.17, "Cultivaban yuca y maíz. Pescaban en canoas, dormían en hamacas. Al dios de las tormentas lo llamaban Juracán. ¿Reconoces estas palabras?"],
+        [31.17, 39.99, "En 1492 fueron los primeros en recibir a Colón: le regalaron loros y algodón. Él anotó en su diario que serían buenos sirvientes."],
+        [39.99, 46.62, "Y así fue: los obligaron a trabajar en minas y campos, y llegaron enfermedades como la viruela."],
+        [46.62, 58.70, "Algunos resistieron. El cacique Hatuey huyó a Cuba para advertir a los demás. Lo capturaron y lo quemaron. Antes de morir, dijo que no quería ir al cielo si allí había cristianos."],
+        [58.70, 73.34, "Por eso te dijeron que se extinguieron. Pero en 2003, un estudio encontró que 6 de cada 10 puertorriqueños llevan ADN indígena por parte de madre. Y cada vez que dices hamaca o huracán, hablas un poco de taíno."],
+        [73.34, 75.64, "Si te gustó, dale like."],
+      ];
+      const KEY = new Set(["taínos", "desaparecieron", "500", "colón", "61", "adn", "caribe", "cuba", "puerto", "rico", "jamaica", "española", "haití", "yuca", "maíz", "canoas", "hamacas", "juracán", "palabras", "1492", "loros", "algodón", "sirvientes", "minas", "viruela", "resistieron", "hatuey", "cielo", "cristianos", "extinguieron", "2003", "6", "10", "hamaca", "huracán", "taíno", "like"]);
+      // time at fraction f (0..1) of narration block i
+      const at = (i, f) => BLOCKS[i][0] + f * (BLOCKS[i][1] - BLOCKS[i][0]);
+
+      const WORDS = [];
+      BLOCKS.forEach(([a, b, txt]) => {
+        const ws = txt.split(/\s+/);
+        const span = (b - 0.35 - a) / ws.length;
+        ws.forEach((w, i) => WORDS.push({ w, t: a + i * span, key: KEY.has(w.toLowerCase().replace(/[^\wáéíóúñü]/g, "")) }));
+      });
+      // captions: chunks of 3 words, word by word; keywords in yellow
+      function captions(t) {
+        let idx = -1;
+        for (let i = 0; i < WORDS.length; i++) if (WORDS[i].t <= t) idx = i;
+        if (idx < 0) return "";
+        const blockEnd = BLOCKS.find(([a, b]) => t >= a && t < b);
+        if (!blockEnd) return "";
+        const c0 = idx - (idx % 3), chunk = WORDS.slice(c0, c0 + 3).filter((w) => w.t >= blockEnd[0] - 0.01);
+        if (!chunk.length) return "";
+        const esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;");
+        const spans = chunk.filter((w, i) => c0 + i <= idx).map((w) => `<tspan fill="${w.key ? "#ffd23f" : "#ffffff"}">${esc(w.w)} </tspan>`).join("");
+        const chars = chunk.map((w) => w.w).join(" ").length, fit = Math.min(1, 1000 / (chars * 40));
+        const pop = fit * (1 + 0.06 * (1 - prog(t, WORDS[idx].t, WORDS[idx].t + 0.12, "out")));
+        return `<g transform="translate(540 1440) scale(${pop.toFixed(3)})"><text x="0" y="0" text-anchor="middle" font-family="${FONT}" font-weight="800" font-size="70" stroke="#1f1f1f" stroke-width="12" paint-order="stroke" stroke-linejoin="round">${spans}</text></g>`;
+      }
+      function title(t, txt, a, b, y = 270, size = 92, fill = "#1f1f1f") {
+        const sc = kf(t, [[a, 0], [a + 0.3, 1, "back"], [b - 0.25, 1], [b, 0, "in"]]);
+        if (sc <= 0.01) return "";
+        return `<g transform="translate(540 ${y}) scale(${sc.toFixed(3)})"><text x="0" y="0" text-anchor="middle" font-family="${FONT}" font-weight="800" font-size="${size}" fill="${fill}" stroke="#ffffff" stroke-width="14" paint-order="stroke" stroke-linejoin="round">${txt}</text></g>`;
+      }
+      function pop(t, a) { return kf(t, [[a, 0], [a + 0.3, 1, "back"]]); }
+      function popIn(p, t, a) { const k = pop(t, a); p.squash = (p.squash || 0) + (1 - k) * 0.5; p.y += (1 - k) * 40; return k > 0.01; }
+      function cross(t, x, y, pr, seed, sz = 80) {
+        return R.scribble(t, [[x - sz, y - sz], [x + sz, y + sz]], prog(pr, 0, 0.5), C.red, 16, seed) + R.scribble(t, [[x + sz, y - sz], [x - sz, y + sz]], prog(pr, 0.5, 1), C.red, 16, seed + 1);
+      }
+
+      // the six parts of the series, in order (indigenous look, v2)
+      const SK = "#c98f68", HAIR = "#1f1f1f", SANDAL = "#a87b4f";
+      const CIVS = [
+        ["Incas", { hair: HAIR, hat: "mascaipacha", earSpools: true, tunic: { fill: "#c62828", band: ["#e8b330", "#1f1f1f"] }, skin: "#d9a37a", legs: "#d9a37a", shoe: SANDAL }],
+        ["Mexicas", { bare: true, hair: HAIR, legs: SK, shoe: SANDAL, skin: SK, hat: "plumes", plumes: ["#2e9e5b", "#d7263d", "#1f6fb2", "#ffd23f", "#d7263d", "#1f6fb2", "#2e9e5b"], hatColor: "#e8b330", cape: "#1f6fb2", loin: "#f2e6c9", shield: "#c62828", necklace: "#e8b330" }],
+        ["Mayas", { bare: true, hair: HAIR, legs: SK, shoe: SANDAL, skin: SK, hat: "plumes", plumes: ["#2e9e5b", "#1f6fb2", "#2e9e5b", "#1f6fb2", "#2e9e5b"], hatColor: "#2e9e5b", necklace: "#3fbf7f", loin: "#2e9e5b", facePaint: "#1f6fb2", paint: "#1f6fb2" }],
+        ["Taínos", { bare: true, hair: HAIR, legs: SK, shoe: SANDAL, skin: SK, hat: "band", hatColor: "#e07b39", plumes: ["#c62828"], paint: "#c62828", facePaint: "#1f1f1f", chestDisc: true, loin: "#c9a46b" }],
+        ["Mapuches", { hair: HAIR, hat: "band", hatColor: "#c0c6cc", tunic: { fill: "#1f3d7a", band: ["#f2f2f2", "#c62828"] }, skin: SK, legs: SK, shoe: SANDAL }],
+        ["Guaraníes", { bare: true, hair: HAIR, legs: SK, shoe: SANDAL, skin: SK, hat: "plumes", plumes: ["#ffd23f", "#d7263d", "#ffd23f", "#d7263d", "#ffd23f"], hatColor: "#e07b39", paint: "#1f1f1f", facePaint: "#c62828", bow: true, loin: "#c9a46b" }],
+      ];
+      const PART = 3; // index of this Short in CIVS
+      const cellXY = (i) => [300 + (i % 2) * 480, 760 + Math.floor(i / 2) * 420];
+      function check(t, i, pr, seed) {
+        const [x, y] = cellXY(i);
+        return R.scribble(t, [[x - 70, y - 90], [x - 10, y - 30], [x + 110, y - 190]], pr, "#2e9e5b", 18, seed);
+      }
+      // labels show only the number; parts already seen show "N. Name";
+      // this Short's own name appears at the end (reveal 0..1)
+      function sCover(t, zoom, extra = "", reveal = 0) {
+        if (typeof extra === "object") extra = extra.extra || "";
+        let g = BG_SOFT + `<text x="540" y="250" text-anchor="middle" font-family="${FONT}" font-weight="800" font-size="74" fill="#1f1f1f">LAS CIVILIZACIONES</text><text x="540" y="345" text-anchor="middle" font-family="${FONT}" font-weight="800" font-size="74" fill="#c62828">DE AMÉRICA</text>`;
+        CIVS.forEach(([name, o], i) => {
+          const [cx, cy] = cellXY(i), hl = i === PART;
+          g += `<rect x="${cx - 215}" y="${cy - 290}" width="430" height="390" rx="30" fill="${hl ? "#fff3cf" : "#ffffff"}" stroke="#1f1f1f" stroke-width="${hl ? 7 : 4}"/>`;
+          g += R.chibi(t, { x: cx, y: cy + 22, s: 0.9, seed: 300 + i, look: 0.1, mouth: 0.35, ...R.walk(0, 0), ...o });
+          const named = i < PART || (i === PART && reveal > 0.5);
+          const pk = i === PART && reveal > 0.5 ? 1 + 0.3 * (1 - prog(reveal, 0.5, 1, "out")) : 1;
+          g += `<text x="${cx}" y="${cy + 80}" text-anchor="middle" font-family="${FONT}" font-weight="800" font-size="${((named ? 44 : 58) * pk).toFixed(1)}" fill="#1f1f1f">${named ? `${i + 1}. ${name}` : `${i + 1}`}</text>`;
+        });
+        for (let i = 0; i < PART; i++) g += check(t, i, 1, 810 + i * 3);
+        g += extra;
+        const [zx, zy] = cellXY(PART), z = 1 + zoom * 1.6;
+        return `<g transform="translate(${(zx - zx * z).toFixed(1)} ${(zy - 150 - (zy - 150) * z).toFixed(1)}) scale(${z.toFixed(3)})">${g}</g>` +
+          `<text x="540" y="1860" text-anchor="middle" font-family="${FONT}" font-weight="800" font-size="40" fill="#1f1f1f" opacity="${(1 - zoom).toFixed(2)}">Siglos en Palitos</text>`;
+      }
+
+      // ---------- word cues: each visual starts on the word that names it ----------
+      const norm = (w) => w.toLowerCase().replace(/[¿?¡!,;:"]/g, "").replace(/\.$/, "");
+      function cue(i, word, n = 1) {
+        const [a, b] = BLOCKS[i];
+        let c = 0;
+        for (const w of WORDS) if (w.t >= a - 0.01 && w.t < b && norm(w.w).startsWith(norm(word))) { c++; if (c === n) return w.t; }
+        return a;
+      }
+      const END = (i) => BLOCKS[i][1];
+
+      // ---------- backdrops ----------
+      const BG_SOFT = `<rect width="1080" height="1920" fill="#e7f0e1"/>`;
+      const SEA_Y = 880;
+      const BG_BEACH = `<rect width="1080" height="1920" fill="url(#sky)"/>` +
+        `<rect x="0" y="${SEA_Y}" width="1080" height="${GROUND - 120 - SEA_Y}" fill="${SEA}"/><path d="M0 ${SEA_Y} L1080 ${SEA_Y}" stroke="#2b86b8" stroke-width="6"/>` +
+        `<path d="M0 ${GROUND - 120} Q270 ${GROUND - 150} 540 ${GROUND - 120} T1080 ${GROUND - 125} L1080 1920 L0 1920Z" fill="#f1dca0" stroke="#1f1f1f" stroke-width="5"/>`;
+      function palm(x, y, s, lean = 0) {
+        let g = `<path d="M0 0 Q${20 + lean} -200 ${40 + lean * 2} -380" fill="none" stroke="#8a5a32" stroke-width="30" stroke-linecap="round"/><path d="M0 0 Q${20 + lean} -200 ${40 + lean * 2} -380" fill="none" stroke="#1f1f1f" stroke-width="4" stroke-dasharray="6 26"/>`;
+        const tx = 40 + lean * 2, ty = -380;
+        [-2.8, -2.2, -1.5, -0.9, -0.3].forEach((a) => {
+          const ex = tx + Math.cos(a) * 190, ey = ty + Math.sin(a) * 120 + 70;
+          g += `<path d="M${tx} ${ty} Q${(tx + ex) / 2} ${ty - 90} ${ex.toFixed(1)} ${ey.toFixed(1)} Q${(tx + ex) / 2} ${ty - 30} ${tx} ${ty}Z" fill="#3f8f4a" stroke="#1f1f1f" stroke-width="5" stroke-linejoin="round"/>`;
+        });
+        g += `<circle cx="${tx - 12}" cy="${ty + 14}" r="16" fill="#6b4a2f" stroke="#1f1f1f" stroke-width="4"/><circle cx="${tx + 14}" cy="${ty + 18}" r="16" fill="#6b4a2f" stroke="#1f1f1f" stroke-width="4"/>`;
+        return `<g transform="translate(${x} ${y}) scale(${s})">${g}</g>`;
+      }
+      function caravel(t, x, y, s) {
+        if (s <= 0.01) return "";
+        const bob = Math.sin(t * 2.4 + x) * 6;
+        let g = `<path d="M-150 0 L150 0 L115 60 L-120 60Z" fill="#8a5a32" stroke="#1f1f1f" stroke-width="6" stroke-linejoin="round"/><path d="M-150 0 L-170 -40 L-100 -30 L-100 0Z" fill="#8a5a32" stroke="#1f1f1f" stroke-width="5"/>`;
+        g += `<path d="M-20 0 L-20 -260 M60 0 L60 -200" stroke="#5a3a20" stroke-width="10"/>`;
+        g += `<path d="M-90 -230 Q-20 -200 50 -230 L45 -60 Q-20 -40 -85 -60Z" fill="#f4ede0" stroke="#1f1f1f" stroke-width="5"/><path d="M-35 -170 L-5 -170 M-20 -185 L-20 -120" stroke="${RED}" stroke-width="12"/>`;
+        g += `<path d="M30 -180 Q75 -160 115 -180 L110 -60 Q75 -50 35 -60Z" fill="#f4ede0" stroke="#1f1f1f" stroke-width="5"/>`;
+        return `<g transform="translate(${x} ${y + bob}) scale(${s})">${g}</g>`;
+      }
+      // a twisting DNA ladder
+      function helix(t, x, y, s, hgt = 520, hi = -1) {
+        if (s <= 0.01) return "";
+        let g = "";
+        const n = 14;
+        for (let k = 0; k < n; k++) {
+          const yy = -hgt / 2 + (k / (n - 1)) * hgt, ph = k * 0.55 + t * 2.2;
+          const a = Math.sin(ph) * 90, b = -a, front = Math.cos(ph) > 0;
+          g += `<path d="M${a.toFixed(1)} ${yy.toFixed(1)} L${b.toFixed(1)} ${yy.toFixed(1)}" stroke="${["#e5383b", "#ffd23f", "#2e9e5b", "#1f6fb2"][k % 4]}" stroke-width="10" stroke-linecap="round"/>`;
+          g += `<circle cx="${a.toFixed(1)}" cy="${yy.toFixed(1)}" r="${front ? 16 : 12}" fill="#f4ede0" stroke="#1f1f1f" stroke-width="4"/><circle cx="${b.toFixed(1)}" cy="${yy.toFixed(1)}" r="${front ? 12 : 16}" fill="#f4ede0" stroke="#1f1f1f" stroke-width="4"/>`;
+        }
+        return `<g transform="translate(${x} ${y}) scale(${s})">${g}</g>`;
+      }
+      // Puerto Rico flag, simple
+      function prFlag(x, y, s) {
+        if (s <= 0.01) return "";
+        let g = "";
+        for (let k = 0; k < 5; k++) g += `<rect x="0" y="${k * 48}" width="380" height="48" fill="${k % 2 ? "#ffffff" : "#d7263d"}"/>`;
+        g += `<path d="M0 0 L200 120 L0 240Z" fill="#1f6fb2"/>`;
+        let st = "";
+        for (let i = 0; i < 10; i++) { const a = (i / 10) * Math.PI * 2 - Math.PI / 2, r = i % 2 ? 14 : 34; st += `${i ? "L" : "M"}${(66 + Math.cos(a) * r).toFixed(1)} ${(120 + Math.sin(a) * r).toFixed(1)} `; }
+        g += `<path d="${st}Z" fill="#fff"/><rect x="0" y="0" width="380" height="240" fill="none" stroke="#1f1f1f" stroke-width="7"/>`;
+        return `<g transform="translate(${x} ${y}) scale(${s}) translate(-190 -120)">${g}</g>`;
+      }
+      function canoe(x, y, s) {
+        return `<g transform="translate(${x} ${y}) scale(${s})"><path d="M-210 -10 Q0 70 210 -10 L190 -30 L-190 -30Z" fill="#8a5a32" stroke="#1f1f1f" stroke-width="6" stroke-linejoin="round"/><path d="M-160 -18 L160 -18" stroke="#5a3a20" stroke-width="5"/></g>`;
+      }
+      function paddle(x, y, s, a) {
+        return `<g transform="translate(${x} ${y}) scale(${s}) rotate(${a})"><path d="M0 -150 L0 90" stroke="#5a3a20" stroke-width="10" stroke-linecap="round"/><ellipse cx="0" cy="120" rx="20" ry="45" fill="#8a5a32" stroke="#1f1f1f" stroke-width="5"/></g>`;
+      }
+      function corn(x, y, s) {
+        if (s <= 0.01) return "";
+        return `<g transform="translate(${x} ${y}) scale(${s})"><path d="M0 0 L0 -260" stroke="#3f8f4a" stroke-width="12"/><path d="M0 -80 Q-80 -110 -110 -60 M0 -140 Q80 -170 110 -120 M0 -200 Q-70 -240 -90 -200" stroke="#3f8f4a" stroke-width="14" fill="none" stroke-linecap="round"/><ellipse cx="22" cy="-150" rx="18" ry="45" fill="#ffd23f" stroke="#1f1f1f" stroke-width="5"/><path d="M8 -170 L36 -170 M8 -150 L36 -150 M8 -130 L36 -130" stroke="#b8860b" stroke-width="4"/></g>`;
+      }
+      function yuca(x, y, s) {
+        if (s <= 0.01) return "";
+        let g = `<path d="M0 0 L0 -200" stroke="#8a5a32" stroke-width="10"/>`;
+        [-0.9, -0.45, 0, 0.45, 0.9].forEach((a) => (g += `<ellipse cx="${(Math.sin(a) * 70).toFixed(1)}" cy="${(-200 - Math.cos(a) * 50).toFixed(1)}" rx="16" ry="52" transform="rotate(${(a * 57).toFixed(1)} ${(Math.sin(a) * 70).toFixed(1)} ${(-200 - Math.cos(a) * 50).toFixed(1)})" fill="#3f8f4a" stroke="#1f1f1f" stroke-width="4"/>`));
+        g += `<path d="M-6 10 Q-60 60 -70 120 Q-40 90 -6 30Z M6 10 Q60 60 70 120 Q40 90 6 30Z" fill="#a8743f" stroke="#1f1f1f" stroke-width="4"/>`;
+        return `<g transform="translate(${x} ${y}) scale(${s})">${g}</g>`;
+      }
+      function swirl(t, x, y, s) {
+        if (s <= 0.01) return "";
+        let g = "";
+        for (let k = 0; k < 4; k++) {
+          const r = 60 + k * 55;
+          g += `<path d="M${r} 0 A${r} ${r * 0.55} 0 1 1 ${-r * 0.7} ${r * 0.3}" fill="none" stroke="${k % 2 ? "#5b6b7a" : "#3d4a57"}" stroke-width="${22 - k * 3}" stroke-linecap="round"/>`;
+        }
+        return `<g transform="translate(${x} ${y}) scale(${s}) rotate(${(-t * 120).toFixed(1)})">${g}</g>`;
+      }
+      function parrot(x, y, s) {
+        if (s <= 0.01) return "";
+        return `<g transform="translate(${x} ${y}) scale(${s})"><path d="M-6 30 L-26 110 L4 100 L14 34Z" fill="#1f6fb2" stroke="#1f1f1f" stroke-width="4"/><ellipse cx="0" cy="10" rx="30" ry="42" fill="#d7263d" stroke="#1f1f1f" stroke-width="5"/><path d="M-22 10 Q-40 40 -10 56 Q-4 30 -22 10Z" fill="#ffd23f" stroke="#1f1f1f" stroke-width="4"/><circle cx="6" cy="-30" r="24" fill="#d7263d" stroke="#1f1f1f" stroke-width="5"/><path d="M26 -36 Q48 -30 34 -10 Q28 -18 22 -20Z" fill="#f4ede0" stroke="#1f1f1f" stroke-width="4"/><circle cx="12" cy="-36" r="5" fill="#1f1f1f"/></g>`;
+      }
+      function cotton(x, y, s) {
+        if (s <= 0.01) return "";
+        return `<g transform="translate(${x} ${y}) scale(${s})">${[[-20, 0], [20, 0], [0, -22], [-12, 18], [14, 18]].map(([a, b]) => `<circle cx="${a}" cy="${b}" r="24" fill="#ffffff" stroke="#1f1f1f" stroke-width="4"/>`).join("")}</g>`;
+      }
+      function diary(x, y, s, txt, k) {
+        if (s <= 0.01) return "";
+        let g = `<rect x="-260" y="-170" width="520" height="340" rx="16" fill="#8a5a32" stroke="#1f1f1f" stroke-width="7"/><rect x="-240" y="-155" width="235" height="310" fill="#f4ede0" stroke="#1f1f1f" stroke-width="4"/><rect x="5" y="-155" width="235" height="310" fill="#f4ede0" stroke="#1f1f1f" stroke-width="4"/>`;
+        for (let r = 0; r < 6; r++) g += `<path d="M-215 ${-115 + r * 45} L-30 ${-115 + r * 45}" stroke="#b9ac90" stroke-width="5"/>`;
+        const n = Math.round(txt.length * k);
+        g += `<text x="122" y="-40" text-anchor="middle" font-family="${FONT}" font-weight="800" font-size="46" fill="${RED}">${txt.slice(0, n).split("|")[0]}</text>`;
+        if (txt.includes("|") && n > txt.indexOf("|")) g += `<text x="122" y="30" text-anchor="middle" font-family="${FONT}" font-weight="800" font-size="46" fill="${RED}">${txt.slice(txt.indexOf("|") + 1, n)}</text>`;
+        return `<g transform="translate(${x} ${y}) scale(${s})">${g}</g>`;
+      }
+      function rock(x, y, s) {
+        return `<g transform="translate(${x} ${y}) scale(${s})"><path d="M-40 0 L-30 -40 L10 -50 L42 -26 L36 0Z" fill="#8f8a80" stroke="#1f1f1f" stroke-width="5" stroke-linejoin="round"/></g>`;
+      }
+      function bubble(x, y, w, txt, k, size = 52, tail = -1) {
+        if (k <= 0.01) return "";
+        return `<g transform="translate(${x} ${y}) scale(${k.toFixed(3)})"><rect x="${-w / 2}" y="-60" width="${w}" height="110" rx="40" fill="#fff" stroke="#1f1f1f" stroke-width="6"/><path d="M${tail * 30} 48 L${tail * 60} 100 L${tail * -10} 50Z" fill="#fff" stroke="#1f1f1f" stroke-width="6" stroke-linejoin="round"/><path d="M${tail * 32} 44 L${tail * -8} 44" stroke="#fff" stroke-width="8"/><text x="0" y="${size * 0.35}" text-anchor="middle" font-family="${FONT}" font-weight="800" font-size="${size}" fill="#1f1f1f">${txt}</text></g>`;
+      }
+      function word(x, y, txt, k, col = "#1f1f1f", size = 76) {
+        if (k <= 0.01) return "";
+        return `<g transform="translate(${x} ${y}) scale(${k.toFixed(3)})"><text x="0" y="0" text-anchor="middle" font-family="${FONT}" font-weight="800" font-size="${size}" fill="${col}" stroke="#fff" stroke-width="12" paint-order="stroke" stroke-linejoin="round">${txt}</text></g>`;
+      }
+
+      // ---------- the Caribbean (lon, lat), simplified ----------
+      const CUBA = [[-84.95,21.85],[-84.4,22.4],[-83,22.95],[-81.8,23.15],[-80.5,23.1],[-79.6,22.6],[-78.3,22.5],[-77.2,21.65],[-76,21.2],[-75.6,21],[-74.15,20.25],[-74.9,20.0],[-76.5,19.9],[-77.7,19.85],[-77.2,20.6],[-78.1,20.75],[-78.7,21.6],[-79.9,21.75],[-81.4,22.1],[-82.2,22.35],[-82.8,22.6],[-83.9,22.15],[-84.5,21.8]];
+      const HAITI = [[-73.4,19.85],[-72.8,19.95],[-71.7,19.75],[-71.75,18.05],[-72.8,18.15],[-74.4,18.35],[-74.3,18.65],[-72.8,18.5],[-72.7,18.9],[-72.9,19.45]];
+      const DOMREP = [[-71.7,19.75],[-70.5,19.75],[-69.9,19.65],[-69.2,19.3],[-69.6,19.1],[-68.7,18.6],[-68.4,18.45],[-68.9,18.35],[-69.9,18.45],[-70.7,18.2],[-71.4,17.65],[-71.75,18.05]];
+      const JAM = [[-78.35,18.45],[-77.6,18.5],[-76.9,18.4],[-76.2,18.0],[-76.8,17.9],[-77.2,17.7],[-77.8,17.85],[-78.35,18.2]];
+      const PRICO = [[-67.25,18.5],[-65.6,18.4],[-65.6,18.0],[-67.2,17.95]];
+      const CK = 46, CX0 = 20, CY0 = 620;
+      const cp = ([lon, lat]) => [CX0 + (lon + 85) * CK, CY0 + (24 - lat) * CK * 1.6];
+      const cpoly = (pts, fill, k = 0) => `<path d="M${pts.map((p) => cp(p).map((v) => v.toFixed(1)).join(" ")).join(" L")}Z" fill="${fill}" stroke="#1f1f1f" stroke-width="${5 + 3 * k}" stroke-linejoin="round"/>`;
+      // on: {cuba, pr, jam, esp, hai, dom} 0..1
+      function caribbean(t, on, y0 = 0) {
+        let g = `<rect width="1080" height="1920" fill="#7cc0e8"/><g transform="translate(0 ${y0})">`;
+        const sand = "#e9dcb4";
+        const lit = (k, col) => (k > 0.5 ? col : sand);
+        g += cpoly(CUBA, lit(on.cuba, "#e07b39"), on.cuba) + cpoly(JAM, lit(on.jam, "#2e9e5b"), on.jam) + cpoly(PRICO, lit(on.pr, "#d7263d"), on.pr);
+        const hai = on.hai > 0.5 ? "#1f6fb2" : lit(on.esp, "#e8b330"), dom = on.dom > 0.5 ? "#8e44ad" : lit(on.esp, "#e8b330");
+        g += cpoly(HAITI, hai, Math.max(on.esp, on.hai)) + cpoly(DOMREP, dom, Math.max(on.esp, on.dom));
+        const lab = (txt, ll, k, dx = 0, dy = 0, size = 50) => k > 0.01 ? `<text x="${cp(ll)[0] + dx}" y="${cp(ll)[1] + dy}" text-anchor="middle" font-family="${FONT}" font-weight="800" font-size="${size * k}" fill="#1f1f1f" stroke="#fff" stroke-width="10" paint-order="stroke">${txt}</text>` : "";
+        g += lab("Cuba", [-80, 23], on.cuba, 0, -60) + lab("Jamaica", [-77.3, 18], on.jam, -40, 100) + lab("Puerto Rico", [-66.4, 18.5], on.pr, 0, 90);
+        g += lab("La Española", [-71.5, 19.8], on.esp * (1 - Math.max(on.hai, on.dom) * 0.999), 0, -60);
+        g += lab("Haití", [-74, 18.3], on.hai, 0, 90, 44) + lab("Rep. Dominicana", [-70, 18.2], on.dom, 0, 190, 44);
+        return g + "</g>";
+      }
+
+      // ---------- characters ----------
+      const taino = (o) => {
+        const p = { s: 1.35, f: 1, seed: 21, ...CIVS[3][1], look: 0.3, mouth: 0.4, ...R.walk(0, 0), ...o };
+        if (o.tunic) p.loin = o.tunic.fill;
+        return p;
+      };
+      const colon = (o) => ({ s: 1.2, f: -1, seed: 61, hair: "#d8d2c4", hat: "cap", hatColor: "#7a1f2b", shoe: "#3a2a20", legs: "#3a2a20", tunic: { fill: "#7a1f2b", sash: GOLD }, skin: "#f1c9a5", look: 0.6, mouth: 0.2, ...R.walk(0, 0), ...o });
+      const spaniard = (o) => ({ s: 1.15, f: -1, seed: 31, hat: "morion", beard: "#8a8a8a", shoe: "#3a2a20", legs: "#5a4632", tunic: { fill: STEEL, sash: "#a51d2d" }, skin: "#f1c9a5", look: 0.8, mouth: 0.2, ...R.walk(0, 0), ...o });
+      const miniT = (t, x, y, s, seed, o = {}) => R.mini(t, x, y, s, { seed, cloth: "#c9a46b", skin: SKIN, hair: "#1f1f1f", look: 0.2, ...o });
+
+      // ---------- scenes ----------
+      function sHook(t) {
+        const i = 0;
+        const cNunca = cue(i, "nunca"), c500 = cue(i, "500"), c61 = cue(i, "61%"), cPor = cue(i, "¿por");
+        if (t < c61) {
+          let o = BG_BEACH + palm(140, GROUND - 60, 1.1, -10) + palm(960, GROUND - 90, 0.9, 12);
+          o += caravel(t, 1180 - 420 * prog(t, c500, cue(i, "colón") + 0.8, "out"), SEA_Y - 10, 0.7 * pop(t, c500));
+          const m = taino({ x: 480, y: GROUND + 40, s: 1.5, mouth: 0.5, look: t > c500 ? 0.9 : 0.2 });
+          if (popIn(m, t, BLOCKS[i][0] + 0.05)) o += R.chibi(t, m);
+          o += title(t, "LOS TAÍNOS", BLOCKS[i][0], cNunca, 300, 120, RED);
+          o += title(t, "¿DESAPARECIERON?", cNunca, c500, 300, 84);
+          if (t > cNunca + 0.4 && t < c500) o += R.scribble(t, [[150, 280], [930, 270]], prog(t, cNunca + 0.4, cNunca + 0.8), C.red, 18, 911);
+          o += title(t, "500 AÑOS DESPUÉS", c500, c61, 300, 80);
+          return o;
+        }
+        let o = BG_SOFT + prFlag(650, 1040, 1.2 * pop(t, c61 - 0.1));
+        o += helix(t, 200, 1040, 0.7 * pop(t, c61 + 0.3));
+        o += word(540, 640, "61%", pop(t, c61), RED, 220);
+        o += title(t, "LLEVA SU ADN", cue(i, "adn") - 0.2, cPor, 300, 90);
+        o += title(t, "¿POR QUÉ NUNCA TE LO CONTARON?", cPor, END(i) + 0.3, 300, 54, RED);
+        return o;
+      }
+
+      function sIslands(t) {
+        const i = 1;
+        const cViv = cue(i, "vivían");
+        if (t < cViv) {
+          let o = BG_BEACH + palm(160, GROUND - 60, 1.0, -8) + palm(930, GROUND - 80, 1.0, 10);
+          const a = taino({ x: 380, y: GROUND + 40, s: 1.35, seed: 22 }), b = taino({ x: 700, y: GROUND + 40, s: 1.35, f: -1, seed: 23, hat: "plumes", plumes: ["#c62828", "#ffd23f", "#c62828"], hatColor: "#e07b39" });
+          if (popIn(a, t, BLOCKS[i][0])) o += R.chibi(t, a);
+          if (popIn(b, t, BLOCKS[i][0] + 0.15)) o += R.chibi(t, b);
+          return o + title(t, "SU HISTORIA", BLOCKS[i][0], cViv, 300, 110, RED);
+        }
+        const on = { cuba: pop(t, cue(i, "cuba") - 0.1), pr: pop(t, cue(i, "puerto") - 0.1), jam: pop(t, cue(i, "jamaica") - 0.1), esp: pop(t, cue(i, "española") - 0.1), hai: pop(t, cue(i, "haití") - 0.1), dom: pop(t, cue(i, "república") - 0.1) };
+        let o = caribbean(t, on);
+        o += title(t, "EL CARIBE", cViv, END(i) + 0.2, 300, 110, BLUE);
+        return o;
+      }
+
+      function sLife(t) {
+        const i = 2;
+        const cPes = cue(i, "pescaban"), cDor = cue(i, "dormían"), cAl = cue(i, "al"), cRec = cue(i, "¿reconoces");
+        if (t < cPes) {
+          let o = BG_BEACH.replace(SEA, "#9fd38a") + yuca(260, GROUND - 40, 1.3 * pop(t, cue(i, "yuca") - 0.1)) + corn(820, GROUND - 40, 1.4 * pop(t, cue(i, "maíz") - 0.1));
+          const f = taino({ x: 540, y: GROUND + 40, s: 1.35, look: -0.5, mouth: 0.5 });
+          if (popIn(f, t, BLOCKS[i][0])) o += R.chibi(t, f);
+          return o + word(260, 620, "YUCA", pop(t, cue(i, "yuca") - 0.1), GREEN, 96) + word(820, 560, "MAÍZ", pop(t, cue(i, "maíz") - 0.1), GOLD_DARK, 96);
+        }
+        if (t < cDor) {
+          let o = `<rect width="1080" height="1920" fill="url(#sky)"/><rect x="0" y="760" width="1080" height="1160" fill="${SEA}"/><path d="M0 760 L1080 760" stroke="#2b86b8" stroke-width="6"/>`;
+          const x = 300 + 300 * prog(t, cPes, cDor), bob = Math.sin(t * 3) * 8;
+          const f = taino({ x, y: 1080 + bob, s: 1.3, armF: { a: 1.2 + 0.4 * Math.sin(t * 4), b: 0.3 }, armB: { a: 0.9 + 0.4 * Math.sin(t * 4), b: 0.3 } });
+          o += R.chibi(t, f) + canoe(x, 1110 + bob, 1.3) + paddle(x + 120, 1000 + bob, 1, 20 + 20 * Math.sin(t * 4));
+          for (let k = 0; k < 3; k++) o += `<path d="M${120 + k * 380} 1260 q30 -24 60 0 q30 24 60 0" stroke="#e9f5fb" stroke-width="7" fill="none"/>`;
+          return o + word(540, 520, "CANOA", pop(t, cPes), BLUE, 110);
+        }
+        if (t < cAl) {
+          let o = BG_BEACH + palm(150, GROUND - 40, 1.15, 0) + palm(930, GROUND - 40, 1.15, 0);
+          const sw = Math.sin(t * 2) * 8;
+          o += `<path d="M190 ${GROUND - 360} Q540 ${GROUND - 140 + sw} 900 ${GROUND - 360}" fill="none" stroke="#1f1f1f" stroke-width="6"/>`;
+          o += `<path d="M230 ${GROUND - 340} Q540 ${GROUND - 120 + sw} 860 ${GROUND - 340} Q540 ${GROUND - 200 + sw} 230 ${GROUND - 340}Z" fill="#e07b39" stroke="#1f1f1f" stroke-width="6"/>`;
+          o += `<circle cx="380" cy="${GROUND - 300 + sw * 0.6}" r="50" fill="${SKIN}" stroke="#1f1f1f" stroke-width="6"/><path d="M332 ${GROUND - 310 + sw * 0.6} Q380 ${GROUND - 370 + sw * 0.6} 428 ${GROUND - 310 + sw * 0.6}" fill="#1f1f1f"/><path d="M362 ${GROUND - 292 + sw * 0.6} q8 6 16 0 M392 ${GROUND - 292 + sw * 0.6} q8 6 16 0" stroke="#1f1f1f" stroke-width="4" fill="none"/>`;
+          o += word(480, GROUND - 420 - 20 * Math.sin(t * 2), "z", prog(t, cDor + 0.3, cDor + 0.6), "#1f6fb2", 60) + word(530, GROUND - 480 - 20 * Math.sin(t * 2 + 1), "z", prog(t, cDor + 0.6, cDor + 0.9), "#1f6fb2", 76);
+          return o + word(540, 560, "HAMACA", pop(t, cDor), "#e07b39", 110);
+        }
+        if (t < cRec) {
+          let o = `<rect width="1080" height="1920" fill="#4a5866"/><rect x="0" y="${GROUND}" width="1080" height="${1920 - GROUND}" fill="#3a4450"/>`;
+          o += swirl(t, 540, 900, 1.3 * pop(t, cAl));
+          for (let k = 0; k < 8; k++) { const yy = ((t * 900 + k * 230) % 1300) + 400; o += `<path d="M${80 + k * 130} ${yy.toFixed(0)} l-20 50" stroke="#9fd3f0" stroke-width="6" stroke-linecap="round"/>`; }
+          return o + word(540, 480, "JURACÁN", pop(t, cue(i, "juracán") - 0.1), "#ffd23f", 120);
+        }
+        // the words they gave us
+        let o = BG_SOFT;
+        const ws = [["YUCA", GREEN], ["MAÍZ", GOLD_DARK], ["CANOA", BLUE], ["HAMACA", "#e07b39"]];
+        ws.forEach(([w, col], k) => (o += word(k % 2 ? 790 : 290, 640 + Math.floor(k / 2) * 190, w, pop(t, cRec + k * 0.12), col, 92)));
+        const hk = prog(t, cRec + 0.9, cRec + 1.4);
+        o += word(540, 1080, hk > 0.5 ? "HURACÁN" : "JURACÁN", pop(t, cRec + 0.5) * (1 + 0.25 * Math.sin(Math.PI * hk)), RED, 130);
+        o += title(t, "¿TE SUENAN?", cRec, END(i) + 0.2, 330, 100);
+        return o;
+      }
+
+      function sColon(t) {
+        const i = 3;
+        const cCol = cue(i, "colón"), cLor = cue(i, "loros"), cAlg = cue(i, "algodón"), cDia = cue(i, "diario"), cBue = cue(i, "buenos");
+        if (t < cDia) {
+          let o = BG_BEACH + palm(120, GROUND - 60, 1.0, -8);
+          o += caravel(t, 820, SEA_Y - 10, 0.75) + caravel(t, 1010, SEA_Y + 10, 0.5) + caravel(t, 620, SEA_Y + 20, 0.45);
+          const walkIn = prog(t, cCol - 0.6, cCol + 0.6, "out");
+          const c = colon({ x: 1200 - 400 * walkIn, y: GROUND + 40, ...R.walk(t * 9, 1 - walkIn) });
+          o += R.chibi(t, c);
+          const give = prog(t, cLor - 0.3, cLor);
+          const a = taino({ x: 420, y: GROUND + 40, s: 1.35, mouth: 0.6, armF: { a: 0.2 + 1.2 * give, b: 0.1 } });
+          o += R.chibi(t, a);
+          o += parrot(560 + 100 * prog(t, cLor + 0.4, cAlg), GROUND - 230 - 40 * prog(t, cLor + 0.4, cAlg), pop(t, cLor - 0.1) * 1.1);
+          o += cotton(540, GROUND - 140, pop(t, cAlg - 0.1) * 1.4);
+          o += title(t, "1492", BLOCKS[i][0], cue(i, "recibir"), 300, 130, RED) + title(t, "COLÓN", cue(i, "recibir"), cLor, 300, 110);
+          o += title(t, "LOROS", cLor - 0.1, cAlg, 300, 100, GREEN) + title(t, "ALGODÓN", cAlg - 0.1, cDia, 300, 100);
+          return o;
+        }
+        let o = BG_SOFT;
+        o += diary(540, 760, 1.4 * pop(t, cDia - 0.2), '"Buenos|sirvientes"', prog(t, cBue - 0.1, END(i) - 0.4));
+        const c = colon({ x: 540, y: 1340, s: 0.95, f: 1, look: 0, mouth: 0.1 });
+        o += R.chibi(t, c);
+        o += title(t, "SU DIARIO", cDia - 0.2, END(i) + 0.2, 300, 100);
+        return o;
+      }
+
+      function sMines(t) {
+        const i = 4;
+        const cMin = cue(i, "minas"), cVir = cue(i, "viruela"), cLleg = cue(i, "llegaron");
+        if (t < cLleg) {
+          let o = `<rect width="1080" height="1920" fill="#5a4632"/><path d="M0 600 Q540 480 1080 600 L1080 0 L0 0Z" fill="#3a2a20"/><rect x="0" y="${GROUND}" width="1080" height="${1920 - GROUND}" fill="#7a6248"/>`;
+          for (let k = 0; k < 4; k++) {
+            const x = 150 + k * 190 + 20 * Math.sin(t * 1.5 + k);
+            o += miniT(t, x, GROUND, 2.6, 700 + k, { slump: 0.8 }) + rock(x, GROUND - 200 + 4 * Math.sin(t * 3 + k), 1.4);
+            o += `<path d="M${x + 44} ${GROUND - 170 + ((t * 60 + k * 20) % 40)} q6 12 0 16 q-6 -4 0 -16Z" fill="#9fd3f0" stroke="#1f1f1f" stroke-width="2"/>`;
+          }
+          o += R.chibi(t, spaniard({ x: 930, y: GROUND + 20, s: 1.1, mouth: -0.4 }));
+          o += title(t, "OBLIGADOS", BLOCKS[i][0], cMin, 300, 100, RED) + title(t, "MINAS Y CAMPOS", cMin - 0.1, cLleg, 300, 90);
+          return o;
+        }
+        let o = BG_BEACH;
+        const sick = prog(t, cVir - 0.4, cVir + 0.4);
+        for (let k = 0; k < 6; k++) o += miniT(t, 110 + k * 172, GROUND + 20, 2.4, 760 + k, { slump: sick * (0.6 + 0.4 * (k % 2)) });
+        const cl = pop(t, cLleg);
+        if (cl > 0.01) {
+          o += `<g transform="translate(540 760) scale(${cl.toFixed(3)})"><path d="M-330 60 Q-360 -60 -230 -80 Q-200 -180 -60 -150 Q20 -230 140 -160 Q290 -190 310 -60 Q400 0 320 80Z" fill="#8f8f8f" stroke="#1f1f1f" stroke-width="7" opacity="0.92"/>`;
+          [[-200, -20], [-60, -70], [80, 0], [210, -50], [-110, 40], [160, 50]].forEach(([a, b]) => (o += `<circle cx="${a}" cy="${b}" r="22" fill="#c62828" stroke="#1f1f1f" stroke-width="4"/>`));
+          o += `</g>`;
+        }
+        o += title(t, "ENFERMEDADES", cLleg, cVir - 0.1, 300, 90) + title(t, "VIRUELA", cVir - 0.1, END(i) + 0.2, 300, 120, RED);
+        return o;
+      }
+
+      function sHatuey(t) {
+        const i = 5;
+        const cHat = cue(i, "hatuey"), cLo = cue(i, "capturaron") - 0.15, cAnt = cue(i, "antes");
+        if (t < cHat) {
+          let o = BG_BEACH + palm(150, GROUND - 60, 1.0, -6);
+          for (let k = 0; k < 3; k++) {
+            const a = taino({ x: 420 + k * 190, y: GROUND + 40, s: 1.2, seed: 80 + k, f: -1, mouth: -0.5, look: 0.8, shield: k === 1 ? "#c62828" : undefined });
+            if (popIn(a, t, BLOCKS[i][0] + k * 0.12)) o += R.chibi(t, a);
+          }
+          return o + title(t, "ALGUNOS RESISTIERON", BLOCKS[i][0], cHat, 300, 76, RED);
+        }
+        if (t < cLo) {
+          // Hatuey crosses by canoe from La Española to Cuba
+          let o = caribbean(t, { cuba: 1, esp: 1, jam: 0, pr: 0, hai: 0, dom: 0 });
+          const pr = prog(t, cue(i, "huyó") - 0.2, cue(i, "advertir"), "inOut");
+          const [x0, y0] = cp([-72.4, 19.95]), [x1, y1] = cp([-75.2, 20.4]);
+          const x = x0 + (x1 - x0) * pr, y = y0 + (y1 - y0) * pr + 70 - 50 * Math.sin(Math.PI * pr);
+          o += `<path d="M${x0} ${y0 + 70} Q${(x0 + x1) / 2} ${y0 - 10} ${x1} ${y1 + 70}" fill="none" stroke="#1f1f1f" stroke-width="6" stroke-dasharray="14 14" opacity="0.6"/>`;
+          o += `<g transform="translate(${x.toFixed(1)} ${y.toFixed(1)}) scale(0.45)">${R.chibi(t, taino({ x: 0, y: 0, s: 1.4, f: -1, hat: "plumes", plumes: ["#c62828", "#ffd23f", "#c62828", "#ffd23f", "#c62828"] }))}${canoe(0, 30, 1.2)}</g>`;
+          o += title(t, "EL CACIQUE HATUEY", cHat - 0.1, cLo, 300, 80, RED);
+          o += word(540, 1660, "¡Cuidado!", pop(t, cue(i, "advertir") - 0.1), RED, 80);
+          return o;
+        }
+        // silhouette at dusk: no fire on him
+        let o = `<rect width="1080" height="1920" fill="url(#dusk)"/><rect x="0" y="${GROUND}" width="1080" height="${1920 - GROUND}" fill="#5a3a20"/>`;
+        o += `<g filter="url(#sil)">${R.chibi(t, taino({ x: 540, y: GROUND + 20, s: 1.7, f: -1, hat: "plumes", plumes: ["#c62828", "#ffd23f", "#c62828", "#ffd23f", "#c62828"], look: 0, mouth: 0 }))}</g>`;
+        if (t < cAnt) o += title(t, "LO CAPTURARON", cLo, cAnt, 300, 90);
+        o += bubble(540, 470, 940, "No quiero ir al cielo", pop(t, cue(i, "no")), 60, 1);
+        o += bubble(540, 640, 940, "si allí hay cristianos", pop(t, cue(i, "cristianos") - 0.4), 60, 1);
+        return o;
+      }
+
+      function sToday(t) {
+        const i = 6;
+        const cPero = cue(i, "pero"), cY = cue(i, "y"), c6 = cue(i, "6"), cHam = cue(i, "hamaca");
+        if (t < cPero + 0.6) {
+          let o = BG_SOFT;
+          const k = pop(t, BLOCKS[i][0]);
+          o += `<g transform="translate(540 950) scale(${(k * 1.4).toFixed(3)})"><rect x="-230" y="-290" width="460" height="580" rx="20" fill="#1f6fb2" stroke="#1f1f1f" stroke-width="8"/><rect x="-200" y="-260" width="400" height="520" rx="10" fill="#f4ede0" stroke="#1f1f1f" stroke-width="5"/><text x="0" y="-150" text-anchor="middle" font-family="${FONT}" font-weight="800" font-size="46" fill="#1f1f1f">HISTORIA</text><text x="0" y="20" text-anchor="middle" font-family="${FONT}" font-weight="800" font-size="70" fill="${RED}">TAÍNOS:</text><text x="0" y="110" text-anchor="middle" font-family="${FONT}" font-weight="800" font-size="70" fill="${RED}">EXTINTOS</text></g>`;
+          if (t > cPero) o += cross(t, 540, 1050, prog(t, cPero, cPero + 0.5), 921, 260);
+          return o;
+        }
+        if (t < cY) {
+          let o = BG_SOFT + helix(t, 540, 640, 0.55 * pop(t, cPero + 0.6), 520);
+          o += title(t, "ESTUDIO 2003", cPero + 0.6, cY, 300, 90);
+          for (let k = 0; k < 10; k++) {
+            const on = k < 6 && t > c6 + k * 0.08;
+            o += miniT(t, 130 + (k % 5) * 205, 1110 + Math.floor(k / 5) * 195, 1.8 * pop(t, cue(i, "puertorriqueños") - 0.6 + k * 0.03), 980 + k, { cloth: on ? RED : "#b9b9b9", band: on ? GOLD : null });
+          }
+          o += word(540, 890, "6 de 10", pop(t, c6), RED, 110);
+          o += title(t, "POR PARTE DE MADRE", cue(i, "madre") - 0.3, cY, 1660, 56, BLUE);
+          return o;
+        }
+        let o = BG_BEACH + palm(140, GROUND - 60, 0.9, -6);
+        const cols = ["#d7263d", "#1f6fb2", "#e8b330", "#2e9e5b", "#8e44ad"];
+        for (let k = 0; k < 5; k++) o += miniT(t, 200 + k * 170, GROUND + 30, 2.6 * pop(t, cY + k * 0.05), 990 + k, { cloth: cols[k], hair: k % 2 ? "#3a2a20" : "#1f1f1f" });
+        o += bubble(300, 620, 360, "hamaca", pop(t, cHam - 0.1), 60, 1) + bubble(780, 560, 380, "huracán", pop(t, cue(i, "huracán") - 0.1), 60, -1);
+        o += bubble(330, 830, 320, "canoa", pop(t, cue(i, "hablas") - 0.1), 54, 1) + bubble(770, 790, 390, "barbacoa", pop(t, cue(i, "poco") - 0.1), 54, -1);
+        o += title(t, "HABLAS TAÍNO", cue(i, "hablas"), END(i) + 0.2, 300, 110, RED);
+        return o;
+      }
+
+      function sNext(t) {
+        const i = 7;
+        const extra = check(t, PART, prog(t, at(i, 0.1), at(i, 0.35)), 831);
+        let o = `<rect width="1080" height="1920" fill="#e7f0e1"/><g transform="translate(151 20) scale(0.72)">${sCover(t, 0, extra, prog(t, at(i, 0.1), at(i, 0.35)))}</g>`;
+        const th = kf(t, [[at(i, 0.25), 0], [at(i, 0.45), 1, "back"]]) * (1 + 0.06 * Math.max(0, Math.sin((t - at(i, 0.45)) * 6)));
+        if (th > 0.01) o += `<g transform="translate(540 1650) scale(${(th * 0.9).toFixed(3)}) rotate(-8)">` +
+          `<rect x="-118" y="-8" width="44" height="130" rx="12" fill="#1f6fb2" stroke="#1f1f1f" stroke-width="7"/>` +
+          `<path d="M-70 -6 L-40 -6 L-10 -92 Q2 -122 30 -108 Q46 -96 38 -64 L30 -10 L84 -10 Q112 -10 108 18 L96 104 Q92 124 70 124 L-70 124Z" fill="#ffd23f" stroke="#1f1f1f" stroke-width="7" stroke-linejoin="round"/>` +
+          `<path d="M42 30 L100 30 M38 64 L98 64 M40 96 L92 96" stroke="#1f1f1f" stroke-width="5" stroke-linecap="round"/></g>`;
+        o += title(t, "¡DALE LIKE!", at(i, 0.2), DUR + 1, 1560, 96, C.red);
+        return o;
+      }
+
+      const SCENES = [sHook, sIslands, sLife, sColon, sMines, sHatuey, sToday, sNext];
+      function renderAt(t) {
+        let o;
+        if (t < BLOCKS[0][0]) o = sCover(t, prog(t, BLOCKS[0][0] - 0.45, BLOCKS[0][0], "in")) + title(t, "4", BLOCKS[0][0] - 0.5, BLOCKS[0][0] + 0.05, 1600, 200, RED);
+        else {
+          let i = BLOCKS.findIndex(([a, b]) => t < b);
+          if (i < 0) i = BLOCKS.length - 1;
+          o = SCENES[i](t);
+        }
+        layer.innerHTML = o + captions(t);
+      }
+
+      window.addEventListener("hf-seek", (e) => renderAt(e.detail.time));
+      const tl = gsap.timeline({ paused: true });
+      const clock = { t: 0 };
+      tl.to(clock, { t: DUR, duration: DUR, ease: "none", onUpdate: () => renderAt(clock.t) }, 0);
+      window.__timelines = window.__timelines || {};
+      window.__timelines["main"] = tl;
+      renderAt(0);
+    </script>
+  </body>
+</html>
