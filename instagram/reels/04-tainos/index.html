@@ -22,9 +22,10 @@
     <!-- Siglos en Palitos — Short 4: LAS CIVILIZACIONES DE AMÉRICA, parte 4: LOS TAÍNOS.
          Guion: instagram/guiones/04-tainos.md. Every visual starts on the word that names it
          (cue), so voice/tools/sincronizar.py can retime the whole Short from the voice. -->
-    <div id="root" data-composition-id="main" data-start="0" data-duration="82.35" data-width="1080" data-height="1920">
+    <div id="root" data-composition-id="main" data-start="0" data-duration="84.86" data-width="1080" data-height="1920">
       <audio id="titulo" src="assets/titulo.mp3" data-start="0.25" data-track-index="3" data-volume="1"></audio>
-      <svg id="stage" class="clip" data-start="0" data-duration="82.35" data-track-index="0" data-layout-allow-overflow
+      <audio id="narracion" src="assets/narracion.mp3" data-start="2.55" data-track-index="2" data-volume="1"></audio>
+      <svg id="stage" class="clip" data-start="0" data-duration="84.86" data-track-index="0" data-layout-allow-overflow
         viewBox="0 0 1080 1920" xmlns="http://www.w3.org/2000/svg">
         <defs>
           <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
@@ -42,31 +43,33 @@
       const R = window.Rig;
       R.setStill(true);
       const { kf, prog, C } = R;
-      const DUR = 82.35, W = 1080, GROUND = 1250;
+      const DUR = 84.86, W = 1080, GROUND = 1250;
       const GOLD = "#e8b330", GOLD_DARK = "#b8860b", STEEL = "#8a96a3", RED = "#c62828", BLUE = "#1f6fb2", GREEN = "#2e9e5b", SKIN = "#c98f68", SEA = "#3fa7d6";
       const layer = document.getElementById("layer");
       const FONT = R.FONT;
 
       // ---------- narration blocks (seconds) ----------
       const BLOCKS = [
-        [2.55, 12.97, "¿Sabías que los taínos nunca desaparecieron? 500 años después de Colón, el 61% de los puertorriqueños todavía lleva su ADN. ¿Por qué nunca te lo contaron?"],
-        [12.97, 24.16, "Hoy vemos su historia. Los taínos vivían en las islas del Caribe: Cuba, Puerto Rico, Jamaica y La Española, la isla que hoy comparten Haití y República Dominicana."],
-        [24.16, 32.68, "Cultivaban yuca y maíz. Pescaban en canoas, dormían en hamacas. Al dios de las tormentas lo llamaban Juracán. ¿Reconoces estas palabras?"],
-        [32.68, 41.95, "En 1492 fueron los primeros en recibir a Colón: le regalaron loros y algodón. Él anotó en su diario que serían buenos sirvientes."],
-        [41.95, 48.94, "Y así fue: los obligaron a trabajar en minas y campos, y llegaron enfermedades como la viruela."],
-        [48.94, 63.57, "Algunos resistieron a esta esclavitud, como el cacique Hatuey, que huyó a Cuba para advertir a los demás. Lo capturaron y lo quemaron. Antes de morir, dijo que no quería ir al cielo si allí había cristianos."],
-        [63.57, 78.95, "Por eso te dijeron que se extinguieron. Pero en 2003, un estudio encontró que 6 de cada 10 puertorriqueños llevan ADN indígena por parte de madre. Y cada vez que dices hamaca o huracán, hablas un poco de taíno."],
-        [78.95, 81.35, "Si te gustó, dale like."],
+        [2.5, 14.73, "¿Sabías que los taínos nunca desaparecieron? 500 años después de Colón, el 61% de los puertorriqueños todavía lleva su ADN. ¿Por qué nunca te lo contaron?"],
+        [14.73, 26.53, "Hoy vemos su historia. Los taínos vivían en las islas del Caribe: Cuba, Puerto Rico, Jamaica y La Española, la isla que hoy comparten Haití y República Dominicana."],
+        [26.53, 37.01, "Cultivaban yuca y maíz. Pescaban en canoas, dormían en hamacas. Al dios de las tormentas lo llamaban Juracán. ¿Reconoces estas palabras?"],
+        [37.01, 46.96, "En 1492 fueron los primeros en recibir a Colón: le regalaron loros y algodón. Él anotó en su diario que serían buenos sirvientes."],
+        [46.96, 53.02, "Y así fue: los obligaron a trabajar en minas y campos, y llegaron enfermedades como la viruela."],
+        [53.02, 66.19, "Algunos resistieron a esta esclavitud, como el cacique Hatuey, que huyó a Cuba para advertir a los demás. Lo capturaron y lo quemaron. Antes de morir, dijo que no quería ir al cielo si allí había cristianos."],
+        [66.19, 81.37, "Por eso te dijeron que se extinguieron. Pero en 2003, un estudio encontró que 6 de cada 10 puertorriqueños llevan ADN indígena por parte de madre. Y cada vez que dices hamaca o huracán, hablas un poco de taíno."],
+        [81.37, 83.86, "Si te gustó, dale like."],
       ];
       const KEY = new Set(["taínos", "desaparecieron", "500", "colón", "61", "adn", "caribe", "cuba", "puerto", "rico", "jamaica", "española", "haití", "yuca", "maíz", "canoas", "hamacas", "juracán", "palabras", "1492", "loros", "algodón", "sirvientes", "minas", "viruela", "resistieron", "hatuey", "cielo", "cristianos", "extinguieron", "2003", "6", "10", "hamaca", "huracán", "taíno", "like"]);
       // time at fraction f (0..1) of narration block i
       const at = (i, f) => BLOCKS[i][0] + f * (BLOCKS[i][1] - BLOCKS[i][0]);
 
+      // start time of every caption word, from the ElevenLabs narration (seconds)
+      const WT = [2.55, 2.91, 3.05, 3.19, 3.763, 4.29, 5.573, 6.293, 6.599, 7.002, 7.149, 7.936, 8.029, 9.162, 9.289, 9.402, 10.369, 11.013, 11.456, 11.789, 12.954, 13.303, 13.416, 13.71, 13.816, 13.971, 14.783, 15.352, 15.739, 15.854, 16.724, 17.11, 17.497, 17.91, 18.057, 18.23, 18.537, 18.697, 19.681, 20.086, 20.577, 21.137, 21.777, 21.91, 22.07, 23.004, 23.137, 23.417, 23.557, 23.665, 24.337, 24.857, 25.057, 25.667, 26.577, 27.448, 27.828, 27.928, 28.568, 29.235, 29.348, 30.152, 30.701, 30.828, 31.715, 32.079, 32.293, 32.386, 32.556, 33.093, 33.194, 33.806, 35.071, 35.965, 36.218, 37.057, 37.393, 39.033, 39.533, 39.65, 40.1, 40.203, 40.593, 40.693, 41.62, 41.733, 42.373, 42.753, 42.833, 43.752, 44.117, 44.437, 44.517, 44.623, 45.07, 45.19, 45.658, 45.99, 47.01, 47.35, 47.59, 48.29, 48.45, 48.93, 49.014, 49.397, 49.53, 49.89, 49.999, 50.69, 50.778, 51.183, 51.898, 52.117, 52.23, 53.073, 53.756, 54.379, 54.451, 54.632, 55.507, 55.726, 55.819, 56.239, 56.919, 57.039, 57.279, 57.379, 57.747, 57.996, 58.459, 58.539, 58.699, 59.406, 59.764, 60.54, 60.713, 60.868, 61.72, 62.244, 62.337, 62.921, 63.197, 63.31, 63.449, 63.79, 63.924, 64.03, 64.377, 64.577, 64.844, 65.217, 66.237, 66.59, 66.823, 66.97, 67.29, 67.437, 67.53, 68.559, 68.906, 68.999, 69.946, 70.049, 70.449, 70.919, 71.119, 71.492, 71.663, 71.979, 72.266, 73.183, 73.759, 74.579, 75.259, 75.492, 75.786, 75.906, 76.621, 76.906, 77.202, 77.342, 77.482, 77.902, 78.642, 78.822, 79.682, 80.015, 80.17, 80.415, 80.575, 81.419, 81.756, 81.927, 82.623, 83.015];
       const WORDS = [];
       BLOCKS.forEach(([a, b, txt]) => {
         const ws = txt.split(/\s+/);
         const span = (b - 0.35 - a) / ws.length;
-        ws.forEach((w, i) => WORDS.push({ w, t: a + i * span, key: KEY.has(w.toLowerCase().replace(/[^\wáéíóúñü]/g, "")) }));
+        ws.forEach((w, i) => WORDS.push({ w, t: WT[WORDS.length] ?? a + i * span, key: KEY.has(w.toLowerCase().replace(/[^\wáéíóúñü]/g, "")) }));
       });
       // captions: chunks of 3 words, word by word; keywords in yellow
       function captions(t) {

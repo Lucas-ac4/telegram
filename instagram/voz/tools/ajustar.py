@@ -1,6 +1,6 @@
 """Acorta los silencios largos de la narración y ajusta la velocidad para llegar a una duración objetivo.
 
-Uso: python3 ajustar.py <narracion.mp3> <tiempos.json> <duración_objetivo_s>
+Uso: python3 ajustar.py <narracion.mp3> <tiempos.json> <duración_objetivo_s> [pausa_s=0.38]
 Reescribe el mp3 y los tiempos (cada palabra se mueve junto con el audio).
 """
 import json, re, subprocess, sys, shutil
@@ -12,10 +12,10 @@ def silences(mp3):
     en = [float(x) for x in re.findall(r"silence_end: ([\d.]+)", out)]
     return list(zip(st, en))
 
-def main(mp3, tj, target):
-    target = float(target)
+def main(mp3, tj, target, keep=0.38):
+    target, keep = float(target), float(keep)
     T = json.load(open(tj))
-    cuts, keep = [], 0.38  # each pause keeps ~0.38 s (a short, natural breath)
+    cuts = []  # each pause keeps `keep` seconds (a short, natural breath)
     for a, b in silences(mp3):
         if b - a > keep + 0.05 and a > 0.05:
             cuts.append((a + keep / 2, b - keep / 2))
@@ -37,4 +37,4 @@ def main(mp3, tj, target):
     print(f"silencio quitado {removed:.1f}s, velocidad x{tempo:.3f}, duración final {T['end']:.1f}s")
 
 if __name__ == "__main__":
-    main(*sys.argv[1:4])
+    main(*sys.argv[1:5])

@@ -15,13 +15,18 @@ NUM = {"168": "ciento sesenta y ocho", "1532": "mil quinientos treinta y dos",
        "1978": "mil novecientos setenta y ocho", "500": "quinientos",
        "2012": "dos mil doce", "900": "novecientos", "99.999": "noventa y nueve mil novecientos noventa y nueve",
        "100.000": "cien mil", "175": "ciento setenta y cinco", "1697": "mil seiscientos noventa y siete",
-       "1562": "mil quinientos sesenta y dos", "30": "treinta"}
+       "1562": "mil quinientos sesenta y dos", "30": "treinta",
+       "61": "sesenta y uno", "1492": "mil cuatrocientos noventa y dos", "2003": "dos mil tres", "6": "seis", "10": "diez"}
+# whole words the voice should read a certain way (punctuation is kept)
+SAY = {"ADN": "a de ene"}
 # emotion tags for eleven_v3, inserted before a block that starts with these words (not shown in captions)
 TAGS = {"Eso sí, eran unos genios": "[excited] "}
 
 def spoken(word):
+    core = word.strip("¿?¡!,.;:")
+    if core in SAY: return word.replace(core, SAY[core])
     m = re.match(r"^([¿¡(]*)(\d[\d.]*\d|\d)([^\d]*)$", word)
-    return m.group(1) + NUM[m.group(2)] + m.group(3) if m and m.group(2) in NUM else word
+    return m.group(1) + NUM[m.group(2)] + m.group(3).replace("%", " por ciento") if m and m.group(2) in NUM else word
 
 def main(html, out_mp3, out_json, model="eleven_v3", speed=1.0):
     src = open(html, encoding="utf-8").read()
