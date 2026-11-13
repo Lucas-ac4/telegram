@@ -1,5 +1,14 @@
 # Short 5: LAS CIVILIZACIONES DE AMÉRICA, parte 5: LOS MAPUCHES
 
+## ✅ Versión final de Lucas (la que se anima)
+
+Hook (76 STRONG): Crees que España conquistó toda América. Pero los españoles nunca vencieron a los mapuches: resistieron 300 años. ¿Por qué nunca te lo contaron?
+Cambios de Lucas: se sacó "Valdivia no volvió con vida"; el casco de Valdivia aparece cuando Lautaro lo vence. 223 palabras.
+
+---
+
+## Historial: primera versión
+
 Canal: **Siglos en Palitos**. Formato: vertical 9:16, voz en off + subtítulos palabra por palabra.
 
 ## Hooks (hookscore.py, traducción al inglés)

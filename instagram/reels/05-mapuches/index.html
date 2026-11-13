@@ -1,0 +1,482 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1080, height=1920" />
+    <script src="assets/gsap.min.js"></script>
+    <script src="assets/rig.js"></script>
+    <style>
+      @font-face {
+        font-family: "Shantell Sans";
+        src: url("assets/fonts/ShantellSans-latin.woff2") format("woff2");
+        font-weight: 300 800;
+        font-display: block;
+      }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1080px; height: 1920px; overflow: hidden; background: #e7f0e1; }
+      #root { position: relative; width: 100%; height: 100%; background: #e7f0e1; }
+      #stage { position: absolute; left: 0; top: 0; width: 1080px; height: 1920px; }
+    </style>
+  </head>
+  <body>
+    <!-- Siglos en Palitos — Short 5: LAS CIVILIZACIONES DE AMÉRICA, parte 5: LOS MAPUCHES.
+         Guion: instagram/guiones/05-mapuches.md. Every visual starts on the word that names it
+         (cue), so voice/tools/sincronizar.py can retime the whole Short from the voice. -->
+    <div id="root" data-composition-id="main" data-start="0" data-duration="93.16" data-width="1080" data-height="1920">
+      <audio id="titulo" src="assets/titulo.mp3" data-start="0.25" data-track-index="3" data-volume="1"></audio>
+      <svg id="stage" class="clip" data-start="0" data-duration="93.16" data-track-index="0" data-layout-allow-overflow
+        viewBox="0 0 1080 1920" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#9fd3f0" /><stop offset="1" stop-color="#e9f5fb" />
+          </linearGradient>
+          <linearGradient id="dusk" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#e8692c" /><stop offset="1" stop-color="#ffc06a" />
+          </linearGradient>
+          <filter id="sil"><feColorMatrix type="matrix" values="0 0 0 0 0.12  0 0 0 0 0.1  0 0 0 0 0.1  0 0 0 1 0" /></filter>
+        </defs>
+        <g id="layer"></g>
+      </svg>
+    </div>
+    <script>
+      const R = window.Rig;
+      R.setStill(true);
+      const { kf, prog, C } = R;
+      const DUR = 93.16, W = 1080, GROUND = 1250;
+      const GOLD = "#e8b330", GOLD_DARK = "#b8860b", STEEL = "#8a96a3", RED = "#c62828", BLUE = "#1f6fb2", GREEN = "#2e9e5b", SKIN = "#c98f68", SEA = "#3fa7d6", SKIN2 = "#c98f68";
+      const layer = document.getElementById("layer");
+      const FONT = R.FONT;
+
+      // ---------- narration blocks (seconds) ----------
+      const BLOCKS = [
+        [2.55, 11.83, "Crees que España conquistó toda América. Pero los españoles nunca vencieron a los mapuches: resistieron 300 años. ¿Por qué nunca te lo contaron?"],
+        [11.83, 22.63, "Hoy vemos su historia. Mapuche significa \"gente de la tierra\". Vivían en el sur de lo que hoy es Chile y Argentina, entre bosques, ríos y volcanes."],
+        [22.63, 31.53, "Primero llegaron los incas, el imperio más grande de América. Avanzaron hasta el centro de Chile, y ahí los mapuches los frenaron."],
+        [31.53, 41.19, "En 1541 llegó el español Pedro de Valdivia y fundó Santiago. Quería todo el sur, y tenía un problema: un joven mapuche llamado Lautaro."],
+        [41.19, 54.29, "Lautaro había sido su sirviente. Le cuidaba los caballos y aprendió cómo peleaban los españoles. Se escapó, volvió con su gente, y en 1553, con unos 19 años, venció a Valdivia en Tucapel."],
+        [54.29, 65.47, "Los mapuches aprendieron a montar a caballo tan bien como los españoles. En 1598 los vencieron en Curalaba, y las ciudades españolas del sur quedaron destruidas o abandonadas."],
+        [65.47, 77.81, "En 1641, España tuvo que firmar un acuerdo con ellos: el río Biobío sería la frontera. Eso casi nunca se cuenta: el imperio más poderoso del mundo les reconoció su tierra."],
+        [77.81, 89.76, "Resistieron hasta la década de 1880, cuando Chile y Argentina ocuparon sus tierras. Y no desaparecieron: hoy más de un millón y medio de personas en Chile se reconocen mapuche."],
+        [89.76, 92.16, "Si te gustó, dale like."],
+      ];
+      const KEY = new Set(["españa", "américa", "mapuches", "nunca", "300", "mapuche", "tierra", "gente", "chile", "argentina", "volcanes", "incas", "frenaron", "1541", "valdivia", "santiago", "sur", "lautaro", "sirviente", "caballos", "escapó", "1553", "19", "venció", "tucapel", "caballo", "1598", "curalaba", "destruidas", "1641", "biobío", "frontera", "tierra", "1880", "millón", "like"]);
+      // time at fraction f (0..1) of narration block i
+      const at = (i, f) => BLOCKS[i][0] + f * (BLOCKS[i][1] - BLOCKS[i][0]);
+
+      const WORDS = [];
+      BLOCKS.forEach(([a, b, txt]) => {
+        const ws = txt.split(/\s+/);
+        const span = (b - 0.35 - a) / ws.length;
+        ws.forEach((w, i) => WORDS.push({ w, t: a + i * span, key: KEY.has(w.toLowerCase().replace(/[^\wáéíóúñü]/g, "")) }));
+      });
+      // captions: chunks of 3 words, word by word; keywords in yellow
+      function captions(t) {
+        let idx = -1;
+        for (let i = 0; i < WORDS.length; i++) if (WORDS[i].t <= t) idx = i;
+        if (idx < 0) return "";
+        const blockEnd = BLOCKS.find(([a, b]) => t >= a && t < b);
+        if (!blockEnd) return "";
+        const c0 = idx - (idx % 3), chunk = WORDS.slice(c0, c0 + 3).filter((w) => w.t >= blockEnd[0] - 0.01);
+        if (!chunk.length) return "";
+        const esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;");
+        const spans = chunk.filter((w, i) => c0 + i <= idx).map((w) => `<tspan fill="${w.key ? "#ffd23f" : "#ffffff"}">${esc(w.w)} </tspan>`).join("");
+        const chars = chunk.map((w) => w.w).join(" ").length, fit = Math.min(1, 1000 / (chars * 40));
+        const pop = fit * (1 + 0.06 * (1 - prog(t, WORDS[idx].t, WORDS[idx].t + 0.12, "out")));
+        return `<g transform="translate(540 1440) scale(${pop.toFixed(3)})"><text x="0" y="0" text-anchor="middle" font-family="${FONT}" font-weight="800" font-size="70" stroke="#1f1f1f" stroke-width="12" paint-order="stroke" stroke-linejoin="round">${spans}</text></g>`;
+      }
+      function title(t, txt, a, b, y = 270, size = 92, fill = "#1f1f1f") {
+        const sc = kf(t, [[a, 0], [a + 0.3, 1, "back"], [b - 0.25, 1], [b, 0, "in"]]);
+        if (sc <= 0.01) return "";
+        return `<g transform="translate(540 ${y}) scale(${sc.toFixed(3)})"><text x="0" y="0" text-anchor="middle" font-family="${FONT}" font-weight="800" font-size="${size}" fill="${fill}" stroke="#ffffff" stroke-width="14" paint-order="stroke" stroke-linejoin="round">${txt}</text></g>`;
+      }
+      function pop(t, a) { return kf(t, [[a, 0], [a + 0.3, 1, "back"]]); }
+      function popIn(p, t, a) { const k = pop(t, a); p.squash = (p.squash || 0) + (1 - k) * 0.5; p.y += (1 - k) * 40; return k > 0.01; }
+      function cross(t, x, y, pr, seed, sz = 80) {
+        return R.scribble(t, [[x - sz, y - sz], [x + sz, y + sz]], prog(pr, 0, 0.5), C.red, 16, seed) + R.scribble(t, [[x + sz, y - sz], [x - sz, y + sz]], prog(pr, 0.5, 1), C.red, 16, seed + 1);
+      }
+
+      // the six parts of the series, in order (indigenous look, v2)
+      const SK = "#c98f68", HAIR = "#1f1f1f", SANDAL = "#a87b4f";
+      const CIVS = [
+        ["Incas", { hair: HAIR, hat: "mascaipacha", earSpools: true, tunic: { fill: "#c62828", band: ["#e8b330", "#1f1f1f"] }, skin: "#d9a37a", legs: "#d9a37a", shoe: SANDAL }],
+        ["Mexicas", { bare: true, hair: HAIR, legs: SK, shoe: SANDAL, skin: SK, hat: "plumes", plumes: ["#2e9e5b", "#d7263d", "#1f6fb2", "#ffd23f", "#d7263d", "#1f6fb2", "#2e9e5b"], hatColor: "#e8b330", cape: "#1f6fb2", loin: "#f2e6c9", shield: "#c62828", necklace: "#e8b330" }],
+        ["Mayas", { bare: true, hair: HAIR, legs: SK, shoe: SANDAL, skin: SK, hat: "plumes", plumes: ["#2e9e5b", "#1f6fb2", "#2e9e5b", "#1f6fb2", "#2e9e5b"], hatColor: "#2e9e5b", necklace: "#3fbf7f", loin: "#2e9e5b", facePaint: "#1f6fb2", paint: "#1f6fb2" }],
+        ["Taínos", { bare: true, hair: HAIR, legs: SK, shoe: SANDAL, skin: SK, hat: "band", hatColor: "#e07b39", plumes: ["#c62828"], paint: "#c62828", facePaint: "#1f1f1f", chestDisc: true, loin: "#c9a46b" }],
+        ["Mapuches", { hair: HAIR, hat: "band", hatColor: "#c0c6cc", tunic: { fill: "#1f3d7a", band: ["#f2f2f2", "#c62828"] }, skin: SK, legs: SK, shoe: SANDAL }],
+        ["Guaraníes", { bare: true, hair: HAIR, legs: SK, shoe: SANDAL, skin: SK, hat: "plumes", plumes: ["#ffd23f", "#d7263d", "#ffd23f", "#d7263d", "#ffd23f"], hatColor: "#e07b39", paint: "#1f1f1f", facePaint: "#c62828", bow: true, loin: "#c9a46b" }],
+      ];
+      const PART = 4; // index of this Short in CIVS
+      const cellXY = (i) => [300 + (i % 2) * 480, 760 + Math.floor(i / 2) * 420];
+      function check(t, i, pr, seed) {
+        const [x, y] = cellXY(i);
+        return R.scribble(t, [[x - 70, y - 90], [x - 10, y - 30], [x + 110, y - 190]], pr, "#2e9e5b", 18, seed);
+      }
+      // labels show only the number; parts already seen show "N. Name";
+      // this Short's own name appears at the end (reveal 0..1)
+      function sCover(t, zoom, extra = "", reveal = 0) {
+        if (typeof extra === "object") extra = extra.extra || "";
+        let g = BG_SOFT + `<text x="540" y="250" text-anchor="middle" font-family="${FONT}" font-weight="800" font-size="74" fill="#1f1f1f">LAS CIVILIZACIONES</text><text x="540" y="345" text-anchor="middle" font-family="${FONT}" font-weight="800" font-size="74" fill="#c62828">DE AMÉRICA</text>`;
+        CIVS.forEach(([name, o], i) => {
+          const [cx, cy] = cellXY(i), hl = i === PART;
+          g += `<rect x="${cx - 215}" y="${cy - 290}" width="430" height="390" rx="30" fill="${hl ? "#fff3cf" : "#ffffff"}" stroke="#1f1f1f" stroke-width="${hl ? 7 : 4}"/>`;
+          g += R.chibi(t, { x: cx, y: cy + 22, s: 0.9, seed: 300 + i, look: 0.1, mouth: 0.35, ...R.walk(0, 0), ...o });
+          const named = i < PART || (i === PART && reveal > 0.5);
+          const pk = i === PART && reveal > 0.5 ? 1 + 0.3 * (1 - prog(reveal, 0.5, 1, "out")) : 1;
+          g += `<text x="${cx}" y="${cy + 80}" text-anchor="middle" font-family="${FONT}" font-weight="800" font-size="${((named ? 44 : 58) * pk).toFixed(1)}" fill="#1f1f1f">${named ? `${i + 1}. ${name}` : `${i + 1}`}</text>`;
+        });
+        for (let i = 0; i < PART; i++) g += check(t, i, 1, 810 + i * 3);
+        g += extra;
+        const [zx, zy] = cellXY(PART), z = 1 + zoom * 1.6;
+        return `<g transform="translate(${(zx - zx * z).toFixed(1)} ${(zy - 150 - (zy - 150) * z).toFixed(1)}) scale(${z.toFixed(3)})">${g}</g>` +
+          `<text x="540" y="1860" text-anchor="middle" font-family="${FONT}" font-weight="800" font-size="40" fill="#1f1f1f" opacity="${(1 - zoom).toFixed(2)}">Siglos en Palitos</text>`;
+      }
+
+      // ---------- word cues: each visual starts on the word that names it ----------
+      const norm = (w) => w.toLowerCase().replace(/[¿?¡!,;:"]/g, "").replace(/\.$/, "");
+      function cue(i, word, n = 1) {
+        const [a, b] = BLOCKS[i];
+        let c = 0;
+        for (const w of WORDS) if (w.t >= a - 0.01 && w.t < b && norm(w.w).startsWith(norm(word))) { c++; if (c === n) return w.t; }
+        return a;
+      }
+      const END = (i) => BLOCKS[i][1];
+
+      // ---------- backdrops ----------
+      const BG_SOFT = `<rect width="1080" height="1920" fill="#e7f0e1"/>`;
+      const MAP_SEA = "#7cc0e8", LAND = "#e9dcb4", ESP = "#c62828", MAPU = "#1f3d7a";
+      // the south: snowy volcano, araucarias, a river
+      function BG_SOUTH(t, o = {}) {
+        let g = `<rect width="1080" height="1920" fill="url(#sky)"/>`;
+        g += `<path d="M380 ${GROUND - 120} L620 560 L860 ${GROUND - 120}Z" fill="#8fa1b5" stroke="#1f1f1f" stroke-width="6" stroke-linejoin="round"/><path d="M560 660 L620 560 L680 660 L650 690 L620 660 L590 690Z" fill="#ffffff" stroke="#1f1f1f" stroke-width="5" stroke-linejoin="round"/>`;
+        if (o.smoke) g += `<path d="M620 540 q-30 -40 0 -80 q30 -40 0 -80" stroke="#b9c7d6" stroke-width="22" fill="none" stroke-linecap="round" opacity="0.8"/>`;
+        g += `<path d="M0 ${GROUND - 160} Q300 ${GROUND - 220} 560 ${GROUND - 170} T1080 ${GROUND - 180} L1080 1920 L0 1920Z" fill="#7fb36a" stroke="#1f1f1f" stroke-width="5"/>`;
+        g += `<rect x="0" y="${GROUND}" width="1080" height="${1920 - GROUND}" fill="#6f9f58"/>`;
+        if (o.river) g += `<path d="M0 ${GROUND + 70} Q540 ${GROUND + 20} 1080 ${GROUND + 90} L1080 ${GROUND + 190} Q540 ${GROUND + 120} 0 ${GROUND + 170}Z" fill="#5aa7d6" stroke="#1f1f1f" stroke-width="5"/>`;
+        (o.trees || [[110, GROUND - 120, 1], [960, GROUND - 130, 0.9]]).forEach(([x, y, s]) => (g += araucaria(x, y, s)));
+        return g;
+      }
+      function araucaria(x, y, s) {
+        let g = `<path d="M0 0 L0 -330" stroke="#6b4a2f" stroke-width="18"/>`;
+        [[-330, 120], [-280, 150], [-230, 170]].forEach(([yy, w]) => (g += `<path d="M${-w} ${yy + 30} Q0 ${yy - 50} ${w} ${yy + 30} Q0 ${yy + 5} ${-w} ${yy + 30}Z" fill="#2f6b3a" stroke="#1f1f1f" stroke-width="5" stroke-linejoin="round"/>`));
+        return `<g transform="translate(${x} ${y}) scale(${s})">${g}</g>`;
+      }
+      function ruka(x, y, s) {
+        return `<g transform="translate(${x} ${y}) scale(${s})"><path d="M-170 0 Q-170 -190 0 -230 Q170 -190 170 0Z" fill="#c9a46b" stroke="#1f1f1f" stroke-width="6"/><path d="M-120 -40 Q-110 -150 0 -180 M120 -40 Q110 -150 0 -180 M-60 -20 Q-50 -150 0 -200 M60 -20 Q50 -150 0 -200" stroke="#9a7a45" stroke-width="5" fill="none"/><path d="M-36 0 L-36 -80 Q0 -100 36 -80 L36 0Z" fill="#3a2a20" stroke="#1f1f1f" stroke-width="5"/></g>`;
+      }
+      function word(x, y, txt, k, col = "#1f1f1f", size = 76) {
+        if (k <= 0.01) return "";
+        return `<g transform="translate(${x} ${y}) scale(${k.toFixed(3)})"><text x="0" y="0" text-anchor="middle" font-family="${FONT}" font-weight="800" font-size="${size}" fill="${col}" stroke="#fff" stroke-width="12" paint-order="stroke" stroke-linejoin="round">${txt}</text></g>`;
+      }
+      function thought(x, y, k, inner) {
+        if (k <= 0.01) return "";
+        return `<g transform="translate(${x} ${y}) scale(${k.toFixed(3)})"><circle cx="-150" cy="170" r="16" fill="#fff" stroke="#1f1f1f" stroke-width="5"/><circle cx="-110" cy="125" r="24" fill="#fff" stroke="#1f1f1f" stroke-width="5"/><ellipse cx="0" cy="0" rx="230" ry="130" fill="#fff" stroke="#1f1f1f" stroke-width="6"/>${inner}</g>`;
+      }
+      // a cartoon horse standing on (x, y); run 0..1 gallops the legs
+      function horse(t, x, y, s, f = 1, run = 0, col = "#8a5a32") {
+        const ph = t * 12;
+        const leg = (lx, k) => { const a = run * 0.55 * Math.sin(ph + k * 1.6); return `<path d="M${lx} -120 L${(lx + Math.sin(a) * 110).toFixed(1)} ${(-120 + Math.cos(a) * 110).toFixed(1)}" stroke="#1f1f1f" stroke-width="22" stroke-linecap="round"/><path d="M${lx} -120 L${(lx + Math.sin(a) * 110).toFixed(1)} ${(-120 + Math.cos(a) * 110).toFixed(1)}" stroke="${col}" stroke-width="14" stroke-linecap="round"/>`; };
+        const bob = -Math.abs(Math.sin(ph)) * 14 * run;
+        let g = `<g transform="translate(0 ${bob.toFixed(1)})">`;
+        g += leg(-70, 0) + leg(80, 2);
+        g += `<path d="M-120 -170 Q-190 -150 -180 -60" stroke="#1f1f1f" stroke-width="20" fill="none" stroke-linecap="round"/>`;
+        g += `<ellipse cx="0" cy="-160" rx="135" ry="62" fill="${col}" stroke="#1f1f1f" stroke-width="7"/>`;
+        g += `<path d="M90 -190 L140 -300 L190 -290 L150 -170Z" fill="${col}" stroke="#1f1f1f" stroke-width="7" stroke-linejoin="round"/>`;
+        g += `<ellipse cx="185" cy="-292" rx="58" ry="32" transform="rotate(20 185 -292)" fill="${col}" stroke="#1f1f1f" stroke-width="7"/><circle cx="182" cy="-305" r="7" fill="#1f1f1f"/><path d="M148 -330 L156 -362 L170 -326" fill="${col}" stroke="#1f1f1f" stroke-width="5"/>`;
+        g += `<path d="M135 -300 Q110 -250 100 -195" stroke="#2a1a10" stroke-width="16" fill="none" stroke-linecap="round"/>`;
+        g += leg(-40, 3) + leg(110, 5) + `</g>`;
+        return `<g transform="translate(${x} ${y}) scale(${(s * f).toFixed(3)} ${s})">${g}</g>`;
+      }
+      // a rider: the chibi sits on the horse's back, the body hides the legs
+      function rider(t, x, y, s, f, run, p) {
+        const by = Math.abs(Math.sin(t * 12)) * 14 * run * s;
+        return R.chibi(t, { ...p, x: x - f * 10 * s, y: y - 175 * s - by, s: 0.95 * s, f, legF: { a: 0.9, b: 0.6 }, legB: { a: -0.9, b: 0.6 } }) + horse(t, x, y, s, f, run);
+      }
+      function helmet(x, y, s, rot = 0) {
+        return `<g transform="translate(${x} ${y}) scale(${s}) rotate(${rot})"><path d="M-90 0 Q-60 -20 0 -18 Q60 -20 90 0 Q60 10 0 8 Q-60 10 -90 0Z" fill="#9aa6b2" stroke="#1f1f1f" stroke-width="6"/><path d="M-55 -14 Q-50 -90 0 -95 Q50 -90 55 -14Z" fill="#b3bdc7" stroke="#1f1f1f" stroke-width="6"/><path d="M0 -95 L0 -125 Q20 -110 40 -118" stroke="#1f1f1f" stroke-width="6" fill="none"/></g>`;
+      }
+      function kultrun(t, x, y, s) {
+        if (s <= 0.01) return "";
+        let g = `<ellipse cx="0" cy="40" rx="150" ry="40" fill="#8a5a32" stroke="#1f1f1f" stroke-width="6"/><circle r="150" fill="#f4ede0" stroke="#1f1f1f" stroke-width="8"/>`;
+        g += `<path d="M-150 0 L150 0 M0 -150 L0 150" stroke="#1f6fb2" stroke-width="12"/>`;
+        [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([a, b]) => (g += `<circle cx="${a * 70}" cy="${b * 70}" r="20" fill="none" stroke="#1f6fb2" stroke-width="9"/>`));
+        [[0, -150], [0, 150], [-150, 0], [150, 0]].forEach(([a, b]) => (g += `<path d="M${a - 18} ${b} L${a + 18} ${b} M${a} ${b - 18} L${a} ${b + 18}" stroke="#1f6fb2" stroke-width="9"/>`));
+        return `<g transform="translate(${x} ${y + Math.sin(t * 8) * 4}) scale(${s.toFixed(3)})">${g}</g>`;
+      }
+      function parchment(x, y, s, txt) {
+        if (s <= 0.01) return "";
+        return `<g transform="translate(${x} ${y}) scale(${s.toFixed(3)})"><rect x="-170" y="-110" width="340" height="220" fill="#f4ede0" stroke="#1f1f1f" stroke-width="6"/><circle cx="-170" cy="0" r="22" fill="#e8d7b0" stroke="#1f1f1f" stroke-width="5"/><circle cx="170" cy="0" r="22" fill="#e8d7b0" stroke="#1f1f1f" stroke-width="5"/><text x="0" y="-20" text-anchor="middle" font-family="${FONT}" font-weight="800" font-size="70" fill="${RED}">${txt}</text><path d="M-110 30 L110 30 M-110 62 L60 62" stroke="#b9ac90" stroke-width="7"/></g>`;
+      }
+
+      // ---------- maps (lon, lat), simplified ----------
+      const NAM = [[-168,66],[-156,71],[-130,70],[-110,73],[-90,70],[-80,64],[-75,60],[-62,58],[-56,52],[-66,45],[-70,42],[-76,38],[-81,31],[-80,26],[-82,29],[-90,30],[-97,27],[-97,22],[-92,18.5],[-87,21],[-88,16],[-84,15.5],[-83,11],[-79,9],[-81,7.5],[-85,10],[-88,13.5],[-92,14.5],[-96,16],[-105,20],[-106,23],[-112,29],[-115,32],[-118,34],[-124,40],[-124,48],[-133,56],[-140,60],[-150,60],[-158,57],[-165,60],[-162,64]];
+      const SAM = [[-79,9],[-75,11],[-71,12],[-63,10.5],[-60,8],[-52,5],[-50,0],[-44,-2],[-35,-5],[-35,-9],[-39,-14],[-39,-18],[-41,-22],[-48,-26],[-49,-29],[-53,-34],[-57,-36],[-57,-38],[-62,-39],[-65,-42],[-64,-46],[-68,-50],[-69,-52],[-67,-55],[-71,-54],[-74,-50],[-74,-44],[-73.6,-40],[-73.6,-37.5],[-73,-36],[-71.6,-33],[-71.4,-30],[-70.3,-18],[-76,-14],[-81,-6],[-80,-1],[-77,4],[-78,7]];
+      const pathOf = (pts, P) => `M${pts.map((p) => P(p).map((v) => v.toFixed(1)).join(" ")).join(" L")}Z`;
+      // the whole Americas
+      const AK = 6.6, AX0 = 70, AY0 = 470;
+      const ap = ([lon, lat]) => [AX0 + (lon + 170) * AK, AY0 + (75 - lat) * AK];
+      function americas(t, paint, south) {
+        const shapes = pathOf(NAM, ap) + " " + pathOf(SAM, ap);
+        const yStop = ap([0, -37.5])[1];
+        const yPaint = AY0 + (yStop - AY0) * paint;
+        let g = `<rect width="1080" height="1920" fill="${MAP_SEA}"/>`;
+        g += `<clipPath id="paintclip"><rect x="0" y="0" width="1080" height="${yPaint.toFixed(1)}"/></clipPath>`;
+        g += `<path d="${shapes}" fill="${LAND}" stroke="#1f1f1f" stroke-width="5" stroke-linejoin="round"/>`;
+        g += `<path d="${shapes}" fill="${ESP}" opacity="0.85" clip-path="url(#paintclip)"/>`;
+        if (south > 0.01) {
+          g += `<clipPath id="southclip"><rect x="0" y="${yStop.toFixed(1)}" width="1080" height="${(1920 - yStop).toFixed(1)}"/></clipPath>`;
+          g += `<path d="${pathOf(SAM, ap)}" fill="${MAPU}" opacity="${(0.9 * south).toFixed(2)}" clip-path="url(#southclip)"/>`;
+        }
+        return g;
+      }
+      // the southern cone, close up
+      const SK2 = 58, SX0 = 230, SY0 = 470;
+      const sp = ([lon, lat]) => [SX0 + (lon + 76) * SK2, SY0 + (-31 - lat) * SK2];
+      const CITIES = [[-73.0, -37.25], [-72.5, -37.6], [-72.6, -37.85], [-72.9, -38.75], [-72.1, -39.3], [-73.0, -39.8], [-72.9, -40.6]];
+      function southMap(t, o = {}) {
+        let g = `<rect width="1080" height="1920" fill="${MAP_SEA}"/>`;
+        g += `<path d="${pathOf(SAM, sp)}" fill="${LAND}" stroke="#1f1f1f" stroke-width="6" stroke-linejoin="round"/>`;
+        if (o.mapu > 0.01) {
+          g += `<clipPath id="mapuclip"><rect x="0" y="${sp([0, -37.3])[1].toFixed(1)}" width="1080" height="1920"/></clipPath>`;
+          g += `<path d="${pathOf(SAM, sp)}" fill="${MAPU}" opacity="${(0.75 * o.mapu).toFixed(2)}" clip-path="url(#mapuclip)"/>`;
+        }
+        // the Andes
+        for (let lat = -31; lat > -47; lat -= 1.1) { const [x, y] = sp([-70.4 - (lat < -40 ? 1.2 : 0), lat]); g += `<path d="M${x - 22} ${y + 18} L${x} ${y - 20} L${x + 22} ${y + 18}" fill="#a8916a" stroke="#1f1f1f" stroke-width="3"/>`; }
+        // the Biobío
+        const r0 = sp([-73.4, -36.8]), r1 = sp([-71.3, -37.7]);
+        g += `<path d="M${r0[0]} ${r0[1]} Q${(r0[0] + r1[0]) / 2} ${r0[1] + 40} ${r1[0]} ${r1[1]}" stroke="#1f6fb2" stroke-width="${o.river ? 14 : 8}" fill="none" stroke-linecap="round"/>`;
+        if (o.riverLabel > 0.01) g += word(r1[0] + 150, r1[1] - 10, "BIOBÍO", o.riverLabel, BLUE, 56);
+        if (o.santiago > 0.01) { const [x, y] = sp([-70.65, -33.45]); g += `<circle cx="${x}" cy="${y}" r="${18 * o.santiago}" fill="${ESP}" stroke="#1f1f1f" stroke-width="4"/>` + word(x + 140, y + 16, "Santiago", o.santiago, "#1f1f1f", 46); }
+        (o.cities || []).forEach((k, j) => {
+          if (k.on <= 0.01) return;
+          const [x, y] = sp(CITIES[j]);
+          const dead = k.off;
+          g += `<circle cx="${x}" cy="${y}" r="${(16 * k.on).toFixed(1)}" fill="${dead > 0.5 ? "#7a7a7a" : ESP}" stroke="#1f1f1f" stroke-width="4"/>`;
+          if (dead > 0.5) g += `<path d="M${x - 14} ${y - 14} L${x + 14} ${y + 14} M${x + 14} ${y - 14} L${x - 14} ${y + 14}" stroke="#1f1f1f" stroke-width="5"/>`;
+        });
+        g += word(sp([-70.5, -32])[0] + 90, sp([-70.5, -32])[1], "CHILE", o.labels || 0, "#1f1f1f", 44) + word(sp([-66, -35])[0], sp([-66, -35])[1], "ARGENTINA", o.labels || 0, "#1f1f1f", 44);
+        return g;
+      }
+
+      // ---------- characters ----------
+      const mapuche = (o) => ({ s: 1.3, f: 1, seed: 51, ...CIVS[4][1], look: 0.3, mouth: 0.4, ...R.walk(0, 0), ...o });
+      const lautaro = (o) => mapuche({ seed: 57, hatColor: "#c62828", ...o });
+      const spaniard = (o) => ({ s: 1.15, f: -1, seed: 31, hat: "morion", beard: "#8a8a8a", shoe: "#3a2a20", legs: "#5a4632", tunic: { fill: STEEL, sash: "#a51d2d" }, skin: "#f1c9a5", look: 0.8, mouth: 0.2, ...R.walk(0, 0), ...o });
+      const valdivia = (o) => spaniard({ seed: 33, beard: "#4a3426", tunic: { fill: "#8a96a3", sash: GOLD }, ...o });
+      const incaMini = (t, x, y, s, seed) => R.mini(t, x, y, s, { seed, cloth: "#c62828", band: GOLD, skin: "#d9a37a", hair: "#1f1f1f", spear: true, look: 0.2 });
+      const mapuMini = (t, x, y, s, seed, o = {}) => R.mini(t, x, y, s, { seed, cloth: MAPU, band: "#c0c6cc", skin: SKIN, hair: "#1f1f1f", look: -0.2, ...o });
+
+      // ---------- scenes ----------
+      function sHook(t) {
+        const i = 0;
+        const cPero = cue(i, "pero"), cRes = cue(i, "resistieron"), cPor = cue(i, "¿por");
+        let o = americas(t, prog(t, BLOCKS[i][0] + 0.2, cPero, "inOut"), prog(t, cPero, cPero + 0.6));
+        if (t > cPero) {
+          const w = mapuche({ x: 930, y: 1330, s: 0.95, f: -1, mouth: 0.5, armF: { a: 2.6, b: 0.1 } });
+          if (popIn(w, t, cPero + 0.2)) o += R.chibi(t, w);
+        }
+        o += title(t, "¿ESPAÑA CONQUISTÓ TODO?", BLOCKS[i][0], cPero, 300, 70);
+        o += title(t, "LOS MAPUCHES NO", cPero, cRes, 300, 86, MAPU);
+        o += title(t, "300 AÑOS", cRes, cPor, 300, 120, RED);
+        o += title(t, "¿POR QUÉ NUNCA TE LO CONTARON?", cPor, END(i) + 0.3, 300, 54, RED);
+        return o;
+      }
+
+      function sLand(t) {
+        const i = 1;
+        const cMap = cue(i, "mapuche"), cViv = cue(i, "vivían");
+        if (t < cViv) {
+          let o = BG_SOUTH(t);
+          const m = mapuche({ x: 540, y: GROUND + 40, s: 1.5, mouth: 0.5 });
+          if (popIn(m, t, BLOCKS[i][0])) o += R.chibi(t, m);
+          o += title(t, "LOS MAPUCHES", BLOCKS[i][0], cMap, 300, 110, MAPU);
+          o += word(300, 420, "MAPU", pop(t, cMap), "#6b4a2f", 110) + word(780, 420, "CHE", pop(t, cue(i, "gente") - 0.3), RED, 110);
+          o += word(300, 520, "tierra", pop(t, cue(i, "tierra") - 0.1), "#6b4a2f", 64) + word(780, 520, "gente", pop(t, cue(i, "gente") - 0.1), RED, 64);
+          return o;
+        }
+        let o = BG_SOUTH(t, { river: true, smoke: true, trees: [[110, GROUND - 120, 1.05], [960, GROUND - 130, 0.95], [800, GROUND - 160, 0.6]] });
+        o += ruka(330, GROUND - 40, 1.0 * pop(t, cue(i, "bosques") - 0.2));
+        const a = mapuche({ x: 640, y: GROUND + 30, s: 1.15, seed: 52 }), b = mapuche({ x: 790, y: GROUND + 30, s: 1.0, seed: 53, f: -1, hat: "band", hatColor: "#c62828" });
+        if (popIn(a, t, cViv)) o += R.chibi(t, a);
+        if (popIn(b, t, cViv + 0.15)) o += R.chibi(t, b);
+        o += title(t, "EL SUR", cViv, cue(i, "bosques"), 300, 110);
+        o += title(t, "BOSQUES, RÍOS Y VOLCANES", cue(i, "bosques") - 0.1, END(i) + 0.2, 300, 64);
+        return o;
+      }
+
+      function sIncas(t) {
+        const i = 2;
+        const cInc = cue(i, "incas"), cAva = cue(i, "avanzaron"), cFre = cue(i, "frenaron");
+        let o = BG_SOUTH(t, { trees: [[1010, GROUND - 130, 0.8]] });
+        const adv = prog(t, cAva - 0.4, cFre, "out"), back = prog(t, cFre + 0.3, cFre + 1.4, "inOut");
+        for (let r = 0; r < 2; r++) for (let k = 0; k < 4; k++) {
+          const x = -380 + 600 * adv - 160 * back + k * 120 + r * 50;
+          o += incaMini(t, x, GROUND + 30 - r * 60, 2.3 - r * 0.3, 600 + r * 4 + k);
+        }
+        for (let k = 0; k < 4; k++) o += mapuMini(t, 640 + k * 125, GROUND + 30, 2.3 * pop(t, cAva + k * 0.08), 640 + k, { spear: true });
+        o += title(t, "LOS INCAS", cInc - 0.2, cFre, 300, 110, RED);
+        if (t > cFre) {
+          const k = pop(t, cFre);
+          o += `<g transform="translate(540 760) scale(${k.toFixed(3)})"><path d="M-70 -70 L70 -70 L110 -30 L110 30 L70 70 L-70 70 L-110 30 L-110 -30Z" transform="scale(1.6)" fill="${RED}" stroke="#fff" stroke-width="10"/><text x="0" y="34" text-anchor="middle" font-family="${FONT}" font-weight="800" font-size="96" fill="#fff">ALTO</text></g>`;
+          o += title(t, "LOS FRENARON", cFre, END(i) + 0.2, 300, 100, MAPU);
+        }
+        return o;
+      }
+
+      function sValdivia(t) {
+        const i = 3;
+        const cFun = cue(i, "fundó"), cQue = cue(i, "quería"), cLau = cue(i, "lautaro");
+        if (t < cQue) {
+          let o = BG_SOUTH(t, { trees: [] });
+          const fl = pop(t, cFun - 0.1);
+          if (fl > 0.01) o += `<g transform="translate(700 ${GROUND - 40}) scale(${fl.toFixed(3)})"><path d="M0 0 L0 -360" stroke="#5a3a20" stroke-width="12"/><path d="M0 -360 L240 -330 L0 -260Z" fill="${GOLD}" stroke="#1f1f1f" stroke-width="5"/><path d="M60 -335 L110 -295 M110 -335 L60 -295" stroke="${RED}" stroke-width="10"/></g>`;
+          const v = valdivia({ x: 420, y: GROUND + 40, s: 1.35, f: 1, mouth: 0.5, ...R.walk(t * 8, 1 - prog(t, BLOCKS[i][0] + 0.2, cFun)) });
+          v.x = -150 + 570 * prog(t, BLOCKS[i][0], cFun, "out");
+          o += R.chibi(t, v);
+          o += title(t, "1541", BLOCKS[i][0], cue(i, "valdivia"), 300, 130, RED) + title(t, "PEDRO DE VALDIVIA", cue(i, "valdivia") - 0.1, cFun, 300, 74);
+          o += title(t, "SANTIAGO", cFun, cQue, 300, 110, RED);
+          return o;
+        }
+        let o = southMap(t, { santiago: 1 });
+        const ar = prog(t, cQue, cQue + 0.8, "out");
+        const [sx, sy] = sp([-70.65, -33.45]);
+        o += `<path d="M${sx - 40} ${sy + 40} L${sx - 40 - 60 * ar} ${sy + 40 + 520 * ar}" stroke="${ESP}" stroke-width="18" stroke-linecap="round"/>`;
+        if (ar > 0.95) o += `<path d="M${sx - 100 - 30} ${sy + 520} L${sx - 100} ${sy + 600} L${sx - 100 + 30} ${sy + 520}Z" fill="${ESP}"/>`;
+        o += title(t, "QUERÍA TODO EL SUR", cQue, cLau, 300, 76, RED);
+        if (t > cLau - 0.3) {
+          const l = lautaro({ x: 760, y: 1330, s: 1.05, f: -1, mouth: -0.3, look: -0.6 });
+          if (popIn(l, t, cLau - 0.3)) o += R.chibi(t, l);
+          o += title(t, "LAUTARO", cLau - 0.3, END(i) + 0.2, 300, 120, MAPU);
+        }
+        return o;
+      }
+
+      function sLautaro(t) {
+        const i = 4;
+        const cCab = cue(i, "caballos"), cApr = cue(i, "aprendió"), cEsc = cue(i, "escapó"), c1553 = cue(i, "1553"), cVen = cue(i, "venció");
+        if (t < cEsc) {
+          let o = BG_SOUTH(t, { trees: [[1000, GROUND - 130, 0.8]] });
+          o += horse(t, 380, GROUND + 30, 1.25, 1, 0);
+          const brush = Math.sin(t * 7);
+          const l = lautaro({ x: 700, y: GROUND + 40, s: 1.2, f: -1, mouth: 0.1, armF: { a: 1.5 + 0.35 * brush, b: 0.4 } });
+          o += R.chibi(t, l);
+          o += R.chibi(t, valdivia({ x: 960, y: GROUND + 40, s: 0.9, f: -1, mouth: 0.2, look: 0.4 }));
+          o += title(t, "SU SIRVIENTE", BLOCKS[i][0], cCab, 300, 100) + title(t, "CUIDABA LOS CABALLOS", cCab - 0.1, cApr, 300, 72);
+          if (t > cApr - 0.2) o += thought(600, 560, pop(t, cApr - 0.2), `<g transform="translate(-60 80) scale(0.45)">${horse(t, 0, 0, 1, 1, 0.6)}</g><path d="M60 -90 L140 70" stroke="#5a3a20" stroke-width="12" stroke-linecap="round"/><path d="M60 -90 L48 -60 L76 -64Z" fill="#9aa6b2" stroke="#1f1f1f" stroke-width="4"/>`);
+          return o;
+        }
+        if (t < c1553) {
+          let o = `<rect width="1080" height="1920" fill="#1f2a4a"/><circle cx="820" cy="380" r="80" fill="#f4ede0" stroke="#1f1f1f" stroke-width="6"/>` + [[120, 300], [300, 520], [980, 640], [80, 760], [620, 420]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="5" fill="#fff"/>`).join("");
+          o += `<rect x="0" y="${GROUND}" width="1080" height="${1920 - GROUND}" fill="#2f4a2a"/>` + araucaria(980, GROUND, 1.1) + araucaria(840, GROUND, 0.9);
+          const run = prog(t, cEsc - 0.2, c1553);
+          o += R.chibi(t, lautaro({ x: 100 + 640 * run, y: GROUND + 20, s: 1.2, f: 1, mouth: 0.3, look: 0.8, lean: 0.2, ...R.walk(t * 14, 1) }));
+          o += title(t, "SE ESCAPÓ", cEsc - 0.1, c1553, 300, 110, "#ffd23f");
+          return o;
+        }
+        // Tucapel: Lautaro wins; Valdivia's helmet lies in the grass
+        let o = BG_SOUTH(t, { trees: [[110, GROUND - 120, 0.9], [990, GROUND - 130, 0.8]] });
+        for (let k = 0; k < 5; k++) o += mapuMini(t, 120 + k * 95 + (k > 2 ? 520 : 0), GROUND - 30, 1.4 * pop(t, c1553 + k * 0.06), 660 + k, { spear: true });
+        const l = lautaro({ x: 540, y: GROUND + 40, s: 1.45, mouth: 0.7, look: 0.1, armF: { a: 2.7, b: 0.1 } });
+        if (popIn(l, t, c1553)) o += R.chibi(t, l);
+        const hk = pop(t, cVen - 0.1);
+        if (hk > 0.01) o += helmet(790, GROUND + 70, 1.1 * hk, 160);
+        o += title(t, "1553: TUCAPEL", c1553, cVen, 300, 96, RED);
+        o += title(t, "¡VENCIÓ A VALDIVIA!", cVen - 0.1, END(i) + 0.2, 300, 80, MAPU);
+        o += word(540, 470, "19 años", pop(t, cue(i, "19") - 0.1) * (t < cVen ? 1 : 0), "#1f1f1f", 64);
+        return o;
+      }
+
+      function sHorses(t) {
+        const i = 5;
+        const c1598 = cue(i, "1598"), cDes = cue(i, "destruidas");
+        if (t < c1598) {
+          let o = BG_SOUTH(t, { trees: [] });
+          const pan = ((t - BLOCKS[i][0]) * 260) % 1500;
+          for (let k = 0; k < 3; k++) {
+            const x = -250 + pan + k * 330 - (k % 2) * 60;
+            o += rider(t, x, GROUND + 40 + (k % 2) * 30, 0.95, 1, 1, mapuche({ seed: 670 + k, mouth: 0.6, look: 0.6 }));
+          }
+          o += title(t, "JINETES", cue(i, "montar") - 0.3, c1598, 300, 120, MAPU);
+          return o;
+        }
+        const cities = CITIES.map((c, j) => ({ on: pop(t, c1598 + 0.2 + j * 0.08), off: prog(t, cDes - 0.6 + j * 0.18, cDes - 0.5 + j * 0.18) }));
+        let o = southMap(t, { cities, labels: 0 });
+        o += title(t, "1598: CURALABA", c1598, END(i) + 0.2, 300, 90, RED);
+        o += word(540, 1660, "CIUDADES ESPAÑOLAS", pop(t, c1598 + 0.3), ESP, 56);
+        return o;
+      }
+
+      function sTreaty(t) {
+        const i = 6;
+        const cBio = cue(i, "biobío"), cEso = cue(i, "eso");
+        if (t < cEso) {
+          let o = BG_SOUTH(t, { river: true, trees: [[990, GROUND - 130, 0.8]] });
+          const sh = Math.sin(t * 10) * 0.12;
+          o += R.chibi(t, spaniard({ x: 400, y: GROUND + 10, s: 1.25, f: 1, mouth: 0.4, look: 0.2, armF: { a: 1.4 + sh, b: 0.1 } }));
+          o += R.chibi(t, mapuche({ x: 680, y: GROUND + 10, s: 1.3, f: -1, seed: 58, hat: "band", hatColor: "#c0c6cc", mouth: 0.4, look: 0.2, armF: { a: 1.4 - sh, b: 0.1 } }));
+          o += parchment(540, 620, pop(t, BLOCKS[i][0] + 0.1), "1641");
+          o += title(t, "UN ACUERDO", BLOCKS[i][0], cBio - 0.2, 300, 100);
+          o += title(t, "RÍO BIOBÍO = FRONTERA", cBio - 0.2, cEso, 300, 70, BLUE);
+          return o;
+        }
+        let o = southMap(t, { river: true, riverLabel: 1, mapu: prog(t, cEso, cue(i, "reconoció")), labels: 0 });
+        o += title(t, "CASI NADIE LO CUENTA", cEso, cue(i, "reconoció") - 0.2, 300, 76);
+        o += title(t, "LES RECONOCIÓ SU TIERRA", cue(i, "reconoció") - 0.2, END(i) + 0.2, 300, 66, MAPU);
+        o += word(560, 1180, "TIERRA MAPUCHE", pop(t, cue(i, "reconoció")), "#fff", 60);
+        return o;
+      }
+
+      function sToday(t) {
+        const i = 7;
+        const c1880 = cue(i, "1880"), cChi = cue(i, "chile"), cNo = cue(i, "no");
+        if (t < cNo) {
+          let o = southMap(t, { river: true, mapu: 1 - prog(t, cChi, cChi + 1.2), labels: pop(t, cChi) });
+          o += title(t, "RESISTIERON", BLOCKS[i][0], c1880, 300, 100, MAPU) + title(t, "HASTA 1880", c1880 - 0.1, cNo, 300, 110, RED);
+          return o;
+        }
+        let o = BG_SOUTH(t);
+        const cols = [MAPU, "#c62828", "#2e9e5b", MAPU, "#e8b330", "#8e44ad", MAPU];
+        for (let r = 0; r < 2; r++) for (let k = 0; k < 7; k++) {
+          const kk = pop(t, cNo + (r * 7 + k) * 0.04);
+          if (kk > 0.01) o += mapuMini(t, 90 + k * 150 + (r % 2) * 60, GROUND + 40 - r * 50, (1.5 - r * 0.2) * kk, 690 + r * 7 + k, { cloth: cols[k], look: 0.1 });
+        }
+        o += kultrun(t, 540, 760, pop(t, cue(i, "hoy") - 0.1) * 0.9);
+        o += title(t, "NO DESAPARECIERON", cNo, cue(i, "millón") - 0.2, 300, 80, GREEN);
+        o += title(t, "+1,5 MILLONES", cue(i, "millón") - 0.2, END(i) + 0.2, 300, 110, RED);
+        return o;
+      }
+
+      function sNext(t) {
+        const i = 8;
+        const extra = check(t, PART, prog(t, at(i, 0.1), at(i, 0.35)), 831);
+        let o = `<rect width="1080" height="1920" fill="#e7f0e1"/><g transform="translate(151 20) scale(0.72)">${sCover(t, 0, extra, prog(t, at(i, 0.1), at(i, 0.35)))}</g>`;
+        const th = kf(t, [[at(i, 0.25), 0], [at(i, 0.45), 1, "back"]]) * (1 + 0.06 * Math.max(0, Math.sin((t - at(i, 0.45)) * 6)));
+        if (th > 0.01) o += `<g transform="translate(540 1650) scale(${(th * 0.9).toFixed(3)}) rotate(-8)">` +
+          `<rect x="-118" y="-8" width="44" height="130" rx="12" fill="#1f6fb2" stroke="#1f1f1f" stroke-width="7"/>` +
+          `<path d="M-70 -6 L-40 -6 L-10 -92 Q2 -122 30 -108 Q46 -96 38 -64 L30 -10 L84 -10 Q112 -10 108 18 L96 104 Q92 124 70 124 L-70 124Z" fill="#ffd23f" stroke="#1f1f1f" stroke-width="7" stroke-linejoin="round"/>` +
+          `<path d="M42 30 L100 30 M38 64 L98 64 M40 96 L92 96" stroke="#1f1f1f" stroke-width="5" stroke-linecap="round"/></g>`;
+        o += title(t, "¡DALE LIKE!", at(i, 0.2), DUR + 1, 1560, 96, C.red);
+        return o;
+      }
+
+      const SCENES = [sHook, sLand, sIncas, sValdivia, sLautaro, sHorses, sTreaty, sToday, sNext];
+      function renderAt(t) {
+        let o;
+        if (t < BLOCKS[0][0]) o = sCover(t, prog(t, BLOCKS[0][0] - 0.45, BLOCKS[0][0], "in")) + title(t, "5", BLOCKS[0][0] - 0.5, BLOCKS[0][0] + 0.05, 1600, 200, RED);
+        else {
+          let i = BLOCKS.findIndex(([a, b]) => t < b);
+          if (i < 0) i = BLOCKS.length - 1;
+          o = SCENES[i](t);
+        }
+        layer.innerHTML = o + captions(t);
+      }
+
+      window.addEventListener("hf-seek", (e) => renderAt(e.detail.time));
+      const tl = gsap.timeline({ paused: true });
+      const clock = { t: 0 };
+      tl.to(clock, { t: DUR, duration: DUR, ease: "none", onUpdate: () => renderAt(clock.t) }, 0);
+      window.__timelines = window.__timelines || {};
+      window.__timelines["main"] = tl;
+      renderAt(0);
+    </script>
+  </body>
+</html>
