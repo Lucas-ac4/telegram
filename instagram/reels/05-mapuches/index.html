@@ -22,9 +22,10 @@
     <!-- Siglos en Palitos — Short 5: LAS CIVILIZACIONES DE AMÉRICA, parte 5: LOS MAPUCHES.
          Guion: instagram/guiones/05-mapuches.md. Every visual starts on the word that names it
          (cue), so voice/tools/sincronizar.py can retime the whole Short from the voice. -->
-    <div id="root" data-composition-id="main" data-start="0" data-duration="93.16" data-width="1080" data-height="1920">
+    <div id="root" data-composition-id="main" data-start="0" data-duration="94.02" data-width="1080" data-height="1920">
       <audio id="titulo" src="assets/titulo.mp3" data-start="0.25" data-track-index="3" data-volume="1"></audio>
-      <svg id="stage" class="clip" data-start="0" data-duration="93.16" data-track-index="0" data-layout-allow-overflow
+      <audio id="narracion" src="assets/narracion.mp3" data-start="2.55" data-track-index="2" data-volume="1"></audio>
+      <svg id="stage" class="clip" data-start="0" data-duration="94.02" data-track-index="0" data-layout-allow-overflow
         viewBox="0 0 1080 1920" xmlns="http://www.w3.org/2000/svg">
         <defs>
           <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
@@ -42,32 +43,34 @@
       const R = window.Rig;
       R.setStill(true);
       const { kf, prog, C } = R;
-      const DUR = 93.16, W = 1080, GROUND = 1250;
+      const DUR = 94.02, W = 1080, GROUND = 1250;
       const GOLD = "#e8b330", GOLD_DARK = "#b8860b", STEEL = "#8a96a3", RED = "#c62828", BLUE = "#1f6fb2", GREEN = "#2e9e5b", SKIN = "#c98f68", SEA = "#3fa7d6", SKIN2 = "#c98f68";
       const layer = document.getElementById("layer");
       const FONT = R.FONT;
 
       // ---------- narration blocks (seconds) ----------
       const BLOCKS = [
-        [2.55, 11.83, "Crees que España conquistó toda América. Pero los españoles nunca vencieron a los mapuches: resistieron 300 años. ¿Por qué nunca te lo contaron?"],
-        [11.83, 22.63, "Hoy vemos su historia. Mapuche significa \"gente de la tierra\". Vivían en el sur de lo que hoy es Chile y Argentina, entre bosques, ríos y volcanes."],
-        [22.63, 31.53, "Primero llegaron los incas, el imperio más grande de América. Avanzaron hasta el centro de Chile, y ahí los mapuches los frenaron."],
-        [31.53, 41.19, "En 1541 llegó el español Pedro de Valdivia y fundó Santiago. Quería todo el sur, y tenía un problema: un joven mapuche llamado Lautaro."],
-        [41.19, 54.29, "Lautaro había sido su sirviente. Le cuidaba los caballos y aprendió cómo peleaban los españoles. Se escapó, volvió con su gente, y en 1553, con unos 19 años, venció a Valdivia en Tucapel."],
-        [54.29, 65.47, "Los mapuches aprendieron a montar a caballo tan bien como los españoles. En 1598 los vencieron en Curalaba, y las ciudades españolas del sur quedaron destruidas o abandonadas."],
-        [65.47, 77.81, "En 1641, España tuvo que firmar un acuerdo con ellos: el río Biobío sería la frontera. Eso casi nunca se cuenta: el imperio más poderoso del mundo les reconoció su tierra."],
-        [77.81, 89.76, "Resistieron hasta la década de 1880, cuando Chile y Argentina ocuparon sus tierras. Y no desaparecieron: hoy más de un millón y medio de personas en Chile se reconocen mapuche."],
-        [89.76, 92.16, "Si te gustó, dale like."],
+        [2.5, 12.3, "Crees que España conquistó toda América. Pero los españoles nunca vencieron a los mapuches: resistieron 300 años. ¿Por qué nunca te lo contaron?"],
+        [12.3, 22.48, "Hoy vemos su historia. Mapuche significa gente de la tierra. Vivían en el sur de lo que hoy es Chile y Argentina, entre bosques, ríos y volcanes."],
+        [22.48, 28.45, "Primero llegaron los incas. Avanzaron hasta el centro de Chile, y ahí los mapuches los frenaron."],
+        [28.45, 39.36, "En 1541 llegó el español Pedro de Valdivia y fundó Santiago. Quería todo el sur, y tenía un problema: un joven mapuche llamado Lautaro."],
+        [39.36, 53.78, "Lautaro había sido su sirviente. Le cuidaba los caballos y aprendió cómo peleaban los españoles. Se escapó, volvió con su gente, y en 1553, con unos 19 años, venció a Valdivia en Tucapel."],
+        [53.78, 65.55, "Los mapuches aprendieron a montar a caballo tan bien como los españoles. En 1598 los vencieron en Curalaba, y las ciudades españolas del sur quedaron destruidas o abandonadas."],
+        [65.55, 78.73, "En 1641, España tuvo que firmar un acuerdo con ellos: el río Biobío sería la frontera. Eso casi nunca se cuenta: el imperio más poderoso del mundo les reconoció su tierra."],
+        [78.73, 91.03, "Resistieron hasta la década de 1880, cuando Chile y Argentina ocuparon sus tierras. Y no desaparecieron: hoy más de un millón y medio de personas en Chile se reconocen mapuche."],
+        [91.03, 93.02, "Si te gustó, dale like."],
       ];
       const KEY = new Set(["españa", "américa", "mapuches", "nunca", "300", "mapuche", "tierra", "gente", "chile", "argentina", "volcanes", "incas", "frenaron", "1541", "valdivia", "santiago", "sur", "lautaro", "sirviente", "caballos", "escapó", "1553", "19", "venció", "tucapel", "caballo", "1598", "curalaba", "destruidas", "1641", "biobío", "frontera", "tierra", "1880", "millón", "like"]);
       // time at fraction f (0..1) of narration block i
       const at = (i, f) => BLOCKS[i][0] + f * (BLOCKS[i][1] - BLOCKS[i][0]);
 
+      // start time of every caption word, from the ElevenLabs narration (seconds)
+      const WT = [2.55, 2.81, 2.939, 3.39, 3.91, 4.3, 5.078, 5.535, 5.708, 6.268, 6.575, 7.135, 7.195, 7.315, 8.192, 8.839, 9.751, 10.339, 10.687, 10.8, 11.12, 11.254, 11.355, 12.354, 12.764, 13.111, 13.226, 14.101, 14.841, 15.425, 15.852, 15.932, 16.065, 16.725, 17.532, 17.612, 17.745, 18.012, 18.092, 18.185, 18.365, 18.598, 18.772, 19.145, 19.241, 20.038, 20.365, 21.065, 21.465, 21.574, 22.529, 23.134, 23.462, 23.642, 24.329, 25.091, 25.318, 25.417, 25.718, 25.838, 26.371, 26.464, 26.691, 26.871, 27.431, 27.659, 28.497, 28.816, 30.2, 30.563, 30.676, 31.176, 31.603, 31.716, 32.336, 32.52, 33.132, 33.763, 34.438, 34.657, 34.79, 35.21, 35.337, 35.697, 35.803, 36.855, 37.015, 37.342, 37.874, 38.362, 39.41, 40.122, 40.37, 40.615, 40.782, 41.602, 42.03, 42.482, 42.602, 43.222, 43.308, 43.95, 44.195, 44.662, 44.835, 46.017, 46.177, 46.964, 47.304, 47.511, 47.631, 48.244, 48.311, 48.404, 50.154, 50.412, 50.644, 51.18, 51.844, 52.244, 52.324, 52.817, 52.964, 53.83, 54.252, 54.718, 55.272, 55.344, 55.632, 55.732, 56.232, 56.416, 56.704, 56.892, 57.125, 58.099, 58.438, 59.818, 60.038, 60.531, 60.678, 61.638, 61.718, 61.865, 62.371, 62.898, 63.058, 63.39, 63.785, 64.438, 64.528, 65.597, 65.989, 67.892, 68.322, 68.549, 68.717, 69.016, 69.119, 69.509, 69.696, 70.642, 70.829, 71.149, 71.769, 72.136, 72.221, 73.105, 73.615, 73.938, 74.324, 74.488, 75.338, 75.444, 75.871, 76.164, 76.631, 76.818, 77.211, 77.444, 77.978, 78.084, 78.785, 79.701, 79.887, 80.054, 80.367, 80.534, 82.051, 82.447, 82.754, 82.85, 83.418, 83.894, 84.127, 84.934, 85.343, 85.563, 86.981, 87.201, 87.374, 87.508, 87.625, 88.001, 88.081, 88.361, 88.565, 88.948, 89.068, 89.454, 89.631, 90.181, 91.084, 91.478, 91.633, 92.265, 92.625];
       const WORDS = [];
       BLOCKS.forEach(([a, b, txt]) => {
         const ws = txt.split(/\s+/);
         const span = (b - 0.35 - a) / ws.length;
-        ws.forEach((w, i) => WORDS.push({ w, t: a + i * span, key: KEY.has(w.toLowerCase().replace(/[^\wáéíóúñü]/g, "")) }));
+        ws.forEach((w, i) => WORDS.push({ w, t: WT[WORDS.length] ?? a + i * span, key: KEY.has(w.toLowerCase().replace(/[^\wáéíóúñü]/g, "")) }));
       });
       // captions: chunks of 3 words, word by word; keywords in yellow
       function captions(t) {
@@ -378,7 +381,7 @@
         const l = lautaro({ x: 540, y: GROUND + 40, s: 1.45, mouth: 0.7, look: 0.1, armF: { a: 2.7, b: 0.1 } });
         if (popIn(l, t, c1553)) o += R.chibi(t, l);
         const hk = pop(t, cVen - 0.1);
-        if (hk > 0.01) o += helmet(790, GROUND + 70, 1.1 * hk, 160);
+        if (hk > 0.01) o += helmet(820, GROUND - 10, 1.0 * hk, 160);
         o += title(t, "1553: TUCAPEL", c1553, cVen, 300, 96, RED);
         o += title(t, "¡VENCIÓ A VALDIVIA!", cVen - 0.1, END(i) + 0.2, 300, 80, MAPU);
         o += word(540, 470, "19 años", pop(t, cue(i, "19") - 0.1) * (t < cVen ? 1 : 0), "#1f1f1f", 64);

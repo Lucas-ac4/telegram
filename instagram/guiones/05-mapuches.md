@@ -3,7 +3,7 @@
 ## ✅ Versión final de Lucas (la que se anima)
 
 Hook (76 STRONG): Crees que España conquistó toda América. Pero los españoles nunca vencieron a los mapuches: resistieron 300 años. ¿Por qué nunca te lo contaron?
-Cambios de Lucas: se sacó "Valdivia no volvió con vida"; el casco de Valdivia aparece cuando Lautaro lo vence. 223 palabras.
+Cambios de Lucas: se sacó "Valdivia no volvió con vida" y "el imperio más grande de América"; el casco de Valdivia aparece cuando Lautaro lo vence. 217 palabras.
 
 ---
 
