@@ -1,0 +1,467 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1080, height=1920" />
+    <script src="assets/gsap.min.js"></script>
+    <script src="assets/rig.js"></script>
+    <style>
+      @font-face {
+        font-family: "Shantell Sans";
+        src: url("assets/fonts/ShantellSans-latin.woff2") format("woff2");
+        font-weight: 300 800;
+        font-display: block;
+      }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1080px; height: 1920px; overflow: hidden; background: #e7f0e1; }
+      #root { position: relative; width: 100%; height: 100%; background: #e7f0e1; }
+      #stage { position: absolute; left: 0; top: 0; width: 1080px; height: 1920px; }
+    </style>
+  </head>
+  <body>
+    <!-- Siglos en Palitos — Short 6: LAS CIVILIZACIONES DE AMÉRICA, parte 6: LOS GUARANÍES.
+         Guion: instagram/guiones/06-guaranies.md. Every visual starts on the word that names it
+         (cue), so voice/tools/sincronizar.py can retime the whole Short from the voice. -->
+    <div id="root" data-composition-id="main" data-start="0" data-duration="87.17" data-width="1080" data-height="1920">
+      <audio id="titulo" src="assets/titulo.mp3" data-start="0.25" data-track-index="3" data-volume="1"></audio>
+      <svg id="stage" class="clip" data-start="0" data-duration="87.17" data-track-index="0" data-layout-allow-overflow
+        viewBox="0 0 1080 1920" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#9fd3f0" /><stop offset="1" stop-color="#e9f5fb" />
+          </linearGradient>
+          <linearGradient id="dusk" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#e8692c" /><stop offset="1" stop-color="#ffc06a" />
+          </linearGradient>
+          <filter id="sil"><feColorMatrix type="matrix" values="0 0 0 0 0.12  0 0 0 0 0.1  0 0 0 0 0.1  0 0 0 1 0" /></filter>
+        </defs>
+        <g id="layer"></g>
+      </svg>
+    </div>
+    <script>
+      const R = window.Rig;
+      R.setStill(true);
+      const { kf, prog, C } = R;
+      const DUR = 87.17, W = 1080, GROUND = 1250;
+      const GOLD = "#e8b330", GOLD_DARK = "#b8860b", STEEL = "#8a96a3", RED = "#c62828", BLUE = "#1f6fb2", GREEN = "#2e9e5b", SKIN = "#c98f68", SEA = "#3fa7d6", SKIN2 = "#c98f68";
+      const layer = document.getElementById("layer");
+      const FONT = R.FONT;
+
+      // ---------- narration blocks (seconds) ----------
+      const BLOCKS = [
+        [2.55, 13.74, "Tomas mate, pero nunca te preguntaste quién lo inventó. Los guaraníes ya lo tomaban hace 500 años, y su lengua nunca murió. ¿Por qué nunca te lo contaron?"],
+        [13.74, 24.54, "Hoy vemos su historia. Los guaraníes vivían en las selvas y ríos de lo que hoy es Paraguay, el noreste de Argentina y el sur de Brasil."],
+        [24.54, 32.68, "Cultivaban mandioca y maíz, y tomaban las hojas de la yerba mate en una calabaza, con una caña como bombilla."],
+        [32.68, 39.28, "Muchas palabras que usas vienen del guaraní: ñandú, yacaré, ananá. E Iguazú, que significa agua grande."],
+        [39.28, 50.85, "Cuando llegaron los españoles, los jesuitas armaron con ellos unos 30 pueblos, las misiones. Ahí vivieron más de 100 mil guaraníes, y se enseñaba y se escribía en guaraní."],
+        [50.85, 60.13, "Desde Brasil llegaban los bandeirantes, cazadores de esclavos. En 1641, los guaraníes, con armas de fuego, los derrotaron en la batalla de Mbororé."],
+        [60.13, 66.74, "En 1767, el rey de España expulsó a los jesuitas, y las misiones quedaron en ruinas."],
+        [66.74, 78.31, "Su lengua, en cambio, sobrevivió. En Paraguay, el guaraní es idioma oficial y lo habla la mayoría de la gente. Es el único país de América donde pasa eso."],
+        [78.31, 83.77, "Así que la próxima vez que tomes mate, acuérdate: es un regalo guaraní."],
+        [83.77, 86.17, "Si te gustó, dale like."],
+      ];
+      const KEY = new Set(["mate", "inventó", "guaraníes", "500", "lengua", "murió", "paraguay", "argentina", "brasil", "mandioca", "maíz", "yerba", "calabaza", "caña", "guaraní", "ñandú", "yacaré", "ananá", "iguazú", "agua", "grande", "jesuitas", "30", "misiones", "100", "bandeirantes", "esclavos", "1641", "mbororé", "1767", "ruinas", "sobrevivió", "oficial", "mayoría", "único", "regalo", "like"]);
+      // time at fraction f (0..1) of narration block i
+      const at = (i, f) => BLOCKS[i][0] + f * (BLOCKS[i][1] - BLOCKS[i][0]);
+
+      const WORDS = [];
+      BLOCKS.forEach(([a, b, txt]) => {
+        const ws = txt.split(/\s+/);
+        const span = (b - 0.35 - a) / ws.length;
+        ws.forEach((w, i) => WORDS.push({ w, t: a + i * span, key: KEY.has(w.toLowerCase().replace(/[^\wáéíóúñü]/g, "")) }));
+      });
+      // captions: chunks of 3 words, word by word; keywords in yellow
+      function captions(t) {
+        let idx = -1;
+        for (let i = 0; i < WORDS.length; i++) if (WORDS[i].t <= t) idx = i;
+        if (idx < 0) return "";
+        const blockEnd = BLOCKS.find(([a, b]) => t >= a && t < b);
+        if (!blockEnd) return "";
+        const c0 = idx - (idx % 3), chunk = WORDS.slice(c0, c0 + 3).filter((w) => w.t >= blockEnd[0] - 0.01);
+        if (!chunk.length) return "";
+        const esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;");
+        const spans = chunk.filter((w, i) => c0 + i <= idx).map((w) => `<tspan fill="${w.key ? "#ffd23f" : "#ffffff"}">${esc(w.w)} </tspan>`).join("");
+        const chars = chunk.map((w) => w.w).join(" ").length, fit = Math.min(1, 1000 / (chars * 40));
+        const pop = fit * (1 + 0.06 * (1 - prog(t, WORDS[idx].t, WORDS[idx].t + 0.12, "out")));
+        return `<g transform="translate(540 1440) scale(${pop.toFixed(3)})"><text x="0" y="0" text-anchor="middle" font-family="${FONT}" font-weight="800" font-size="70" stroke="#1f1f1f" stroke-width="12" paint-order="stroke" stroke-linejoin="round">${spans}</text></g>`;
+      }
+      function title(t, txt, a, b, y = 270, size = 92, fill = "#1f1f1f") {
+        const sc = kf(t, [[a, 0], [a + 0.3, 1, "back"], [b - 0.25, 1], [b, 0, "in"]]);
+        if (sc <= 0.01) return "";
+        return `<g transform="translate(540 ${y}) scale(${sc.toFixed(3)})"><text x="0" y="0" text-anchor="middle" font-family="${FONT}" font-weight="800" font-size="${size}" fill="${fill}" stroke="#ffffff" stroke-width="14" paint-order="stroke" stroke-linejoin="round">${txt}</text></g>`;
+      }
+      function pop(t, a) { return kf(t, [[a, 0], [a + 0.3, 1, "back"]]); }
+      function popIn(p, t, a) { const k = pop(t, a); p.squash = (p.squash || 0) + (1 - k) * 0.5; p.y += (1 - k) * 40; return k > 0.01; }
+      function cross(t, x, y, pr, seed, sz = 80) {
+        return R.scribble(t, [[x - sz, y - sz], [x + sz, y + sz]], prog(pr, 0, 0.5), C.red, 16, seed) + R.scribble(t, [[x + sz, y - sz], [x - sz, y + sz]], prog(pr, 0.5, 1), C.red, 16, seed + 1);
+      }
+
+      // the six parts of the series, in order (indigenous look, v2)
+      const SK = "#c98f68", HAIR = "#1f1f1f", SANDAL = "#a87b4f";
+      const CIVS = [
+        ["Incas", { hair: HAIR, hat: "mascaipacha", earSpools: true, tunic: { fill: "#c62828", band: ["#e8b330", "#1f1f1f"] }, skin: "#d9a37a", legs: "#d9a37a", shoe: SANDAL }],
+        ["Mexicas", { bare: true, hair: HAIR, legs: SK, shoe: SANDAL, skin: SK, hat: "plumes", plumes: ["#2e9e5b", "#d7263d", "#1f6fb2", "#ffd23f", "#d7263d", "#1f6fb2", "#2e9e5b"], hatColor: "#e8b330", cape: "#1f6fb2", loin: "#f2e6c9", shield: "#c62828", necklace: "#e8b330" }],
+        ["Mayas", { bare: true, hair: HAIR, legs: SK, shoe: SANDAL, skin: SK, hat: "plumes", plumes: ["#2e9e5b", "#1f6fb2", "#2e9e5b", "#1f6fb2", "#2e9e5b"], hatColor: "#2e9e5b", necklace: "#3fbf7f", loin: "#2e9e5b", facePaint: "#1f6fb2", paint: "#1f6fb2" }],
+        ["Taínos", { bare: true, hair: HAIR, legs: SK, shoe: SANDAL, skin: SK, hat: "band", hatColor: "#e07b39", plumes: ["#c62828"], paint: "#c62828", facePaint: "#1f1f1f", chestDisc: true, loin: "#c9a46b" }],
+        ["Mapuches", { hair: HAIR, hat: "band", hatColor: "#c0c6cc", tunic: { fill: "#1f3d7a", band: ["#f2f2f2", "#c62828"] }, skin: SK, legs: SK, shoe: SANDAL }],
+        ["Guaraníes", { bare: true, hair: HAIR, legs: SK, shoe: SANDAL, skin: SK, hat: "plumes", plumes: ["#ffd23f", "#d7263d", "#ffd23f", "#d7263d", "#ffd23f"], hatColor: "#e07b39", paint: "#1f1f1f", facePaint: "#c62828", bow: true, loin: "#c9a46b" }],
+      ];
+      const PART = 5; // index of this Short in CIVS
+      const cellXY = (i) => [300 + (i % 2) * 480, 760 + Math.floor(i / 2) * 420];
+      function check(t, i, pr, seed) {
+        const [x, y] = cellXY(i);
+        return R.scribble(t, [[x - 70, y - 90], [x - 10, y - 30], [x + 110, y - 190]], pr, "#2e9e5b", 18, seed);
+      }
+      // labels show only the number; parts already seen show "N. Name";
+      // this Short's own name appears at the end (reveal 0..1)
+      function sCover(t, zoom, extra = "", reveal = 0) {
+        if (typeof extra === "object") extra = extra.extra || "";
+        let g = BG_SOFT + `<text x="540" y="250" text-anchor="middle" font-family="${FONT}" font-weight="800" font-size="74" fill="#1f1f1f">LAS CIVILIZACIONES</text><text x="540" y="345" text-anchor="middle" font-family="${FONT}" font-weight="800" font-size="74" fill="#c62828">DE AMÉRICA</text>`;
+        CIVS.forEach(([name, o], i) => {
+          const [cx, cy] = cellXY(i), hl = i === PART;
+          g += `<rect x="${cx - 215}" y="${cy - 290}" width="430" height="390" rx="30" fill="${hl ? "#fff3cf" : "#ffffff"}" stroke="#1f1f1f" stroke-width="${hl ? 7 : 4}"/>`;
+          g += R.chibi(t, { x: cx, y: cy + 22, s: 0.9, seed: 300 + i, look: 0.1, mouth: 0.35, ...R.walk(0, 0), ...o });
+          const named = i < PART || (i === PART && reveal > 0.5);
+          const pk = i === PART && reveal > 0.5 ? 1 + 0.3 * (1 - prog(reveal, 0.5, 1, "out")) : 1;
+          g += `<text x="${cx}" y="${cy + 80}" text-anchor="middle" font-family="${FONT}" font-weight="800" font-size="${((named ? 44 : 58) * pk).toFixed(1)}" fill="#1f1f1f">${named ? `${i + 1}. ${name}` : `${i + 1}`}</text>`;
+        });
+        for (let i = 0; i < PART; i++) g += check(t, i, 1, 810 + i * 3);
+        g += extra;
+        const [zx, zy] = cellXY(PART), z = 1 + zoom * 1.6;
+        return `<g transform="translate(${(zx - zx * z).toFixed(1)} ${(zy - 150 - (zy - 150) * z).toFixed(1)}) scale(${z.toFixed(3)})">${g}</g>` +
+          `<text x="540" y="1860" text-anchor="middle" font-family="${FONT}" font-weight="800" font-size="40" fill="#1f1f1f" opacity="${(1 - zoom).toFixed(2)}">Siglos en Palitos</text>`;
+      }
+
+      // ---------- word cues: each visual starts on the word that names it ----------
+      const norm = (w) => w.toLowerCase().replace(/[¿?¡!,;:"]/g, "").replace(/\.$/, "");
+      function cue(i, word, n = 1) {
+        const [a, b] = BLOCKS[i];
+        let c = 0;
+        for (const w of WORDS) if (w.t >= a - 0.01 && w.t < b && norm(w.w).startsWith(norm(word))) { c++; if (c === n) return w.t; }
+        return a;
+      }
+      const END = (i) => BLOCKS[i][1];
+
+      // ---------- backdrops ----------
+      const BG_SOFT = `<rect width="1080" height="1920" fill="#e7f0e1"/>`;
+      const JUNGLE = "#3f8f4a", RIVER = "#5aa7d6", STONE = "#b5523a";
+      const BG_ROOM = `<rect width="1080" height="1920" fill="#f3e3c3"/><rect x="0" y="${GROUND}" width="1080" height="${1920 - GROUND}" fill="#b98a5a"/><path d="M0 ${GROUND} L1080 ${GROUND}" stroke="#1f1f1f" stroke-width="6"/>` +
+        `<rect x="640" y="520" width="320" height="300" fill="#bfe3f5" stroke="#1f1f1f" stroke-width="8"/><path d="M800 520 L800 820 M640 670 L960 670" stroke="#1f1f1f" stroke-width="6"/>` +
+        `<rect x="90" y="${GROUND - 260}" width="520" height="190" rx="40" fill="#c0504d" stroke="#1f1f1f" stroke-width="7"/><rect x="60" y="${GROUND - 170}" width="580" height="130" rx="40" fill="#d9665f" stroke="#1f1f1f" stroke-width="7"/><path d="M110 ${GROUND - 40} L110 ${GROUND} M590 ${GROUND - 40} L590 ${GROUND}" stroke="#1f1f1f" stroke-width="12"/>`;
+      function BG_JUNGLE(t, o = {}) {
+        let g = `<rect width="1080" height="1920" fill="url(#sky)"/>`;
+        [[-40, 1000, 190], [150, 940, 160], [930, 970, 200], [1100, 900, 170], [560, 1010, 120], [380, 1030, 110], [760, 1020, 130]].forEach(([x, y, r]) => (g += `<circle cx="${x}" cy="${y}" r="${r}" fill="${JUNGLE}" stroke="#1f1f1f" stroke-width="5"/>`));
+        g += `<rect x="0" y="${GROUND - 140}" width="1080" height="${1920 - GROUND + 140}" fill="#7fb36a"/><path d="M0 ${GROUND - 140} L1080 ${GROUND - 140}" stroke="#1f1f1f" stroke-width="5"/>`;
+        if (o.river) g += `<rect x="0" y="${GROUND - 120}" width="1080" height="${o.river}" fill="${RIVER}" stroke="#1f1f1f" stroke-width="5"/>`;
+        return g;
+      }
+      function word(x, y, txt, k, col = "#1f1f1f", size = 76) {
+        if (k <= 0.01) return "";
+        return `<g transform="translate(${x} ${y}) scale(${k.toFixed(3)})"><text x="0" y="0" text-anchor="middle" font-family="${FONT}" font-weight="800" font-size="${size}" fill="${col}" stroke="#fff" stroke-width="12" paint-order="stroke" stroke-linejoin="round">${txt}</text></g>`;
+      }
+      function bubble(x, y, w, txt, k, size = 52, tail = -1) {
+        if (k <= 0.01) return "";
+        return `<g transform="translate(${x} ${y}) scale(${k.toFixed(3)})"><rect x="${-w / 2}" y="-60" width="${w}" height="110" rx="40" fill="#fff" stroke="#1f1f1f" stroke-width="6"/><path d="M${tail * 30} 48 L${tail * 60} 100 L${tail * -10} 50Z" fill="#fff" stroke="#1f1f1f" stroke-width="6" stroke-linejoin="round"/><path d="M${tail * 32} 44 L${tail * -8} 44" stroke="#fff" stroke-width="8"/><text x="0" y="${size * 0.35}" text-anchor="middle" font-family="${FONT}" font-weight="800" font-size="${size}" fill="#1f1f1f">${txt}</text></g>`;
+      }
+      // a mate: modern (metal bombilla) or Guaraní (gourd and a cane)
+      function mate(x, y, s, old = false) {
+        if (s <= 0.01) return "";
+        const body = old ? "#c9a46b" : "#6b8e4e";
+        return `<g transform="translate(${x} ${y}) scale(${s.toFixed(3)})"><path d="M${old ? -10 : 10} -40 L${old ? -30 : 26} -100" stroke="${old ? "#d9c58e" : "#c0c6cc"}" stroke-width="${old ? 9 : 7}" stroke-linecap="round"/><path d="M-30 -36 Q-46 10 -20 34 Q0 46 20 34 Q46 10 30 -36Z" fill="${body}" stroke="#1f1f1f" stroke-width="6"/><ellipse cx="0" cy="-36" rx="30" ry="9" fill="#3f8f4a" stroke="#1f1f1f" stroke-width="5"/></g>`;
+      }
+      function corn(x, y, s) {
+        if (s <= 0.01) return "";
+        return `<g transform="translate(${x} ${y}) scale(${s})"><path d="M0 0 L0 -260" stroke="#3f8f4a" stroke-width="12"/><path d="M0 -80 Q-80 -110 -110 -60 M0 -140 Q80 -170 110 -120 M0 -200 Q-70 -240 -90 -200" stroke="#3f8f4a" stroke-width="14" fill="none" stroke-linecap="round"/><ellipse cx="22" cy="-150" rx="18" ry="45" fill="#ffd23f" stroke="#1f1f1f" stroke-width="5"/></g>`;
+      }
+      function mandioca(x, y, s) {
+        if (s <= 0.01) return "";
+        let g = `<path d="M0 0 L0 -200" stroke="#8a5a32" stroke-width="10"/>`;
+        [-0.9, -0.45, 0, 0.45, 0.9].forEach((a) => { const cx = Math.sin(a) * 70, cy = -200 - Math.cos(a) * 50; g += `<ellipse cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" rx="16" ry="52" transform="rotate(${(a * 57).toFixed(1)} ${cx.toFixed(1)} ${cy.toFixed(1)})" fill="#3f8f4a" stroke="#1f1f1f" stroke-width="4"/>`; });
+        g += `<path d="M-6 10 Q-60 60 -70 120 Q-40 90 -6 30Z M6 10 Q60 60 70 120 Q40 90 6 30Z" fill="#a8743f" stroke="#1f1f1f" stroke-width="4"/>`;
+        return `<g transform="translate(${x} ${y}) scale(${s})">${g}</g>`;
+      }
+      function nandu(t, x, y, s) {
+        if (s <= 0.01) return "";
+        const st = Math.sin(t * 6) * 0.25;
+        return `<g transform="translate(${x} ${y}) scale(${s.toFixed(3)})"><path d="M-10 -120 L${(-10 + Math.sin(st) * 120).toFixed(1)} 0 M20 -120 L${(20 - Math.sin(st) * 120).toFixed(1)} 0" stroke="#1f1f1f" stroke-width="10" stroke-linecap="round"/><ellipse cx="0" cy="-170" rx="110" ry="75" fill="#9a9a8a" stroke="#1f1f1f" stroke-width="7"/><path d="M80 -200 Q110 -300 90 -360" stroke="#1f1f1f" stroke-width="26" fill="none" stroke-linecap="round"/><path d="M80 -200 Q110 -300 90 -360" stroke="#9a9a8a" stroke-width="14" fill="none" stroke-linecap="round"/><circle cx="92" cy="-372" r="24" fill="#9a9a8a" stroke="#1f1f1f" stroke-width="6"/><path d="M112 -372 L140 -366 L112 -360Z" fill="#e8b330" stroke="#1f1f1f" stroke-width="4"/><circle cx="98" cy="-378" r="5" fill="#1f1f1f"/></g>`;
+      }
+      function yacare(t, x, y, s) {
+        if (s <= 0.01) return "";
+        const jaw = 6 + 10 * Math.max(0, Math.sin(t * 3));
+        let g = `<path d="M-230 -20 Q-120 -40 0 -50 L120 -50 Q130 -30 120 -10 L0 0 Q-120 10 -230 -20Z" fill="#4f7f3a" stroke="#1f1f1f" stroke-width="7"/>`;
+        g += `<path d="M110 -46 L250 ${-40 - jaw} L250 ${-28 - jaw} L120 -28Z" fill="#4f7f3a" stroke="#1f1f1f" stroke-width="6" stroke-linejoin="round"/><path d="M120 -24 L250 -20 L250 -8 L118 -10Z" fill="#4f7f3a" stroke="#1f1f1f" stroke-width="6" stroke-linejoin="round"/>`;
+        g += `<circle cx="120" cy="-56" r="14" fill="#ffd23f" stroke="#1f1f1f" stroke-width="5"/><circle cx="124" cy="-56" r="5" fill="#1f1f1f"/>`;
+        for (let k = 0; k < 6; k++) g += `<path d="M${-170 + k * 50} -38 l14 -18 l14 18" fill="#3b6a2b" stroke="#1f1f1f" stroke-width="4"/>`;
+        g += `<path d="M-80 0 L-90 30 M60 -5 L70 28" stroke="#1f1f1f" stroke-width="12" stroke-linecap="round"/>`;
+        return `<g transform="translate(${x} ${y}) scale(${s.toFixed(3)})">${g}</g>`;
+      }
+      function anana(x, y, s) {
+        if (s <= 0.01) return "";
+        let g = `<path d="M0 -150 L-40 -250 L-10 -190 L0 -280 L10 -190 L40 -250Z" fill="#3f8f4a" stroke="#1f1f1f" stroke-width="5" stroke-linejoin="round"/><ellipse cx="0" cy="-80" rx="70" ry="95" fill="#ffd23f" stroke="#1f1f1f" stroke-width="7"/>`;
+        for (let k = -2; k <= 2; k++) g += `<path d="M${-60 + (k + 2) * 30 - 30} -150 L${-60 + (k + 2) * 30 + 30} -10 M${60 - (k + 2) * 30 + 30} -150 L${60 - (k + 2) * 30 - 30} -10" stroke="#c98a1a" stroke-width="4" opacity="0.8"/>`;
+        return `<g transform="translate(${x} ${y}) scale(${s.toFixed(3)})">${g}</g>`;
+      }
+      function falls(t) {
+        let g = `<rect width="1080" height="1920" fill="url(#sky)"/>`;
+        g += `<path d="M0 560 L1080 520 L1080 640 L0 680Z" fill="${JUNGLE}" stroke="#1f1f1f" stroke-width="6"/>`;
+        g += `<rect x="0" y="660" width="1080" height="520" fill="#7a5a3a"/>`;
+        for (let k = 0; k < 9; k++) {
+          const x = 40 + k * 125, off = (t * 420 + k * 70) % 120;
+          g += `<rect x="${x}" y="640" width="90" height="540" fill="#e9f5fb" stroke="#1f1f1f" stroke-width="4"/>`;
+          for (let r = 0; r < 5; r++) g += `<path d="M${x + 20 + (r % 3) * 25} ${660 + off + r * 110} l0 50" stroke="#7cc0e8" stroke-width="7" stroke-linecap="round"/>`;
+        }
+        g += `<rect x="0" y="1160" width="1080" height="760" fill="${RIVER}"/>`;
+        for (let k = 0; k < 8; k++) g += `<circle cx="${60 + k * 140}" cy="${1170 + Math.sin(t * 3 + k) * 10}" r="${70 + (k % 3) * 20}" fill="#ffffff" opacity="0.85"/>`;
+        return g;
+      }
+      function church(x, y, s, ruin = 0) {
+        if (s <= 0.01) return "";
+        let g = `<rect x="-200" y="-320" width="400" height="320" fill="${STONE}" stroke="#1f1f1f" stroke-width="7"/>`;
+        g += ruin > 0.5 ? `<path d="M-200 -320 L-120 -400 L-40 -360 L20 -440 L80 -380 L200 -320Z" fill="${STONE}" stroke="#1f1f1f" stroke-width="7"/>` : `<path d="M-220 -320 L0 -470 L220 -320Z" fill="${STONE}" stroke="#1f1f1f" stroke-width="7"/><path d="M0 -470 L0 -540 M-26 -510 L26 -510" stroke="#1f1f1f" stroke-width="10"/>`;
+        g += `<path d="M-60 0 L-60 -150 Q0 -210 60 -150 L60 0Z" fill="#3a2a20" stroke="#1f1f1f" stroke-width="6"/>`;
+        g += `<rect x="200" y="-420" width="120" height="420" fill="#a8482f" stroke="#1f1f1f" stroke-width="7"/><path d="M230 -360 Q260 -400 290 -360 L290 -300 L230 -300Z" fill="#3a2a20"/>`;
+        for (let k = 0; k < 5; k++) g += `<path d="M${-180 + k * 80} -${40 + (k % 2) * 30} l26 -12" stroke="#7a3020" stroke-width="5"/>`;
+        if (ruin > 0.01) {
+          const v = (px, py, h) => `<path d="M${px} ${py} q-24 ${-h / 3} 0 ${-h / 1.5} q24 ${-h / 3} 0 ${-h}" stroke="#2e7a3a" stroke-width="10" fill="none" opacity="${ruin}"/>` + `<circle cx="${px - 14}" cy="${py - h / 2}" r="14" fill="#3f9f4a" opacity="${ruin}"/><circle cx="${px + 14}" cy="${py - h * 0.8}" r="14" fill="#3f9f4a" opacity="${ruin}"/>`;
+          g += v(-170, 0, 300 * ruin) + v(-100, 0, 220 * ruin) + v(120, 0, 260 * ruin) + v(260, 0, 380 * ruin);
+        }
+        return `<g transform="translate(${x} ${y}) scale(${s.toFixed(3)})">${g}</g>`;
+      }
+      function house(x, y, s) {
+        if (s <= 0.01) return "";
+        return `<g transform="translate(${x} ${y}) scale(${s.toFixed(3)})"><rect x="-40" y="-50" width="80" height="50" fill="#d98a6a" stroke="#1f1f1f" stroke-width="4"/><path d="M-50 -50 L0 -85 L50 -50Z" fill="#8a3a2a" stroke="#1f1f1f" stroke-width="4"/></g>`;
+      }
+      function book(x, y, s, txt) {
+        if (s <= 0.01) return "";
+        return `<g transform="translate(${x} ${y}) scale(${s.toFixed(3)})"><rect x="-200" y="-130" width="400" height="260" rx="12" fill="#5a3a20" stroke="#1f1f1f" stroke-width="7"/><rect x="-185" y="-115" width="180" height="230" fill="#f4ede0" stroke="#1f1f1f" stroke-width="4"/><rect x="5" y="-115" width="180" height="230" fill="#f4ede0" stroke="#1f1f1f" stroke-width="4"/><text x="-95" y="10" text-anchor="middle" font-family="${FONT}" font-weight="800" font-size="40" fill="${RED}">${txt}</text>${[0, 1, 2, 3].map((r) => `<path d="M30 ${-70 + r * 45} L160 ${-70 + r * 45}" stroke="#b9ac90" stroke-width="6"/>`).join("")}</g>`;
+      }
+      function canoe(x, y, s) {
+        return `<g transform="translate(${x} ${y}) scale(${s})"><path d="M-210 -10 Q0 70 210 -10 L190 -30 L-190 -30Z" fill="#8a5a32" stroke="#1f1f1f" stroke-width="6" stroke-linejoin="round"/></g>`;
+      }
+      function crown(x, y, s) {
+        return `<g transform="translate(${x} ${y}) scale(${s})"><path d="M-46 0 L-50 -50 L-24 -24 L0 -60 L24 -24 L50 -50 L46 0Z" fill="${GOLD}" stroke="#1f1f1f" stroke-width="5" stroke-linejoin="round"/></g>`;
+      }
+      function musket(x, y, s, f, fire) {
+        let g = `<path d="M0 0 L${f * 150} -18" stroke="#3a2a20" stroke-width="10" stroke-linecap="round"/><path d="M${f * -10} 2 L${f * 40} -4" stroke="#8a5a32" stroke-width="18" stroke-linecap="round"/>`;
+        if (fire > 0.01 && fire < 0.99) g += `<circle cx="${f * (170 + 40 * fire)}" cy="${-22 - 10 * fire}" r="${30 * fire + 10}" fill="#ffffff" stroke="#1f1f1f" stroke-width="4" opacity="${(1 - fire).toFixed(2)}"/>`;
+        return `<g transform="translate(${x} ${y}) scale(${s})">${g}</g>`;
+      }
+
+      // ---------- the Guaraní region (lon, lat), simplified ----------
+      const GK = 52, GX0 = 100, GY0 = 520;
+      const gp = ([lon, lat]) => [GX0 + (lon + 64) * GK, GY0 + (-17 - lat) * GK];
+      const gpath = (pts, close = true) => `M${pts.map((p) => gp(p).map((v) => v.toFixed(1)).join(" ")).join(" L")}${close ? "Z" : ""}`;
+      const ZONE = [[-62, -21], [-57, -19], [-50, -22], [-48.5, -26], [-50, -30], [-53, -31.5], [-57, -30.5], [-59.5, -29], [-60.5, -26], [-62, -24]];
+      const RIVERS = [[[-57.9, -17], [-57.8, -22], [-58.4, -27.3]], [[-51, -20], [-54.3, -25.6], [-56, -27.4], [-58.4, -27.3], [-59.7, -29.5], [-60.6, -32.9]], [[-51.5, -27.5], [-55, -27.8], [-57.6, -30.2], [-58.4, -33.5]]];
+      function region(t, k, labels) {
+        let g = `<rect width="1080" height="1920" fill="#e9dcb4"/>`;
+        g += `<path d="${gpath(ZONE)}" fill="${JUNGLE}" opacity="${(0.85 * k).toFixed(2)}" stroke="#1f1f1f" stroke-width="${(6 * k).toFixed(1)}" stroke-linejoin="round"/>`;
+        RIVERS.forEach((r) => (g += `<path d="${gpath(r, false)}" fill="none" stroke="${RIVER}" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>`));
+        g += word(gp([-58.6, -23.5])[0], gp([-58.6, -23.5])[1], "Paraguay", labels.py, "#1f1f1f", 54);
+        g += word(gp([-59, -31.3])[0], gp([-59, -31.3])[1], "Argentina", labels.ar, "#1f1f1f", 54);
+        g += word(gp([-51.5, -24.6])[0], gp([-51.5, -24.6])[1], "Brasil", labels.br, "#1f1f1f", 54);
+        return g;
+      }
+
+      // ---------- characters ----------
+      const guarani = (o) => ({ s: 1.3, f: 1, seed: 61, ...CIVS[5][1], bow: false, look: 0.3, mouth: 0.4, ...R.walk(0, 0), ...o });
+      const modern = (o) => ({ s: 1.3, f: 1, seed: 71, hair: "#4a3426", tunic: { fill: "#2e9e5b" }, legs: "#1f3d7a", shoe: "#f2f2f2", skin: "#e8b896", look: 0.3, mouth: 0.4, ...R.walk(0, 0), ...o });
+      const jesuit = (o) => ({ s: 1.2, f: 1, seed: 81, hat: "cap", hatColor: "#1f1f1f", tunic: { fill: "#2a2a2a" }, legs: "#2a2a2a", shoe: "#1f1f1f", skin: "#f1c9a5", look: 0.3, mouth: 0.3, ...R.walk(0, 0), ...o });
+      const bandeirante = (o) => ({ s: 1.1, f: -1, seed: 91, hat: "cap", hatColor: "#5a3a20", beard: "#3a2a20", tunic: { fill: "#8a6a40", sash: "#5a3a20" }, legs: "#5a4632", shoe: "#3a2a20", skin: "#f1c9a5", look: 0.6, mouth: -0.3, ...R.walk(0, 0), ...o });
+      const guaMini = (t, x, y, s, seed, o = {}) => R.mini(t, x, y, s, { seed, cloth: "#c9a46b", band: "#e07b39", skin: SKIN, hair: "#1f1f1f", look: 0.2, ...o });
+      // a mate held in front of a chibi's hand
+      const hand = (p) => [p.x + p.f * 62 * p.s, p.y - 95 * p.s];
+
+      // ---------- scenes ----------
+      function sHook(t) {
+        const i = 0;
+        const cQui = cue(i, "quién"), cGua = cue(i, "guaraníes"), c500 = cue(i, "500"), cLen = cue(i, "lengua"), cPor = cue(i, "¿por");
+        let o = BG_ROOM;
+        const m = modern({ x: 330, y: GROUND + 40, s: 1.35, mouth: 0.5, armF: { a: 1.1, b: 0.9 }, look: t > cGua ? 0.9 : 0.2 });
+        if (popIn(m, t, BLOCKS[i][0])) { o += R.chibi(t, m); const [hx, hy] = hand(m); o += mate(hx, hy, 1.0); }
+        if (t > cQui - 0.1) o += word(330, 640, "?", pop(t, cQui - 0.1), RED, 200);
+        const g = guarani({ x: 760, y: GROUND + 40, s: 1.35, f: -1, mouth: 0.6, armF: { a: 1.1, b: 0.9 } });
+        if (popIn(g, t, cGua - 0.1)) { o += R.chibi(t, g); const [hx, hy] = hand(g); o += mate(hx, hy, 1.0, true); }
+        o += bubble(700, 470, 420, "Mba'éichapa?", pop(t, cLen - 0.1), 56, 1);
+        o += title(t, "¿QUIÉN LO INVENTÓ?", cQui - 0.2, cGua, 300, 80);
+        o += title(t, "HACE 500 AÑOS", c500 - 0.1, cLen, 300, 100, RED);
+        o += title(t, "SU LENGUA NO MURIÓ", cLen - 0.1, cPor, 300, 76, GREEN);
+        o += title(t, "¿POR QUÉ NUNCA TE LO CONTARON?", cPor, END(i) + 0.3, 300, 54, RED);
+        return o;
+      }
+
+      function sRegion(t) {
+        const i = 1;
+        const cViv = cue(i, "vivían");
+        if (t < cViv) {
+          let o = BG_JUNGLE(t);
+          const g = guarani({ x: 540, y: GROUND + 40, s: 1.5, mouth: 0.5 });
+          if (popIn(g, t, BLOCKS[i][0])) o += R.chibi(t, g);
+          return o + title(t, "LOS GUARANÍES", BLOCKS[i][0], cViv, 300, 110, GREEN);
+        }
+        let o = region(t, prog(t, cViv, cViv + 0.8), { py: pop(t, cue(i, "paraguay") - 0.1), ar: pop(t, cue(i, "argentina") - 0.1), br: pop(t, cue(i, "brasil") - 0.1) });
+        o += title(t, "SELVAS Y RÍOS", cViv, END(i) + 0.2, 300, 100, GREEN);
+        return o;
+      }
+
+      function sLife(t) {
+        const i = 2;
+        const cTom = cue(i, "tomaban"), cCal = cue(i, "calabaza");
+        let o = BG_JUNGLE(t);
+        if (t < cTom) {
+          o += mandioca(260, GROUND - 60, 1.3 * pop(t, cue(i, "mandioca") - 0.1)) + corn(820, GROUND - 60, 1.4 * pop(t, cue(i, "maíz") - 0.1));
+          const g = guarani({ x: 540, y: GROUND + 40, s: 1.35, look: -0.5, mouth: 0.5 });
+          if (popIn(g, t, BLOCKS[i][0])) o += R.chibi(t, g);
+          return o + word(260, 620, "MANDIOCA", pop(t, cue(i, "mandioca") - 0.1), "#8a5a32", 80) + word(820, 560, "MAÍZ", pop(t, cue(i, "maíz") - 0.1), GOLD_DARK, 96);
+        }
+        // leaves go into the gourd, then the cane
+        const g = guarani({ x: 400, y: GROUND + 40, s: 1.45, f: 1, mouth: 0.6, look: 0.6, armF: { a: 1.1, b: 0.9 } });
+        o += R.chibi(t, g);
+        o += `<g transform="translate(720 ${GROUND - 60})">` + [[-60, 0], [-20, -10], [20, 0], [60, -6], [0, -40], [-40, -36], [40, -36]].map(([a, b]) => `<ellipse cx="${a}" cy="${b}" rx="34" ry="16" fill="#3f8f4a" stroke="#1f1f1f" stroke-width="4"/>`).join("") + `</g>`;
+        const [hx, hy] = hand(g);
+        o += mate(hx, hy, 1.4 * pop(t, cCal - 0.2), t > cue(i, "caña") - 0.1);
+        o += title(t, "YERBA MATE", cTom - 0.1, cue(i, "caña") - 0.1, 300, 110, GREEN) + title(t, "CALABAZA + CAÑA", cue(i, "caña") - 0.1, END(i) + 0.2, 300, 84);
+        return o;
+      }
+
+      function sWords(t) {
+        const i = 3;
+        const cIgu = cue(i, "iguazú");
+        if (t < cIgu) {
+          let o = BG_JUNGLE(t);
+          o += nandu(t, 220, GROUND + 20, 0.95 * pop(t, cue(i, "ñandú") - 0.1)) + yacare(t, 600, GROUND + 60, 0.9 * pop(t, cue(i, "yacaré") - 0.1)) + anana(900, GROUND + 20, 1.0 * pop(t, cue(i, "ananá") - 0.1));
+          o += word(220, 720, "ñandú", pop(t, cue(i, "ñandú") - 0.1), "#1f1f1f", 76) + word(560, 880, "yacaré", pop(t, cue(i, "yacaré") - 0.1), GREEN, 76) + word(900, 720, "ananá", pop(t, cue(i, "ananá") - 0.1), GOLD_DARK, 76);
+          o += title(t, "PALABRAS GUARANÍES", BLOCKS[i][0], cIgu, 300, 76, GREEN);
+          return o;
+        }
+        let o = falls(t);
+        o += title(t, "IGUAZÚ", cIgu - 0.1, END(i) + 0.2, 300, 120, BLUE);
+        o += word(540, 470, "= AGUA GRANDE", pop(t, cue(i, "agua") - 0.1), "#1f1f1f", 80);
+        return o;
+      }
+
+      function sMissions(t) {
+        const i = 4;
+        const cJes = cue(i, "jesuitas"), c30 = cue(i, "30"), c100 = cue(i, "100"), cEns = cue(i, "enseñaba");
+        if (t < cEns) {
+          let o = BG_JUNGLE(t);
+          o += church(540, GROUND - 120, 1.05 * pop(t, BLOCKS[i][0] + 0.2));
+          const nh = Math.floor(30 * prog(t, c30 - 0.2, c30 + 1.2));
+          for (let k = 0; k < nh; k++) o += house(70 + (k % 10) * 105, GROUND - 120 + 40 + Math.floor(k / 10) * 80, 0.85);
+          if (t > cJes - 0.2) { const j = jesuit({ x: 180, y: GROUND + 280, s: 1.1, mouth: 0.4 }); if (popIn(j, t, cJes - 0.2)) o += R.chibi(t, j); }
+          if (t > c100 - 0.3) for (let k = 0; k < 6; k++) o += guaMini(t, 420 + k * 110, GROUND + 280, 1.6 * pop(t, c100 - 0.3 + k * 0.05), 700 + k);
+          o += title(t, "LOS JESUITAS", cJes - 0.2, c30, 300, 100) + title(t, "30 PUEBLOS: LAS MISIONES", c30 - 0.1, c100, 300, 66, STONE);
+          o += title(t, "+100.000 GUARANÍES", c100 - 0.2, cEns, 300, 76, GREEN);
+          return o;
+        }
+        let o = BG_SOFT + book(540, 900, 1.8 * pop(t, cEns - 0.2), "Guaraní");
+        o += title(t, "SE ESCRIBÍA EN GUARANÍ", cEns - 0.2, END(i) + 0.2, 300, 70, GREEN);
+        return o;
+      }
+
+      function sMborore(t) {
+        const i = 5;
+        const c1641 = cue(i, "1641"), cArm = cue(i, "armas"), cDer = cue(i, "derrotaron");
+        let o = BG_JUNGLE(t, { river: 360 });
+        const back = prog(t, cDer, cDer + 1.5, "inOut");
+        const cx = 1240 - 520 * prog(t, BLOCKS[i][0], c1641, "out") + 600 * back;
+        for (let k = 0; k < 2; k++) {
+          const x = cx + k * 260, y = GROUND + 120 + k * 90;
+          o += R.chibi(t, bandeirante({ x, y: y - 20, s: 0.95, f: back > 0.2 ? 1 : -1, mouth: back > 0.2 ? -0.7 : 0.1 })) + canoe(x, y, 0.9);
+          o += `<path d="M${x - 150} ${y - 30} q20 -24 40 0 q20 24 40 0" stroke="#7a7a7a" stroke-width="8" fill="none"/>`;
+        }
+        if (t > c1641 - 0.2) for (let k = 0; k < 3; k++) {
+          const x = 130 + k * 170, y = GROUND - 140, g = guarani({ x, y, s: 1.0, seed: 62 + k, mouth: 0.6 });
+          if (popIn(g, t, c1641 - 0.2 + k * 0.1)) { o += R.chibi(t, g); if (t > cArm - 0.2) o += musket(x + 20, y - 80, 1, 1, prog(t, cDer - 0.3 + k * 0.15, cDer + 0.3 + k * 0.15)); }
+        }
+        o += title(t, "BANDEIRANTES", BLOCKS[i][0], c1641, 300, 100, "#5a3a20") + word(540, 410, "cazadores de esclavos", pop(t, cue(i, "cazadores") - 0.1) * (t < c1641 ? 1 : 0), RED, 54);
+        o += title(t, "1641: MBORORÉ", c1641 - 0.1, END(i) + 0.2, 300, 96, GREEN);
+        return o;
+      }
+
+      function sExpel(t) {
+        const i = 6;
+        const cExp = cue(i, "expulsó"), cRui = cue(i, "ruinas");
+        let o = BG_JUNGLE(t);
+        if (t < cRui - 0.3) {
+          o += church(760, GROUND - 120, 0.75);
+          const k = { x: 260, y: GROUND + 40, s: 1.3, f: 1, seed: 95, hair: "#8a6a40", tunic: { fill: "#c62828", sash: GOLD }, cape: "#7a1f2b", legs: "#f2f2f2", shoe: "#1f1f1f", skin: "#f1c9a5", mouth: -0.4, look: 0.6, armF: { a: 1.7, b: 0 }, ...R.walk(0, 0) };
+          o += R.chibi(t, k) + crown(260, GROUND + 40 - 232 * 1.3, 1.0);
+          const go = prog(t, cExp, cExp + 1.6, "in");
+          for (let j = 0; j < 2; j++) o += R.chibi(t, jesuit({ x: 600 + j * 140 + 700 * go, y: GROUND + 40, s: 1.0, seed: 82 + j, mouth: -0.4, ...R.walk(t * 9 + j, go > 0.01 ? 1 : 0) }));
+          o += title(t, "1767", BLOCKS[i][0], cExp, 300, 130, RED) + title(t, "¡AFUERA LOS JESUITAS!", cExp, cRui, 300, 70, RED);
+          return o;
+        }
+        o += church(540, GROUND - 40, 1.05, prog(t, cRui - 0.3, cRui + 1.2));
+        o += title(t, "RUINAS", cRui - 0.3, END(i) + 0.2, 300, 120, "#5a3a20");
+        return o;
+      }
+
+      function sToday(t) {
+        const i = 7;
+        const cPar = cue(i, "paraguay"), cOfi = cue(i, "oficial"), cUni = cue(i, "único");
+        let o = BG_SOFT;
+        if (t < cPar) {
+          o = region(t, 1, { py: 1, ar: 0, br: 0 });
+          return o + title(t, "SU LENGUA SOBREVIVIÓ", BLOCKS[i][0], cPar, 300, 76, GREEN);
+        }
+        const cols = ["#d7263d", "#1f6fb2", "#e8b330", "#2e9e5b", "#f2f2f2", "#8e44ad", "#e07b39"];
+        o = `<rect width="1080" height="1920" fill="url(#sky)"/><rect x="0" y="${GROUND}" width="1080" height="${1920 - GROUND}" fill="#c9b98a"/>`;
+        for (let r = 0; r < 2; r++) for (let k = 0; k < 7; k++) {
+          const kk = pop(t, cPar + (r * 7 + k) * 0.04);
+          if (kk > 0.01) o += R.mini(t, 90 + k * 150 + (r % 2) * 60, GROUND + 40 - r * 50, (1.6 - r * 0.2) * kk, { seed: 720 + r * 7 + k, cloth: cols[k], skin: k % 2 ? "#d9a37a" : "#e8b896", hair: k % 3 ? "#1f1f1f" : "#4a3426", look: 0.1 });
+        }
+        o += bubble(300, 700, 420, "Mba'éichapa?", pop(t, cPar + 0.3), 54, 1) + bubble(780, 640, 300, "Aguyje!", pop(t, cOfi - 0.2), 54, -1) + bubble(560, 880, 280, "Iporã!", pop(t, cue(i, "mayoría") - 0.2), 54, 1);
+        o += title(t, "PARAGUAY", cPar - 0.1, cOfi - 0.2, 300, 110, RED) + title(t, "IDIOMA OFICIAL", cOfi - 0.2, cUni, 300, 100, GREEN);
+        o += title(t, "ÚNICO EN AMÉRICA", cUni - 0.1, END(i) + 0.2, 300, 90, RED);
+        return o;
+      }
+
+      function sGift(t) {
+        const i = 8;
+        let o = BG_ROOM;
+        const pass = prog(t, cue(i, "regalo") - 0.6, cue(i, "regalo") + 0.2, "inOut");
+        const m = modern({ x: 330, y: GROUND + 40, s: 1.35, mouth: 0.7, look: 0.8, armF: { a: 1.1 + 0.2 * pass, b: 0.9 - 0.3 * pass } });
+        const g = guarani({ x: 760, y: GROUND + 40, s: 1.35, f: -1, mouth: 0.6, armF: { a: 1.1 + 0.4 * (1 - pass), b: 0.9 } });
+        o += R.chibi(t, m) + R.chibi(t, g);
+        const [ax, ay] = hand(g), [bx, by] = hand(m);
+        o += mate(ax + (bx - ax) * pass, ay + (by - ay) * pass - 60 * Math.sin(Math.PI * pass), 1.1, true);
+        o += title(t, "UN REGALO GUARANÍ", cue(i, "regalo") - 0.3, END(i) + 0.3, 300, 84, GREEN);
+        return o;
+      }
+
+      function sNext(t) {
+        const i = 9;
+        const extra = check(t, PART, prog(t, at(i, 0.1), at(i, 0.35)), 831);
+        let o = `<rect width="1080" height="1920" fill="#e7f0e1"/><g transform="translate(151 20) scale(0.72)">${sCover(t, 0, extra, prog(t, at(i, 0.1), at(i, 0.35)))}</g>`;
+        const th = kf(t, [[at(i, 0.25), 0], [at(i, 0.45), 1, "back"]]) * (1 + 0.06 * Math.max(0, Math.sin((t - at(i, 0.45)) * 6)));
+        if (th > 0.01) o += `<g transform="translate(540 1650) scale(${(th * 0.9).toFixed(3)}) rotate(-8)">` +
+          `<rect x="-118" y="-8" width="44" height="130" rx="12" fill="#1f6fb2" stroke="#1f1f1f" stroke-width="7"/>` +
+          `<path d="M-70 -6 L-40 -6 L-10 -92 Q2 -122 30 -108 Q46 -96 38 -64 L30 -10 L84 -10 Q112 -10 108 18 L96 104 Q92 124 70 124 L-70 124Z" fill="#ffd23f" stroke="#1f1f1f" stroke-width="7" stroke-linejoin="round"/>` +
+          `<path d="M42 30 L100 30 M38 64 L98 64 M40 96 L92 96" stroke="#1f1f1f" stroke-width="5" stroke-linecap="round"/></g>`;
+        o += title(t, "¡DALE LIKE!", at(i, 0.2), DUR + 1, 1560, 96, C.red);
+        return o;
+      }
+
+      const SCENES = [sHook, sRegion, sLife, sWords, sMissions, sMborore, sExpel, sToday, sGift, sNext];
+      function renderAt(t) {
+        let o;
+        if (t < BLOCKS[0][0]) o = sCover(t, prog(t, BLOCKS[0][0] - 0.45, BLOCKS[0][0], "in")) + title(t, "6", BLOCKS[0][0] - 0.5, BLOCKS[0][0] + 0.05, 1600, 200, RED);
+        else {
+          let i = BLOCKS.findIndex(([a, b]) => t < b);
+          if (i < 0) i = BLOCKS.length - 1;
+          o = SCENES[i](t);
+        }
+        layer.innerHTML = o + captions(t);
+      }
+
+      window.addEventListener("hf-seek", (e) => renderAt(e.detail.time));
+      const tl = gsap.timeline({ paused: true });
+      const clock = { t: 0 };
+      tl.to(clock, { t: DUR, duration: DUR, ease: "none", onUpdate: () => renderAt(clock.t) }, 0);
+      window.__timelines = window.__timelines || {};
+      window.__timelines["main"] = tl;
+      renderAt(0);
+    </script>
+  </body>
+</html>

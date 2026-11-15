@@ -1,5 +1,12 @@
 # Short 6: LAS CIVILIZACIONES DE AMÉRICA, parte 6: LOS GUARANÍES (cierre de la serie)
 
+## ✅ Versión elegida por Lucas: hook B (82 STRONG), resto del guion igual
+
+Tomas mate, pero nunca te preguntaste quién lo inventó. Los guaraníes ya lo tomaban hace 500 años, y su lengua nunca murió. ¿Por qué nunca te lo contaron?
+
+---
+
+
 Canal: **Siglos en Palitos**. Formato: vertical 9:16, voz en off + subtítulos palabra por palabra.
 
 ## Hooks (hookscore.py, traducción al inglés)
