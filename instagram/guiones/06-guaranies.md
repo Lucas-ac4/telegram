@@ -2,7 +2,9 @@
 
 ## ✅ Versión elegida por Lucas: hook B (82 STRONG), resto del guion igual
 
-Tomas mate, pero nunca te preguntaste quién lo inventó. Los guaraníes ya lo tomaban hace 500 años, y su lengua nunca murió. ¿Por qué nunca te lo contaron?
+Cada vez que tomas un mate, nunca te preguntas quién lo inventó. Los guaraníes ya lo tomaban hace 500 años, y su lengua nunca murió. ¿Por qué nunca te lo contaron?
+
+Cambio de Lucas: "Tomas mate" sonaba al nombre Tomás. Nueva primera frase (opción B, 78 STRONG). Solo se regrabó esa frase y se empalmó en la narración.
 
 ---
 

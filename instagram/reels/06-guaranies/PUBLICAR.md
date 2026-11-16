@@ -11,7 +11,7 @@ Archivo: `out/reel-06-guaranies.mp4` (1080×1920, con voz, 1:27).
 
 **Descripción:**
 ```
-Tomas mate, pero ¿sabías que los guaraníes ya lo tomaban hace 500 años? Nos dejaron palabras como ñandú, yacaré e Iguazú, vencieron a los bandeirantes en Mbororé (1641) y su lengua nunca murió: hoy es idioma oficial en Paraguay.
+Cada vez que tomas un mate… ¿sabías que los guaraníes ya lo tomaban hace 500 años? Nos dejaron palabras como ñandú, yacaré e Iguazú, vencieron a los bandeirantes en Mbororé (1641) y su lengua nunca murió: hoy es idioma oficial en Paraguay.
 
 Parte 6 de 6: Las civilizaciones de América. ¡Serie completa en el canal!
 

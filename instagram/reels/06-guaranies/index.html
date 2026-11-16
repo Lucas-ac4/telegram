@@ -22,10 +22,10 @@
     <!-- Siglos en Palitos — Short 6: LAS CIVILIZACIONES DE AMÉRICA, parte 6: LOS GUARANÍES.
          Guion: instagram/guiones/06-guaranies.md. Every visual starts on the word that names it
          (cue), so voice/tools/sincronizar.py can retime the whole Short from the voice. -->
-    <div id="root" data-composition-id="main" data-start="0" data-duration="86.77" data-width="1080" data-height="1920">
+    <div id="root" data-composition-id="main" data-start="0" data-duration="87.23" data-width="1080" data-height="1920">
       <audio id="titulo" src="assets/titulo.mp3" data-start="0.25" data-track-index="3" data-volume="1"></audio>
       <audio id="narracion" src="assets/narracion.mp3" data-start="2.55" data-track-index="2" data-volume="1"></audio>
-      <svg id="stage" class="clip" data-start="0" data-duration="86.77" data-track-index="0" data-layout-allow-overflow
+      <svg id="stage" class="clip" data-start="0" data-duration="87.23" data-track-index="0" data-layout-allow-overflow
         viewBox="0 0 1080 1920" xmlns="http://www.w3.org/2000/svg">
         <defs>
           <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
@@ -43,30 +43,30 @@
       const R = window.Rig;
       R.setStill(true);
       const { kf, prog, C } = R;
-      const DUR = 86.77, W = 1080, GROUND = 1250;
+      const DUR = 87.23, W = 1080, GROUND = 1250;
       const GOLD = "#e8b330", GOLD_DARK = "#b8860b", STEEL = "#8a96a3", RED = "#c62828", BLUE = "#1f6fb2", GREEN = "#2e9e5b", SKIN = "#c98f68", SEA = "#3fa7d6", SKIN2 = "#c98f68";
       const layer = document.getElementById("layer");
       const FONT = R.FONT;
 
       // ---------- narration blocks (seconds) ----------
       const BLOCKS = [
-        [2.5, 13.26, "Tomas mate, pero nunca te preguntaste quién lo inventó. Los guaraníes ya lo tomaban hace 500 años, y su lengua nunca murió. ¿Por qué nunca te lo contaron?"],
-        [13.26, 22.11, "Hoy vemos su historia. Los guaraníes vivían en las selvas y ríos de lo que hoy es Paraguay, el noreste de Argentina y el sur de Brasil."],
-        [22.11, 29.08, "Cultivaban mandioca y maíz, y tomaban las hojas de la yerba mate en una calabaza, con una caña como bombilla."],
-        [29.08, 38.17, "Muchas palabras que usas vienen del guaraní: ñandú, yacaré, ananá. E Iguazú, que significa agua grande."],
-        [38.17, 49.42, "Cuando llegaron los españoles, los jesuitas armaron con ellos unos 30 pueblos, las misiones. Ahí vivieron más de 100 mil guaraníes, y se enseñaba y se escribía en guaraní."],
-        [49.42, 60.88, "Desde Brasil llegaban los bandeirantes, cazadores de esclavos. En 1641, los guaraníes, con armas de fuego, los derrotaron en la batalla de Mbororé."],
-        [60.88, 67.86, "En 1767, el rey de España expulsó a los jesuitas, y las misiones quedaron en ruinas."],
-        [67.86, 78.86, "Su lengua, en cambio, sobrevivió. En Paraguay, el guaraní es idioma oficial y lo habla la mayoría de la gente. Es el único país de América donde pasa eso."],
-        [78.86, 83.78, "Así que la próxima vez que tomes mate, acuérdate: es un regalo guaraní."],
-        [83.78, 85.77, "Si te gustó, dale like."],
+        [2.5, 13.72, "Cada vez que tomas un mate, nunca te preguntas quién lo inventó. Los guaraníes ya lo tomaban hace 500 años, y su lengua nunca murió. ¿Por qué nunca te lo contaron?"],
+        [13.72, 22.57, "Hoy vemos su historia. Los guaraníes vivían en las selvas y ríos de lo que hoy es Paraguay, el noreste de Argentina y el sur de Brasil."],
+        [22.57, 29.54, "Cultivaban mandioca y maíz, y tomaban las hojas de la yerba mate en una calabaza, con una caña como bombilla."],
+        [29.54, 38.63, "Muchas palabras que usas vienen del guaraní: ñandú, yacaré, ananá. E Iguazú, que significa agua grande."],
+        [38.63, 49.88, "Cuando llegaron los españoles, los jesuitas armaron con ellos unos 30 pueblos, las misiones. Ahí vivieron más de 100 mil guaraníes, y se enseñaba y se escribía en guaraní."],
+        [49.88, 61.34, "Desde Brasil llegaban los bandeirantes, cazadores de esclavos. En 1641, los guaraníes, con armas de fuego, los derrotaron en la batalla de Mbororé."],
+        [61.34, 68.32, "En 1767, el rey de España expulsó a los jesuitas, y las misiones quedaron en ruinas."],
+        [68.32, 79.31, "Su lengua, en cambio, sobrevivió. En Paraguay, el guaraní es idioma oficial y lo habla la mayoría de la gente. Es el único país de América donde pasa eso."],
+        [79.31, 84.24, "Así que la próxima vez que tomes mate, acuérdate: es un regalo guaraní."],
+        [84.24, 86.23, "Si te gustó, dale like."],
       ];
       const KEY = new Set(["mate", "inventó", "guaraníes", "500", "lengua", "murió", "paraguay", "argentina", "brasil", "mandioca", "maíz", "yerba", "calabaza", "caña", "guaraní", "ñandú", "yacaré", "ananá", "iguazú", "agua", "grande", "jesuitas", "30", "misiones", "100", "bandeirantes", "esclavos", "1641", "mbororé", "1767", "ruinas", "sobrevivió", "oficial", "mayoría", "único", "regalo", "like"]);
       // time at fraction f (0..1) of narration block i
       const at = (i, f) => BLOCKS[i][0] + f * (BLOCKS[i][1] - BLOCKS[i][0]);
 
       // start time of every caption word, from the ElevenLabs narration (seconds)
-      const WT = [2.55, 3.03, 3.878, 4.11, 4.363, 4.502, 5.17, 5.483, 5.636, 6.43, 6.876, 7.495, 7.601, 7.748, 8.14, 8.321, 9.068, 9.588, 9.681, 9.852, 10.268, 10.708, 11.527, 11.854, 12.014, 12.267, 12.427, 12.566, 13.314, 14.001, 14.294, 14.454, 15.284, 15.688, 16.196, 16.589, 16.716, 16.836, 17.216, 17.336, 17.683, 17.763, 17.876, 18.116, 18.349, 18.496, 19.283, 19.376, 19.843, 19.952, 20.616, 20.803, 20.916, 21.149, 21.336, 22.159, 22.935, 23.487, 23.607, 24.207, 24.287, 24.687, 24.86, 25.154, 25.234, 25.367, 25.751, 26.06, 26.207, 26.387, 27.167, 27.347, 27.607, 27.975, 28.231, 29.127, 29.642, 30.038, 30.238, 30.638, 31.078, 31.23, 32.238, 33.118, 34.158, 35.028, 35.34, 36.08, 36.212, 36.988, 37.569, 38.22, 38.78, 39.168, 39.295, 40.148, 40.308, 40.881, 41.268, 41.441, 41.788, 42.148, 42.588, 43.348, 43.508, 44.507, 45.023, 45.473, 45.646, 45.833, 46.073, 46.361, 47.153, 47.22, 47.337, 47.873, 47.966, 48.126, 48.66, 48.745, 49.473, 50.079, 50.47, 50.862, 51.035, 52.082, 52.769, 52.875, 53.855, 54.181, 55.931, 56.173, 56.901, 57.081, 57.368, 57.481, 58.181, 58.341, 58.808, 58.914, 59.061, 59.554, 59.861, 60.931, 61.29, 63.197, 63.303, 63.517, 63.627, 64.05, 64.57, 64.65, 64.83, 65.61, 65.69, 65.85, 66.418, 66.957, 67.063, 67.911, 68.286, 68.915, 69.079, 69.722, 70.775, 71.105, 71.812, 71.913, 72.398, 72.565, 72.985, 73.625, 73.758, 73.905, 74.158, 74.335, 74.852, 74.932, 75.052, 75.847, 76.238, 76.385, 76.665, 77.078, 77.3, 77.585, 77.865, 78.265, 78.905, 79.324, 79.437, 79.594, 79.984, 80.144, 80.317, 80.648, 81.224, 82.237, 82.371, 82.504, 83.016, 83.834, 84.144, 84.315, 84.971, 85.291];
+      const WT = [2.55, 2.83, 2.99, 3.163, 3.483, 3.67, 4.363, 4.683, 4.822, 5.41, 5.697, 5.807, 6.89, 7.336, 7.955, 8.061, 8.208, 8.6, 8.781, 9.528, 10.048, 10.141, 10.312, 10.728, 11.168, 11.987, 12.314, 12.474, 12.727, 12.887, 13.026, 13.774, 14.461, 14.754, 14.914, 15.744, 16.148, 16.656, 17.049, 17.176, 17.296, 17.676, 17.796, 18.143, 18.223, 18.336, 18.576, 18.809, 18.956, 19.743, 19.836, 20.303, 20.412, 21.076, 21.263, 21.376, 21.609, 21.796, 22.619, 23.395, 23.947, 24.067, 24.667, 24.747, 25.147, 25.32, 25.614, 25.694, 25.827, 26.211, 26.52, 26.667, 26.847, 27.627, 27.807, 28.067, 28.435, 28.691, 29.587, 30.102, 30.498, 30.698, 31.098, 31.538, 31.69, 32.698, 33.578, 34.618, 35.488, 35.8, 36.54, 36.672, 37.448, 38.029, 38.68, 39.24, 39.628, 39.755, 40.608, 40.768, 41.341, 41.728, 41.901, 42.248, 42.608, 43.048, 43.808, 43.968, 44.967, 45.483, 45.933, 46.106, 46.293, 46.533, 46.821, 47.613, 47.68, 47.797, 48.333, 48.426, 48.586, 49.12, 49.205, 49.933, 50.539, 50.93, 51.322, 51.495, 52.542, 53.229, 53.335, 54.315, 54.641, 56.391, 56.633, 57.361, 57.541, 57.828, 57.941, 58.641, 58.801, 59.268, 59.374, 59.521, 60.014, 60.321, 61.391, 61.75, 63.657, 63.763, 63.977, 64.087, 64.51, 65.03, 65.11, 65.29, 66.07, 66.15, 66.31, 66.878, 67.417, 67.523, 68.371, 68.746, 69.375, 69.539, 70.182, 71.235, 71.565, 72.272, 72.373, 72.858, 73.025, 73.445, 74.085, 74.218, 74.365, 74.618, 74.795, 75.312, 75.392, 75.512, 76.307, 76.698, 76.845, 77.125, 77.538, 77.76, 78.045, 78.325, 78.725, 79.365, 79.784, 79.897, 80.054, 80.444, 80.604, 80.777, 81.108, 81.684, 82.697, 82.831, 82.964, 83.476, 84.294, 84.604, 84.775, 85.431, 85.751];
       const WORDS = [];
       BLOCKS.forEach(([a, b, txt]) => {
         const ws = txt.split(/\s+/);
