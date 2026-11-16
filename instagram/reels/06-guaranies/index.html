@@ -22,9 +22,10 @@
     <!-- Siglos en Palitos — Short 6: LAS CIVILIZACIONES DE AMÉRICA, parte 6: LOS GUARANÍES.
          Guion: instagram/guiones/06-guaranies.md. Every visual starts on the word that names it
          (cue), so voice/tools/sincronizar.py can retime the whole Short from the voice. -->
-    <div id="root" data-composition-id="main" data-start="0" data-duration="87.17" data-width="1080" data-height="1920">
+    <div id="root" data-composition-id="main" data-start="0" data-duration="86.77" data-width="1080" data-height="1920">
       <audio id="titulo" src="assets/titulo.mp3" data-start="0.25" data-track-index="3" data-volume="1"></audio>
-      <svg id="stage" class="clip" data-start="0" data-duration="87.17" data-track-index="0" data-layout-allow-overflow
+      <audio id="narracion" src="assets/narracion.mp3" data-start="2.55" data-track-index="2" data-volume="1"></audio>
+      <svg id="stage" class="clip" data-start="0" data-duration="86.77" data-track-index="0" data-layout-allow-overflow
         viewBox="0 0 1080 1920" xmlns="http://www.w3.org/2000/svg">
         <defs>
           <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
@@ -42,33 +43,35 @@
       const R = window.Rig;
       R.setStill(true);
       const { kf, prog, C } = R;
-      const DUR = 87.17, W = 1080, GROUND = 1250;
+      const DUR = 86.77, W = 1080, GROUND = 1250;
       const GOLD = "#e8b330", GOLD_DARK = "#b8860b", STEEL = "#8a96a3", RED = "#c62828", BLUE = "#1f6fb2", GREEN = "#2e9e5b", SKIN = "#c98f68", SEA = "#3fa7d6", SKIN2 = "#c98f68";
       const layer = document.getElementById("layer");
       const FONT = R.FONT;
 
       // ---------- narration blocks (seconds) ----------
       const BLOCKS = [
-        [2.55, 13.74, "Tomas mate, pero nunca te preguntaste quién lo inventó. Los guaraníes ya lo tomaban hace 500 años, y su lengua nunca murió. ¿Por qué nunca te lo contaron?"],
-        [13.74, 24.54, "Hoy vemos su historia. Los guaraníes vivían en las selvas y ríos de lo que hoy es Paraguay, el noreste de Argentina y el sur de Brasil."],
-        [24.54, 32.68, "Cultivaban mandioca y maíz, y tomaban las hojas de la yerba mate en una calabaza, con una caña como bombilla."],
-        [32.68, 39.28, "Muchas palabras que usas vienen del guaraní: ñandú, yacaré, ananá. E Iguazú, que significa agua grande."],
-        [39.28, 50.85, "Cuando llegaron los españoles, los jesuitas armaron con ellos unos 30 pueblos, las misiones. Ahí vivieron más de 100 mil guaraníes, y se enseñaba y se escribía en guaraní."],
-        [50.85, 60.13, "Desde Brasil llegaban los bandeirantes, cazadores de esclavos. En 1641, los guaraníes, con armas de fuego, los derrotaron en la batalla de Mbororé."],
-        [60.13, 66.74, "En 1767, el rey de España expulsó a los jesuitas, y las misiones quedaron en ruinas."],
-        [66.74, 78.31, "Su lengua, en cambio, sobrevivió. En Paraguay, el guaraní es idioma oficial y lo habla la mayoría de la gente. Es el único país de América donde pasa eso."],
-        [78.31, 83.77, "Así que la próxima vez que tomes mate, acuérdate: es un regalo guaraní."],
-        [83.77, 86.17, "Si te gustó, dale like."],
+        [2.5, 13.26, "Tomas mate, pero nunca te preguntaste quién lo inventó. Los guaraníes ya lo tomaban hace 500 años, y su lengua nunca murió. ¿Por qué nunca te lo contaron?"],
+        [13.26, 22.11, "Hoy vemos su historia. Los guaraníes vivían en las selvas y ríos de lo que hoy es Paraguay, el noreste de Argentina y el sur de Brasil."],
+        [22.11, 29.08, "Cultivaban mandioca y maíz, y tomaban las hojas de la yerba mate en una calabaza, con una caña como bombilla."],
+        [29.08, 38.17, "Muchas palabras que usas vienen del guaraní: ñandú, yacaré, ananá. E Iguazú, que significa agua grande."],
+        [38.17, 49.42, "Cuando llegaron los españoles, los jesuitas armaron con ellos unos 30 pueblos, las misiones. Ahí vivieron más de 100 mil guaraníes, y se enseñaba y se escribía en guaraní."],
+        [49.42, 60.88, "Desde Brasil llegaban los bandeirantes, cazadores de esclavos. En 1641, los guaraníes, con armas de fuego, los derrotaron en la batalla de Mbororé."],
+        [60.88, 67.86, "En 1767, el rey de España expulsó a los jesuitas, y las misiones quedaron en ruinas."],
+        [67.86, 78.86, "Su lengua, en cambio, sobrevivió. En Paraguay, el guaraní es idioma oficial y lo habla la mayoría de la gente. Es el único país de América donde pasa eso."],
+        [78.86, 83.78, "Así que la próxima vez que tomes mate, acuérdate: es un regalo guaraní."],
+        [83.78, 85.77, "Si te gustó, dale like."],
       ];
       const KEY = new Set(["mate", "inventó", "guaraníes", "500", "lengua", "murió", "paraguay", "argentina", "brasil", "mandioca", "maíz", "yerba", "calabaza", "caña", "guaraní", "ñandú", "yacaré", "ananá", "iguazú", "agua", "grande", "jesuitas", "30", "misiones", "100", "bandeirantes", "esclavos", "1641", "mbororé", "1767", "ruinas", "sobrevivió", "oficial", "mayoría", "único", "regalo", "like"]);
       // time at fraction f (0..1) of narration block i
       const at = (i, f) => BLOCKS[i][0] + f * (BLOCKS[i][1] - BLOCKS[i][0]);
 
+      // start time of every caption word, from the ElevenLabs narration (seconds)
+      const WT = [2.55, 3.03, 3.878, 4.11, 4.363, 4.502, 5.17, 5.483, 5.636, 6.43, 6.876, 7.495, 7.601, 7.748, 8.14, 8.321, 9.068, 9.588, 9.681, 9.852, 10.268, 10.708, 11.527, 11.854, 12.014, 12.267, 12.427, 12.566, 13.314, 14.001, 14.294, 14.454, 15.284, 15.688, 16.196, 16.589, 16.716, 16.836, 17.216, 17.336, 17.683, 17.763, 17.876, 18.116, 18.349, 18.496, 19.283, 19.376, 19.843, 19.952, 20.616, 20.803, 20.916, 21.149, 21.336, 22.159, 22.935, 23.487, 23.607, 24.207, 24.287, 24.687, 24.86, 25.154, 25.234, 25.367, 25.751, 26.06, 26.207, 26.387, 27.167, 27.347, 27.607, 27.975, 28.231, 29.127, 29.642, 30.038, 30.238, 30.638, 31.078, 31.23, 32.238, 33.118, 34.158, 35.028, 35.34, 36.08, 36.212, 36.988, 37.569, 38.22, 38.78, 39.168, 39.295, 40.148, 40.308, 40.881, 41.268, 41.441, 41.788, 42.148, 42.588, 43.348, 43.508, 44.507, 45.023, 45.473, 45.646, 45.833, 46.073, 46.361, 47.153, 47.22, 47.337, 47.873, 47.966, 48.126, 48.66, 48.745, 49.473, 50.079, 50.47, 50.862, 51.035, 52.082, 52.769, 52.875, 53.855, 54.181, 55.931, 56.173, 56.901, 57.081, 57.368, 57.481, 58.181, 58.341, 58.808, 58.914, 59.061, 59.554, 59.861, 60.931, 61.29, 63.197, 63.303, 63.517, 63.627, 64.05, 64.57, 64.65, 64.83, 65.61, 65.69, 65.85, 66.418, 66.957, 67.063, 67.911, 68.286, 68.915, 69.079, 69.722, 70.775, 71.105, 71.812, 71.913, 72.398, 72.565, 72.985, 73.625, 73.758, 73.905, 74.158, 74.335, 74.852, 74.932, 75.052, 75.847, 76.238, 76.385, 76.665, 77.078, 77.3, 77.585, 77.865, 78.265, 78.905, 79.324, 79.437, 79.594, 79.984, 80.144, 80.317, 80.648, 81.224, 82.237, 82.371, 82.504, 83.016, 83.834, 84.144, 84.315, 84.971, 85.291];
       const WORDS = [];
       BLOCKS.forEach(([a, b, txt]) => {
         const ws = txt.split(/\s+/);
         const span = (b - 0.35 - a) / ws.length;
-        ws.forEach((w, i) => WORDS.push({ w, t: a + i * span, key: KEY.has(w.toLowerCase().replace(/[^\wáéíóúñü]/g, "")) }));
+        ws.forEach((w, i) => WORDS.push({ w, t: WT[WORDS.length] ?? a + i * span, key: KEY.has(w.toLowerCase().replace(/[^\wáéíóúñü]/g, "")) }));
       });
       // captions: chunks of 3 words, word by word; keywords in yellow
       function captions(t) {

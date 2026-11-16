@@ -18,7 +18,8 @@ NUM = {"168": "ciento sesenta y ocho", "1532": "mil quinientos treinta y dos",
        "1562": "mil quinientos sesenta y dos", "30": "treinta",
        "61": "sesenta y uno", "1492": "mil cuatrocientos noventa y dos", "2003": "dos mil tres", "6": "seis", "10": "diez",
        "300": "trescientos", "1541": "mil quinientos cuarenta y uno", "1553": "mil quinientos cincuenta y tres", "19": "diecinueve",
-       "1598": "mil quinientos noventa y ocho", "1641": "mil seiscientos cuarenta y uno", "1880": "mil ochocientos ochenta"}
+       "1598": "mil quinientos noventa y ocho", "1641": "mil seiscientos cuarenta y uno", "1880": "mil ochocientos ochenta",
+       "100": "cien", "1767": "mil setecientos sesenta y siete"}
 # whole words the voice should read a certain way (punctuation is kept)
 SAY = {"ADN": "a de ene"}
 # emotion tags for eleven_v3, inserted before a block that starts with these words (not shown in captions)

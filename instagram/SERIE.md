@@ -12,7 +12,7 @@ Usuarios libres en YouTube al 9/11/2026: `@siglosenpalitos` (el principal) y `@s
 | 3 | Mayas | ✅ Listo con voz (`reels/03-mayas/out/reel-03-mayas.mp4`) |
 | 4 | Taínos | ✅ Listo con voz (`reels/04-tainos/out/reel-04-tainos.mp4`, 1:25) |
 | 5 | Mapuches | ✅ Listo con voz (`reels/05-mapuches/out/reel-05-mapuches.mp4`, 1:34) |
-| 6 | Guaraníes | Animado sin voz (`reels/06-guaranies`, guion `guiones/06-guaranies.md`, hook B 82); falta OK para la voz |
+| 6 | Guaraníes | ✅ Listo con voz (`reels/06-guaranies/out/reel-06-guaranies.mp4`, 1:27) |
 
 ## Capítulos sueltos para después (quedaron fuera de la serie)
 
